@@ -238,12 +238,12 @@ export default function HomePage() {
               <div className="flex gap-8">
                 <a
                   className="contents"
-                  href="https://github.com/mendableai/open-lovable"
+                  href="https://github.com/SammyTourani/Argus"
                   target="_blank"
                 >
                   <ButtonUI variant="tertiary">
                     <GithubIcon />
-                    Use this Template
+                    View on GitHub
                   </ButtonUI>
                 </a>
               </div>
@@ -270,7 +270,7 @@ export default function HomePage() {
                 href="#"
                 onClick={(e) => e.preventDefault()}
               >
-                Powered by Firecrawl.
+                Multi-Agent Code Review & Collaboration Platform
               </Link>
             </div>
           </div>

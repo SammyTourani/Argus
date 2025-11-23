@@ -26,8 +26,8 @@ const robotoMono = Roboto_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Open Lovable v3",
-  description: "Re-imagine any website in seconds with AI-powered website builder.",
+  title: "Argus",
+  description: "Multi-Agent Code Review & Collaboration Platform",
 };
 
 export default function RootLayout({
