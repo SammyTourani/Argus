@@ -4,8 +4,7 @@ export default function HomeHeroBadge() {
   return (
     <Link
       className="p-4 rounded-full flex w-max mx-auto mb-12 lg:mb-16 items-center relative inside-border before:border-border-faint group"
-      href="#"
-      onClick={(e) => e.preventDefault()}
+      href="/generation"
     >
       <div className="px-8 text-label-x-small">Website Builder</div>
 

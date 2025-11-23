@@ -24,10 +24,10 @@ class SandboxManager {
     }
 
     // Try to reconnect to existing sandbox
-    
+
     try {
       const provider = SandboxFactory.create();
-      
+
       // For E2B provider, try to reconnect
       if (provider.constructor.name === 'E2BProvider') {
         // E2B sandboxes can be reconnected using the sandbox ID
@@ -43,7 +43,7 @@ class SandboxManager {
           return provider;
         }
       }
-      
+
       // For Vercel or if reconnection failed, return the new provider
       // The caller will need to handle creating a new sandbox
       return provider;
@@ -70,16 +70,24 @@ class SandboxManager {
    * Get the active sandbox provider
    */
   getActiveProvider(): SandboxProvider | null {
+    console.log('[SandboxManager] getActiveProvider called');
+    console.log('[SandboxManager] activeSandboxId:', this.activeSandboxId);
+    console.log('[SandboxManager] total sandboxes:', this.sandboxes.size);
+
     if (!this.activeSandboxId) {
+      console.warn('[SandboxManager] No active sandbox ID set');
       return null;
     }
-    
+
     const sandbox = this.sandboxes.get(this.activeSandboxId);
     if (sandbox) {
       sandbox.lastAccessed = new Date();
+      console.log('[SandboxManager] Returning active provider for:', this.activeSandboxId);
       return sandbox.provider;
     }
-    
+
+    console.warn('[SandboxManager] Active sandbox ID set but sandbox not found:', this.activeSandboxId);
+    console.warn('[SandboxManager] Available sandbox IDs:', Array.from(this.sandboxes.keys()));
     return null;
   }
 
@@ -87,11 +95,17 @@ class SandboxManager {
    * Get a specific sandbox provider
    */
   getProvider(sandboxId: string): SandboxProvider | null {
+    console.log('[SandboxManager] getProvider called for:', sandboxId);
+
     const sandbox = this.sandboxes.get(sandboxId);
     if (sandbox) {
       sandbox.lastAccessed = new Date();
+      console.log('[SandboxManager] Found provider for:', sandboxId);
       return sandbox.provider;
     }
+
+    console.warn('[SandboxManager] Provider not found for:', sandboxId);
+    console.warn('[SandboxManager] Available sandbox IDs:', Array.from(this.sandboxes.keys()));
     return null;
   }
 
@@ -118,7 +132,7 @@ class SandboxManager {
         console.error(`[SandboxManager] Error terminating sandbox ${sandboxId}:`, error);
       }
       this.sandboxes.delete(sandboxId);
-      
+
       if (this.activeSandboxId === sandboxId) {
         this.activeSandboxId = null;
       }
@@ -129,12 +143,12 @@ class SandboxManager {
    * Terminate all sandboxes
    */
   async terminateAll(): Promise<void> {
-    const promises = Array.from(this.sandboxes.values()).map(sandbox => 
-      sandbox.provider.terminate().catch(err => 
+    const promises = Array.from(this.sandboxes.values()).map(sandbox =>
+      sandbox.provider.terminate().catch(err =>
         console.error(`[SandboxManager] Error terminating sandbox ${sandbox.sandboxId}:`, err)
       )
     );
-    
+
     await Promise.all(promises);
     this.sandboxes.clear();
     this.activeSandboxId = null;
@@ -146,14 +160,14 @@ class SandboxManager {
   async cleanup(maxAge: number = 3600000): Promise<void> {
     const now = new Date();
     const toDelete: string[] = [];
-    
+
     for (const [id, info] of this.sandboxes.entries()) {
       const age = now.getTime() - info.lastAccessed.getTime();
       if (age > maxAge) {
         toDelete.push(id);
       }
     }
-    
+
     for (const id of toDelete) {
       await this.terminateSandbox(id);
     }
