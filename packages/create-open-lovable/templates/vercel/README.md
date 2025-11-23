@@ -1,11 +1,11 @@
-# Open Lovable - Vercel Sandbox
+# Argus - Vercel Sandbox
 
 This project is configured to use Vercel Sandboxes for code execution.
 
 ## Setup
 
 1. Configure Vercel authentication (see below)
-2. Get your Firecrawl API key from [https://firecrawl.dev](https://firecrawl.dev)
+2. Get your Argus API key from [https://argus.dev](https://argus.dev)
 3. Copy `.env.example` to `.env` and add your credentials
 4. Run `npm install` to install dependencies
 5. Run `npm run dev` to start the development server

@@ -136,7 +136,7 @@ async function copyMainProject(mainProjectPath, projectPath, sandbox) {
 }
 
 async function createEnvFile(projectPath, sandbox, answers) {
-  let envContent = '# Open Lovable Configuration\n\n';
+  let envContent = '# Argus Configuration\n\n';
   
   // Sandbox provider
   envContent += `# Sandbox Provider\n`;
@@ -144,7 +144,7 @@ async function createEnvFile(projectPath, sandbox, answers) {
   
   // Required keys
   envContent += `# REQUIRED - Web scraping for cloning websites\n`;
-  envContent += `FIRECRAWL_API_KEY=${answers.firecrawlApiKey || 'your_firecrawl_api_key_here'}\n\n`;
+  envContent += `ARGUS_API_KEY=${answers.argusApiKey || 'your_argus_api_key_here'}\n\n`;
   
   if (sandbox === 'e2b') {
     envContent += `# REQUIRED - E2B Sandboxes\n`;
@@ -193,14 +193,14 @@ async function createEnvFile(projectPath, sandbox, answers) {
 }
 
 async function createEnvExample(projectPath, sandbox) {
-  let envContent = '# Open Lovable Configuration\n\n';
+  let envContent = '# Argus Configuration\n\n';
   
   envContent += `# Sandbox Provider\n`;
   envContent += `SANDBOX_PROVIDER=${sandbox}\n\n`;
   
   envContent += `# REQUIRED - Web scraping for cloning websites\n`;
-  envContent += `# Get yours at https://firecrawl.dev\n`;
-  envContent += `FIRECRAWL_API_KEY=your_firecrawl_api_key_here\n\n`;
+  envContent += `# Get yours at https://argus.dev\n`;
+  envContent += `ARGUS_API_KEY=your_argus_api_key_here\n\n`;
   
   if (sandbox === 'e2b') {
     envContent += `# REQUIRED - Sandboxes for code execution\n`;

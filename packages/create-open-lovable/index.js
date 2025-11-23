@@ -15,9 +15,9 @@ const __dirname = path.dirname(__filename);
 const program = new Command();
 
 program
-  .name('create-open-lovable')
-  .description('Create a new Open Lovable project with your choice of sandbox provider')
-  .version('1.0.0')
+  .name('create-argus')
+  .description('Create a new Argus project with your choice of sandbox provider')
+  .version('0.1.0')
   .option('-s, --sandbox <provider>', 'Sandbox provider (e2b or vercel)')
   .option('-n, --name <name>', 'Project name')
   .option('-p, --path <path>', 'Installation path (defaults to current directory)')
@@ -28,11 +28,11 @@ program
 const options = program.opts();
 
 async function main() {
-  console.log(chalk.cyan('\n🚀 Welcome to Open Lovable Setup!\n'));
+  console.log(chalk.cyan('\n🚀 Welcome to Argus Setup!\n'));
 
   let config = {
     sandbox: options.sandbox,
-    name: options.name || 'my-open-lovable',
+    name: options.name || 'my-argus',
     path: options.path || process.cwd(),
     skipInstall: options.skipInstall || false,
     dryRun: options.dryRun || false

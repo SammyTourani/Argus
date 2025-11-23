@@ -6,7 +6,7 @@ export function getPrompts(config) {
       type: 'input',
       name: 'name',
       message: 'Project name:',
-      default: 'my-open-lovable',
+      default: 'my-argus',
       validate: (input) => {
         if (!input || input.trim() === '') {
           return 'Project name is required';
@@ -53,14 +53,14 @@ export function getPrompts(config) {
 export function getEnvPrompts(provider) {
   const prompts = [];
 
-  // Always include Firecrawl API key
+  // Always include Argus API key
   prompts.push({
     type: 'input',
-    name: 'firecrawlApiKey',
-    message: 'Firecrawl API key (for web scraping):',
+    name: 'argusApiKey',
+    message: 'Argus API key (for web scraping):',
     validate: (input) => {
       if (!input || input.trim() === '') {
-        return 'Firecrawl API key is required for web scraping functionality';
+        return 'Argus API key is required for web scraping functionality';
       }
       return true;
     }
