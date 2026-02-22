@@ -1,6 +1,8 @@
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+function getResend() {
+  return new Resend(process.env.RESEND_API_KEY || 're_placeholder')
+}
 
 const FROM = 'Argus <hello@argus.build>'
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://argus-six-omega.vercel.app'
@@ -57,7 +59,7 @@ export async function sendWelcomeEmail(to: string, name?: string) {
     <p style="color: rgba(255,255,255,0.5)">— Sammy, founder of Argus</p>
   `)
 
-  return resend.emails.send({
+  return getResend().emails.send({
     from: FROM,
     to,
     subject: 'Welcome to Argus — let\'s build something',
@@ -80,7 +82,7 @@ export async function sendFirstBuildPrompt(to: string, name?: string) {
     <p style="color: rgba(255,255,255,0.4); font-size: 13px;">You have 3 free builds this month. No credit card required.</p>
   `)
 
-  return resend.emails.send({
+  return getResend().emails.send({
     from: FROM,
     to,
     subject: 'Your 3 free builds are waiting',
@@ -102,7 +104,7 @@ export async function sendUpgradePrompt(to: string, buildsUsed: number) {
     <p style="color: rgba(255,255,255,0.4); font-size: 13px;">Or wait until the 1st for your free tier to reset.</p>
   `)
 
-  return resend.emails.send({
+  return getResend().emails.send({
     from: FROM,
     to,
     subject: `You've used ${buildsUsed}/3 free builds this month`,
@@ -125,7 +127,7 @@ export async function sendSubscriptionConfirmed(to: string, name?: string) {
     <p style="color: rgba(255,255,255,0.4); font-size: 13px;">Questions about your subscription? <a href="${SITE_URL}/dashboard" style="color: #FA4500">Manage billing →</a></p>
   `)
 
-  return resend.emails.send({
+  return getResend().emails.send({
     from: FROM,
     to,
     subject: 'You\'re on Argus Pro ⚡',
@@ -143,7 +145,7 @@ export async function sendSubscriptionCanceled(to: string, endsAt?: string) {
     <p style="color: rgba(255,255,255,0.4); font-size: 13px;">No hard feelings. If you'd like to share feedback, just reply to this email.</p>
   `)
 
-  return resend.emails.send({
+  return getResend().emails.send({
     from: FROM,
     to,
     subject: 'Your Argus Pro subscription is ending',
