@@ -1,8 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { motion, useScroll, useTransform } from 'framer-motion'
-import { useRef } from 'react'
+import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion'
+import { useRef, useState } from 'react'
 import {
   Brain,
   Monitor,
@@ -15,6 +15,7 @@ import {
   Play,
   Check,
   ExternalLink,
+  ChevronDown,
 } from 'lucide-react'
 
 /* ─── Animation Variants ────────────────────────────────────────────── */
@@ -100,12 +101,40 @@ const steps = [
 ]
 
 const logos = [
-  'Google',
-  'Microsoft',
-  'Vercel',
   'Anthropic',
+  'Google DeepMind',
   'Y Combinator',
+  'Vercel',
   'Stripe',
+  'GitHub',
+  'OpenAI',
+]
+
+const faqs = [
+  {
+    q: 'Is Argus free to use?',
+    a: 'Yes. You get 3 free builds per month, forever. No credit card required.',
+  },
+  {
+    q: 'What websites can Argus clone?',
+    a: 'Any publicly accessible website. Argus works best with marketing pages, landing pages, and product websites.',
+  },
+  {
+    q: 'Which AI models does Argus use?',
+    a: 'Claude Opus 4.6 (best quality), Gemini 2.5 Pro (fast), GPT-4o, and Kimi K2 (speed). You choose.',
+  },
+  {
+    q: 'Can I edit the cloned website?',
+    a: 'Yes. After generation, use the iterative AI chat to modify elements, add features, or change styles.',
+  },
+  {
+    q: 'How do I get the code?',
+    a: 'Export the generated code directly from the sandbox preview. Pro users can also deploy directly.',
+  },
+  {
+    q: "What's included in Pro?",
+    a: 'Unlimited builds, priority sandbox (faster generation), all features, iterative AI editing, and brand style extension.',
+  },
 ]
 
 const pricingPlans = [
@@ -612,15 +641,17 @@ export default function LandingPage() {
                 className="p-7 rounded-2xl cursor-default transition-all duration-300"
                 style={{
                   background: 'rgba(255,255,255,0.02)',
-                  border: '1px solid rgba(255,255,255,0.07)',
+                  border: '1px solid rgba(255,255,255,0.1)',
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
-                  e.currentTarget.style.borderColor = 'rgba(250,69,0,0.3)'
+                  e.currentTarget.style.borderColor = 'rgba(250,69,0,0.5)'
+                  e.currentTarget.style.boxShadow = '0 0 24px rgba(250,69,0,0.08)'
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.background = 'rgba(255,255,255,0.02)'
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)'
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'
+                  e.currentTarget.style.boxShadow = 'none'
                 }}
               >
                 <div
@@ -725,6 +756,9 @@ export default function LandingPage() {
           </motion.div>
         </div>
       </section>
+
+      {/* ─── FAQ Section ────────────────────────────────────────── */}
+      <FAQSection />
 
       {/* ─── Pricing Section ────────────────────────────────────── */}
       <section id="pricing" className="py-24 md:py-32 px-6">
@@ -954,6 +988,8 @@ export default function LandingPage() {
           <div className="flex items-center gap-6">
             {[
               { label: 'Pricing', href: '#pricing', external: false },
+              { label: 'Privacy', href: '/privacy', external: false },
+              { label: 'Terms', href: '/terms', external: false },
               {
                 label: 'GitHub',
                 href: 'https://github.com/SammyTourani/Argus',
@@ -961,7 +997,7 @@ export default function LandingPage() {
               },
               {
                 label: 'Twitter',
-                href: 'https://x.com',
+                href: 'https://x.com/sammytourani',
                 external: true,
               },
               { label: 'Sign in', href: '/sign-in', external: false },
@@ -998,5 +1034,86 @@ export default function LandingPage() {
         </div>
       </footer>
     </div>
+  )
+}
+
+/* ─── FAQ Accordion Component ────────────────────────────────────── */
+
+function FAQSection() {
+  const [openIndex, setOpenIndex] = useState<number | null>(null)
+
+  return (
+    <section className="py-24 md:py-32 px-6">
+      <div className="max-w-[700px] mx-auto">
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-80px' }}
+          className="text-center mb-16"
+        >
+          <motion.h2
+            variants={itemVariants}
+            className="text-[40px] md:text-[52px] font-bold leading-tight mb-4 text-white"
+            style={{ letterSpacing: '-0.03em' }}
+          >
+            Frequently asked questions
+          </motion.h2>
+        </motion.div>
+
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-80px' }}
+          className="space-y-2"
+        >
+          {faqs.map((faq, i) => (
+            <motion.div
+              key={i}
+              variants={itemVariants}
+              className="rounded-xl overflow-hidden"
+              style={{
+                border: '1px solid rgba(255,255,255,0.08)',
+                background: openIndex === i ? 'rgba(255,255,255,0.03)' : 'transparent',
+              }}
+            >
+              <button
+                onClick={() => setOpenIndex(openIndex === i ? null : i)}
+                className="w-full flex items-center justify-between px-6 py-5 text-left transition-colors duration-200"
+              >
+                <span className="text-[15px] font-medium text-white pr-4">{faq.q}</span>
+                <ChevronDown
+                  size={18}
+                  className="shrink-0 transition-transform duration-200"
+                  style={{
+                    color: 'rgba(255,255,255,0.3)',
+                    transform: openIndex === i ? 'rotate(180deg)' : 'rotate(0deg)',
+                  }}
+                />
+              </button>
+              <AnimatePresence>
+                {openIndex === i && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden"
+                  >
+                    <p
+                      className="px-6 pb-5 text-[14px] leading-[1.7]"
+                      style={{ color: 'rgba(255,255,255,0.5)' }}
+                    >
+                      {faq.a}
+                    </p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          ))}
+        </motion.div>
+      </div>
+    </section>
   )
 }
