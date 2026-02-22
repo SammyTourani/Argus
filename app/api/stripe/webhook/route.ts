@@ -75,8 +75,10 @@ export async function POST(request: Request) {
         // Send cancellation email
         try {
           if (profile.email) {
-            const endsAt = subscription.current_period_end
-              ? new Date(subscription.current_period_end * 1000).toLocaleDateString()
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const periodEnd = (subscription as any).current_period_end as number | undefined;
+            const endsAt = periodEnd
+              ? new Date(periodEnd * 1000).toLocaleDateString()
               : undefined;
             await sendSubscriptionCanceled(profile.email, endsAt);
           }
