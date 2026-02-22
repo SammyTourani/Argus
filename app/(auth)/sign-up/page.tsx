@@ -51,19 +51,20 @@ export default function SignUpPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-background-base flex items-center justify-center px-16">
+      <div className="min-h-screen flex items-center justify-center px-16" style={{ background: '#080808' }}>
         <div className="w-full max-w-[400px] text-center">
-          <div className="bg-white rounded-20 p-32" style={{
-            boxShadow: '0px 0px 0px 1px rgba(0, 0, 0, 0.05), 0px 2px 8px rgba(0, 0, 0, 0.04)'
+          <div className="rounded-20 p-32" style={{
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.08)',
           }}>
             <div className="w-48 h-48 rounded-full mx-auto mb-16 flex items-center justify-center" style={{ background: '#FA4500' }}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="20 6 9 17 4 12" />
               </svg>
             </div>
-            <h2 className="text-[20px] font-semibold text-accent-black mb-8">Check your email</h2>
-            <p className="text-body-medium text-black-alpha-48">
-              We sent a confirmation link to <strong className="text-accent-black">{email}</strong>. Click it to activate your account.
+            <h2 className="text-[20px] font-semibold text-white mb-8">Check your email</h2>
+            <p className="text-body-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>
+              We sent a confirmation link to <strong className="text-white">{email}</strong>. Click it to activate your account.
             </p>
           </div>
         </div>

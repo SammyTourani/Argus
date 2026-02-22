@@ -33,24 +33,45 @@ async function getUserTier(userId: string): Promise<string> {
   return data?.subscription_status || 'free';
 }
 
-export async function POST() {
-  // Rate limiting for free users
-  if (ratelimit) {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const tier = await getUserTier(user.id);
-      if (tier === 'free') {
-        const { success } = await ratelimit.limit(user.id);
-        if (!success) {
-          return NextResponse.json(
-            { error: 'Monthly build limit reached. Upgrade to Pro for unlimited builds.' },
-            { status: 429 }
-          );
-        }
+export async function POST(request: Request) {
+  // Auth + Rate limiting for free users
+  let currentUser: any = null;
+  const supabaseAuth = await createClient();
+  const { data: { user } } = await supabaseAuth.auth.getUser();
+  currentUser = user;
+
+  if (user && ratelimit) {
+    const tier = await getUserTier(user.id);
+    if (tier === 'free') {
+      const { success } = await ratelimit.limit(user.id);
+      if (!success) {
+        return NextResponse.json(
+          { error: 'Monthly build limit reached. Upgrade to Pro for unlimited builds.' },
+          { status: 429 }
+        );
       }
     }
   }
+
+  // Log build start
+  if (currentUser) {
+    try {
+      const supabase = await createClient();
+      let body: any = {};
+      try { body = await request.clone().json(); } catch {}
+      await supabase.from('builds').insert({
+        user_id: currentUser.id,
+        input_url: body.url || null,
+        input_prompt: body.prompt || null,
+        style: body.style || null,
+        model: body.model || null,
+        status: 'generating',
+      });
+    } catch (e) {
+      console.error('[create-ai-sandbox] Failed to log build:', e);
+    }
+  }
+
   // Check if sandbox creation is already in progress
   if (global.sandboxCreationInProgress && global.sandboxCreationPromise) {
     console.log('[create-ai-sandbox] Sandbox creation already in progress, waiting for existing creation...');
