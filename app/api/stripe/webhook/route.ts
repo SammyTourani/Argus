@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getStripe } from '@/lib/stripe/config';
 import Stripe from 'stripe';
 import { createClient as createServiceClient } from '@supabase/supabase-js';
+import { sendSubscriptionConfirmed, sendSubscriptionCanceled } from '@/lib/email';
 
 function getSupabaseAdmin() {
   return createServiceClient(
@@ -40,6 +41,18 @@ export async function POST(request: Request) {
           subscription_id: session.subscription as string,
           updated_at: new Date().toISOString(),
         }).eq('id', userId);
+        
+        // Send subscription confirmed email
+        try {
+          const { data: profile } = await supabaseAdmin
+            .from('profiles')
+            .select('email, full_name')
+            .eq('id', userId)
+            .single();
+          if (profile?.email) {
+            await sendSubscriptionConfirmed(profile.email, profile.full_name);
+          }
+        } catch (e) { console.error('[webhook] Failed to send subscription email:', e); }
       }
       break;
     }
@@ -49,7 +62,7 @@ export async function POST(request: Request) {
       const customerId = subscription.customer as string;
       const { data: profile } = await supabaseAdmin
         .from('profiles')
-        .select('id')
+        .select('id, email, full_name')
         .eq('stripe_customer_id', customerId)
         .single();
       if (profile) {
@@ -58,6 +71,16 @@ export async function POST(request: Request) {
           subscription_id: null,
           updated_at: new Date().toISOString(),
         }).eq('id', profile.id);
+        
+        // Send cancellation email
+        try {
+          if (profile.email) {
+            const endsAt = subscription.current_period_end
+              ? new Date(subscription.current_period_end * 1000).toLocaleDateString()
+              : undefined;
+            await sendSubscriptionCanceled(profile.email, endsAt);
+          }
+        } catch (e) { console.error('[webhook] Failed to send cancellation email:', e); }
       }
       break;
     }
