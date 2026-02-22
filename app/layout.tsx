@@ -26,8 +26,8 @@ const robotoMono = Roboto_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Argus",
-  description: "Multi-Agent Code Review & Collaboration Platform",
+  title: "Argus — Clone any website in seconds with AI",
+  description: "Enter a URL, pick a style, and Argus rebuilds it using AI in a sandboxed environment. Powered by multi-model AI and real-time preview.",
 };
 
 export default function RootLayout({

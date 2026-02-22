@@ -19,7 +19,7 @@ export default function BuilderPage() {
     const style = sessionStorage.getItem('selectedStyle');
     
     if (!url) {
-      router.push('/');
+      router.push('/app');
       return;
     }
     
@@ -201,7 +201,7 @@ export default function BuilderPage() {
       console.error("Error generating website:", error);
       toast.error("Failed to generate website. Please try again.");
       setProgress("Error occurred");
-      setTimeout(() => router.push('/'), 2000);
+      setTimeout(() => router.push('/app'), 2000);
     }
   };
   
@@ -253,7 +253,7 @@ export default function BuilderPage() {
             )}
             
             <button
-              onClick={() => router.push('/')}
+              onClick={() => router.push('/app')}
               className="w-full py-12 px-16 bg-black-alpha-4 hover:bg-black-alpha-6 rounded-10 text-label-medium transition-all"
             >
               Start Over

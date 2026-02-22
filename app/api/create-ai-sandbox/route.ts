@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { Sandbox } from '@vercel/sandbox';
 import type { SandboxState } from '@/types/sandbox';
 import { appConfig } from '@/config/app.config';
+import { Ratelimit } from '@upstash/ratelimit';
+import { Redis } from '@upstash/redis';
+import { createClient } from '@/lib/supabase/server';
 
 // Store active sandbox globally
 declare global {
@@ -13,7 +16,41 @@ declare global {
   var sandboxCreationPromise: Promise<any> | null;
 }
 
+const ratelimit = process.env.UPSTASH_REDIS_REST_URL
+  ? new Ratelimit({
+      redis: Redis.fromEnv(),
+      limiter: Ratelimit.slidingWindow(3, '30 d'),
+    })
+  : null;
+
+async function getUserTier(userId: string): Promise<string> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from('profiles')
+    .select('subscription_status')
+    .eq('id', userId)
+    .single();
+  return data?.subscription_status || 'free';
+}
+
 export async function POST() {
+  // Rate limiting for free users
+  if (ratelimit) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const tier = await getUserTier(user.id);
+      if (tier === 'free') {
+        const { success } = await ratelimit.limit(user.id);
+        if (!success) {
+          return NextResponse.json(
+            { error: 'Monthly build limit reached. Upgrade to Pro for unlimited builds.' },
+            { status: 429 }
+          );
+        }
+      }
+    }
+  }
   // Check if sandbox creation is already in progress
   if (global.sandboxCreationInProgress && global.sandboxCreationPromise) {
     console.log('[create-ai-sandbox] Sandbox creation already in progress, waiting for existing creation...');
