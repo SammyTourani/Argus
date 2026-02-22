@@ -26,8 +26,33 @@ const robotoMono = Roboto_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Argus — Clone any website in seconds with AI",
-  description: "Enter a URL, pick a style, and Argus rebuilds it using AI in a sandboxed environment. Powered by multi-model AI and real-time preview.",
+  title: 'Argus — Clone any website with AI',
+  description: 'Enter any URL. Argus scrapes it, extracts the design system, and rebuilds it in a sandboxed environment. Powered by Claude Opus 4.6, Gemini 2.5 Pro, and Kimi K2.',
+  openGraph: {
+    title: 'Argus — Clone any website with AI',
+    description: 'Enter any URL and watch Argus clone it in seconds.',
+    url: 'https://argus.build',
+    siteName: 'Argus',
+    images: [{ url: '/og-image.png', width: 1200, height: 630 }],
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Argus — Clone any website with AI',
+    description: 'Enter any URL and watch Argus clone it in seconds.',
+    images: ['/og-image.png'],
+    creator: '@sammytourani',
+  },
+  keywords: ['AI website cloner', 'website builder', 'AI tools', 'web scraping', 'Argus'],
+  robots: { index: true, follow: true },
+  icons: {
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico', type: 'image/x-icon' },
+    ],
+    apple: '/favicon.svg',
+  },
 };
 
 export default function RootLayout({
