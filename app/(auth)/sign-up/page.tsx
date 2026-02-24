@@ -51,20 +51,30 @@ export default function SignUpPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-16" style={{ background: '#080808' }}>
+      <div
+        className="min-h-screen flex items-center justify-center px-16"
+        style={{ background: '#080808' }}
+      >
         <div className="w-full max-w-[400px] text-center">
-          <div className="rounded-20 p-32" style={{
-            background: 'rgba(255,255,255,0.04)',
-            border: '1px solid rgba(255,255,255,0.08)',
-          }}>
-            <div className="w-48 h-48 rounded-full mx-auto mb-16 flex items-center justify-center" style={{ background: '#FA4500' }}>
+          <div
+            className="rounded-20 p-32"
+            style={{
+              background: '#0e0e0e',
+              border: '1px solid rgba(255,255,255,0.08)',
+            }}
+          >
+            <div
+              className="w-48 h-48 rounded-full mx-auto mb-16 flex items-center justify-center"
+              style={{ background: '#FA4500' }}
+            >
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="20 6 9 17 4 12" />
               </svg>
             </div>
             <h2 className="text-[20px] font-semibold text-white mb-8">Check your email</h2>
             <p className="text-body-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>
-              We sent a confirmation link to <strong className="text-white">{email}</strong>. Click it to activate your account.
+              We sent a confirmation link to{' '}
+              <strong className="text-white">{email}</strong>. Click it to activate your account.
             </p>
           </div>
         </div>
@@ -73,21 +83,62 @@ export default function SignUpPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background-base flex items-center justify-center px-16">
-      <div className="w-full max-w-[400px]">
+    <div
+      className="min-h-screen flex items-center justify-center px-16 relative overflow-hidden"
+      style={{ background: '#080808' }}
+    >
+      {/* Faint backdrop wordmark */}
+      <div
+        className="absolute inset-0 flex items-center justify-center pointer-events-none select-none"
+        aria-hidden="true"
+      >
+        <span
+          className="font-bold tracking-[0.25em] uppercase"
+          style={{
+            fontSize: 'clamp(80px, 20vw, 200px)',
+            color: 'rgba(255,255,255,0.018)',
+            letterSpacing: '0.3em',
+          }}
+        >
+          ARGUS
+        </span>
+      </div>
+
+      <div className="w-full max-w-[400px] relative z-10">
+        {/* Logo / wordmark */}
         <div className="text-center mb-32">
           <Link href="/" className="inline-block mb-16">
-            <h1 className="text-[28px] font-bold tracking-tight text-accent-black">Argus</h1>
+            <h1
+              className="text-[28px] font-bold tracking-tight"
+              style={{ color: '#FA4500' }}
+            >
+              Argus
+            </h1>
           </Link>
-          <p className="text-body-medium text-black-alpha-48">Create your account</p>
+          <p className="text-body-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>
+            Create your account
+          </p>
         </div>
 
-        <div className="bg-white rounded-20 p-32" style={{
-          boxShadow: '0px 0px 0px 1px rgba(0, 0, 0, 0.05), 0px 2px 8px rgba(0, 0, 0, 0.04)'
-        }}>
+        {/* Card */}
+        <div
+          className="rounded-20 p-32"
+          style={{
+            background: '#0e0e0e',
+            border: '1px solid rgba(255,255,255,0.08)',
+          }}
+        >
+          {/* Google OAuth */}
           <button
             onClick={handleGoogleSignUp}
-            className="w-full flex items-center justify-center gap-8 px-16 py-12 rounded-10 border border-border-muted hover:bg-gray-50 transition-colors text-label-medium font-medium text-accent-black"
+            className="w-full flex items-center justify-center gap-8 px-16 py-12 rounded-10 transition-colors text-label-medium font-medium"
+            style={{
+              background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.10)',
+              color: 'rgba(255,255,255,0.85)',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.09)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
           >
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
               <path d="M17.64 9.205c0-.639-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615Z" fill="#4285F4"/>
@@ -98,15 +149,21 @@ export default function SignUpPage() {
             Continue with Google
           </button>
 
+          {/* Divider */}
           <div className="flex items-center gap-12 my-20">
-            <div className="flex-1 h-[1px] bg-border-faint" />
-            <span className="text-label-small text-black-alpha-32">or</span>
-            <div className="flex-1 h-[1px] bg-border-faint" />
+            <div className="flex-1 h-[1px]" style={{ background: 'rgba(255,255,255,0.08)' }} />
+            <span className="text-label-small" style={{ color: 'rgba(255,255,255,0.3)' }}>or</span>
+            <div className="flex-1 h-[1px]" style={{ background: 'rgba(255,255,255,0.08)' }} />
           </div>
 
+          {/* Sign-up form */}
           <form onSubmit={handleEmailSignUp} className="space-y-12">
             <div>
-              <label htmlFor="name" className="block text-label-small font-medium text-black-alpha-72 mb-4">
+              <label
+                htmlFor="name"
+                className="block text-label-small font-medium mb-4"
+                style={{ color: 'rgba(255,255,255,0.6)' }}
+              >
                 Full name
               </label>
               <input
@@ -114,12 +171,23 @@ export default function SignUpPage() {
                 type="text"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                className="w-full px-12 py-10 rounded-8 border border-border-muted text-body-medium text-accent-black placeholder:text-black-alpha-32 focus:outline-none focus:ring-2 focus:ring-heat-100/20 focus:border-heat-100 transition-all"
+                className="w-full px-12 py-10 rounded-8 text-body-medium transition-all focus:outline-none"
+                style={{
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.10)',
+                  color: 'white',
+                }}
+                onFocus={(e) => (e.currentTarget.style.border = '1px solid rgba(255,255,255,0.4)')}
+                onBlur={(e) => (e.currentTarget.style.border = '1px solid rgba(255,255,255,0.10)')}
                 placeholder="Your name"
               />
             </div>
             <div>
-              <label htmlFor="email" className="block text-label-small font-medium text-black-alpha-72 mb-4">
+              <label
+                htmlFor="email"
+                className="block text-label-small font-medium mb-4"
+                style={{ color: 'rgba(255,255,255,0.6)' }}
+              >
                 Email
               </label>
               <input
@@ -127,13 +195,24 @@ export default function SignUpPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-12 py-10 rounded-8 border border-border-muted text-body-medium text-accent-black placeholder:text-black-alpha-32 focus:outline-none focus:ring-2 focus:ring-heat-100/20 focus:border-heat-100 transition-all"
+                className="w-full px-12 py-10 rounded-8 text-body-medium transition-all focus:outline-none"
+                style={{
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.10)',
+                  color: 'white',
+                }}
+                onFocus={(e) => (e.currentTarget.style.border = '1px solid rgba(255,255,255,0.4)')}
+                onBlur={(e) => (e.currentTarget.style.border = '1px solid rgba(255,255,255,0.10)')}
                 placeholder="you@example.com"
                 required
               />
             </div>
             <div>
-              <label htmlFor="password" className="block text-label-small font-medium text-black-alpha-72 mb-4">
+              <label
+                htmlFor="password"
+                className="block text-label-small font-medium mb-4"
+                style={{ color: 'rgba(255,255,255,0.6)' }}
+              >
                 Password
               </label>
               <input
@@ -141,7 +220,14 @@ export default function SignUpPage() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-12 py-10 rounded-8 border border-border-muted text-body-medium text-accent-black placeholder:text-black-alpha-32 focus:outline-none focus:ring-2 focus:ring-heat-100/20 focus:border-heat-100 transition-all"
+                className="w-full px-12 py-10 rounded-8 text-body-medium transition-all focus:outline-none"
+                style={{
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.10)',
+                  color: 'white',
+                }}
+                onFocus={(e) => (e.currentTarget.style.border = '1px solid rgba(255,255,255,0.4)')}
+                onBlur={(e) => (e.currentTarget.style.border = '1px solid rgba(255,255,255,0.10)')}
                 placeholder="Min 6 characters"
                 required
                 minLength={6}
@@ -149,7 +235,14 @@ export default function SignUpPage() {
             </div>
 
             {error && (
-              <div className="text-label-small text-red-500 bg-red-50 px-12 py-8 rounded-8">
+              <div
+                className="text-label-small px-12 py-8 rounded-8"
+                style={{
+                  color: '#ff6b6b',
+                  background: 'rgba(255,107,107,0.10)',
+                  border: '1px solid rgba(255,107,107,0.20)',
+                }}
+              >
                 {error}
               </div>
             )}
@@ -165,9 +258,17 @@ export default function SignUpPage() {
           </form>
         </div>
 
-        <p className="text-center text-label-small text-black-alpha-48 mt-16">
+        {/* Footer link */}
+        <p
+          className="text-center text-label-small mt-16"
+          style={{ color: 'rgba(255,255,255,0.4)' }}
+        >
           Already have an account?{' '}
-          <Link href="/sign-in" className="text-heat-100 hover:underline font-medium">
+          <Link
+            href="/sign-in"
+            className="font-medium hover:underline"
+            style={{ color: '#FA4500' }}
+          >
             Sign in
           </Link>
         </p>
