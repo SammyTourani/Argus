@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
+import ScrambleText from '@/components/ui/motion/scramble-text'
 
 /* ── Framer helpers ─────────────────────────────────────────────── */
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
@@ -15,9 +16,9 @@ const fadeUp = (delay = 0) => ({
 })
 
 const inView = (delay = 0) => ({
-  initial: { opacity: 0, y: 24 },
+  initial: { opacity: 0.05, y: 20 },
   whileInView: { opacity: 1, y: 0 },
-  viewport: { once: true, amount: 0.05 },
+  viewport: { once: true, amount: 0.05, margin: "-100px" },
   transition: { duration: 0.6, delay, ease: EASE },
 })
 
@@ -110,14 +111,19 @@ function HeroMockup() {
 /* ── Main ───────────────────────────────────────────────────────── */
 export default function LandingPage() {
   const [heroUrl, setHeroUrl] = useState('')
+  const [isCloning, setIsCloning] = useState(false)
+  const [clonePhase, setClonePhase] = useState('')
   const router = useRouter()
 
-  const handleClone = () => {
-    if (heroUrl.trim()) {
-      router.push(`/sign-up?url=${encodeURIComponent(heroUrl.trim())}`)
-    } else {
-      router.push('/sign-up')
+  const handleClone = async () => {
+    const url = heroUrl.trim() || 'https://stripe.com'
+    setIsCloning(true)
+    const phases = ['Fetching page...', 'Analyzing design system...', 'Preparing builder...']
+    for (const phase of phases) {
+      setClonePhase(phase)
+      await new Promise(r => setTimeout(r, 500))
     }
+    router.push(`/app?url=${encodeURIComponent(url)}`)
   }
 
   const s = {
@@ -145,7 +151,9 @@ export default function LandingPage() {
       </nav>
 
       {/* ── HERO ─────────────────────────────────────────────────── */}
-      <section style={{ ...s.section, paddingTop: '100px', paddingBottom: '80px', textAlign: 'center' }}>
+      <div style={{ position: 'relative', overflow: 'hidden' }}>
+      <section style={{ ...s.section, paddingTop: '100px', paddingBottom: '80px', textAlign: 'center', position: 'relative' }}>
+        <div className="hero-dot-grid" />
         <div style={s.container}>
           <motion.div {...fadeUp(0)} style={{
             display: 'inline-flex', alignItems: 'center', gap: '6px',
@@ -157,8 +165,9 @@ export default function LandingPage() {
             WINNER · GOOGLE × CEREBRAL VALLEY HACKATHON
           </motion.div>
 
-          <motion.h1 {...fadeUp(0.1)} style={{ fontSize: 'clamp(48px, 8vw, 88px)', fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1.05, marginBottom: '24px', margin: '0 0 24px' }}>
-            Clone any website.<br />
+          <motion.h1 {...fadeUp(0.1)} style={{ fontSize: 'clamp(48px, 8vw, 88px)', fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1.05, margin: '0 0 24px' }}>
+            <ScrambleText text="Clone any website." duration={1.2} delay={400} isInView={true} />
+            <br />
             <span style={{ color: '#FA4500' }}>Ship it in seconds.</span>
           </motion.h1>
 
@@ -196,31 +205,47 @@ export default function LandingPage() {
               />
               <button
                 onClick={handleClone}
+                disabled={isCloning}
                 style={{
-                  background: '#FA4500', color: '#fff', border: 'none',
+                  background: isCloning ? 'rgba(250,69,0,0.7)' : '#FA4500',
+                  color: '#fff', border: 'none',
                   padding: '15px 24px', fontWeight: 700, fontSize: '15px',
-                  cursor: 'pointer', whiteSpace: 'nowrap', letterSpacing: '-0.01em',
+                  cursor: isCloning ? 'not-allowed' : 'pointer',
+                  whiteSpace: 'nowrap', letterSpacing: '-0.01em',
+                  minWidth: '120px', display: 'flex', alignItems: 'center', gap: '8px',
+                  justifyContent: 'center', transition: 'background 0.2s',
                 }}
               >
-                Clone it →
+                {isCloning ? (
+                  <>
+                    <span style={{ width: 12, height: 12, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.6s linear infinite' }} />
+                    {clonePhase || 'Cloning...'}
+                  </>
+                ) : 'Clone it →'}
               </button>
             </div>
-            {/* Example URLs */}
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginTop: '12px' }}>
-              {['stripe.com', 'linear.app', 'vercel.com'].map(domain => (
-                <button
-                  key={domain}
-                  onClick={() => setHeroUrl(`https://${domain}`)}
-                  style={{
-                    background: 'none', border: '1px solid rgba(255,255,255,0.08)',
-                    color: 'rgba(255,255,255,0.45)', fontSize: '13px', padding: '4px 12px',
-                    borderRadius: '6px', cursor: 'pointer', fontFamily: 'monospace',
-                  }}
-                >
-                  {domain}
-                </button>
-              ))}
-            </div>
+            {/* Example URLs / Clone phase */}
+            {isCloning ? (
+              <div style={{ marginTop: '12px', textAlign: 'center', fontSize: '13px', color: 'rgba(250,69,0,0.8)', fontFamily: 'monospace' }}>
+                {clonePhase}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginTop: '12px' }}>
+                {['stripe.com', 'linear.app', 'vercel.com'].map(domain => (
+                  <button
+                    key={domain}
+                    onClick={() => setHeroUrl(`https://${domain}`)}
+                    style={{
+                      background: 'none', border: '1px solid rgba(255,255,255,0.08)',
+                      color: 'rgba(255,255,255,0.45)', fontSize: '13px', padding: '4px 12px',
+                      borderRadius: '6px', cursor: 'pointer', fontFamily: 'monospace',
+                    }}
+                  >
+                    {domain}
+                  </button>
+                ))}
+              </div>
+            )}
           </motion.div>
 
           <motion.div {...fadeUp(0.35)} style={{ display: 'flex', gap: '20px', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '64px' }}>
@@ -237,6 +262,7 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+      </div>
 
       {/* ── TRUSTED BY ───────────────────────────────────────────── */}
       <section style={{ padding: '64px 24px' }}>
@@ -245,9 +271,18 @@ export default function LandingPage() {
             <p style={{ textAlign: 'center', fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', marginBottom: '32px' }}>
               TRUSTED BY ENGINEERS AT
             </p>
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap', gap: '40px 48px' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
               {companies.map(c => (
-                <span key={c} style={{ fontSize: '17px', fontWeight: 700, color: 'rgba(255,255,255,0.28)', letterSpacing: '-0.02em', userSelect: 'none' }}>{c}</span>
+                <div key={c} style={{
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: '6px',
+                  padding: '6px 14px',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  color: 'rgba(255,255,255,0.35)',
+                  letterSpacing: '-0.01em',
+                }}>{c}</div>
               ))}
             </div>
           </motion.div>
@@ -293,7 +328,14 @@ export default function LandingPage() {
               { n:'03', title:'Edit & deploy', desc:'Iterate with AI chat to perfect the clone. Export the code or deploy directly to production.' },
             ].map((step, i) => (
               <motion.div key={i} {...inView(i * 0.1)} style={{ padding: '40px 32px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px' }}>
-                <div style={{ fontSize: '56px', fontWeight: 800, color: '#FA4500', opacity: 0.25, letterSpacing: '-0.04em', lineHeight: 1, marginBottom: '20px' }}>{step.n}</div>
+                <div style={{
+                  width: 40, height: 40, borderRadius: '50%',
+                  background: 'rgba(250,69,0,0.1)',
+                  border: '1px solid rgba(250,69,0,0.3)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  marginBottom: '20px',
+                  fontSize: '14px', fontWeight: 800, color: '#FA4500',
+                }}>{step.n}</div>
                 <h3 style={{ fontWeight: 700, fontSize: '20px', marginBottom: '10px' }}>{step.title}</h3>
                 <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '15px', lineHeight: 1.6, margin: 0 }}>{step.desc}</p>
               </motion.div>
@@ -531,6 +573,19 @@ export default function LandingPage() {
 
       <style>{`
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes dotFade { 0%, 100% { opacity: 0.15; } 50% { opacity: 0.4; } }
+        .hero-dot-grid {
+          position: absolute;
+          inset: 0;
+          background-image: radial-gradient(circle, rgba(250,69,0,0.25) 1px, transparent 1px);
+          background-size: 32px 32px;
+          animation: dotFade 4s ease-in-out infinite;
+          pointer-events: none;
+          mask-image: radial-gradient(ellipse 80% 60% at 50% 50%, black 0%, transparent 100%);
+          -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 50%, black 0%, transparent 100%);
+          z-index: 0;
+        }
         html { scroll-behavior: smooth }
       `}</style>
     </div>
