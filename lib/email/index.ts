@@ -5,7 +5,7 @@ function getResend() {
 }
 
 const FROM = 'Argus <hello@argus.build>'
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://argus-six-omega.vercel.app'
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://buildargus.com'
 
 function baseLayout(content: string) {
   return `

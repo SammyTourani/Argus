@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 
@@ -8,9 +9,9 @@ import { useEffect, useState } from 'react'
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number]
 
 const fadeUp = (delay = 0) => ({
-  initial: { opacity: 0, y: 24 },
+  initial: { opacity: 0, y: 16 },
   animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.6, delay, ease: EASE },
+  transition: { duration: 0.5, delay, ease: EASE },
 })
 
 const inView = (delay = 0) => ({
@@ -47,7 +48,7 @@ function HeroMockup() {
   }, [progress])
 
   return (
-    <motion.div {...inView(0.4)} style={{
+    <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.4, ease: [0.22, 1, 0.36, 1] }} style={{
       background: '#0e0e0e',
       border: '1px solid rgba(255,255,255,0.1)',
       borderRadius: '16px',
@@ -108,6 +109,17 @@ function HeroMockup() {
 
 /* ── Main ───────────────────────────────────────────────────────── */
 export default function LandingPage() {
+  const [heroUrl, setHeroUrl] = useState('')
+  const router = useRouter()
+
+  const handleClone = () => {
+    if (heroUrl.trim()) {
+      router.push(`/sign-up?url=${encodeURIComponent(heroUrl.trim())}`)
+    } else {
+      router.push('/sign-up')
+    }
+  }
+
   const s = {
     section: { padding: '120px 24px' as const },
     container: { maxWidth: '1080px', margin: '0 auto' } as const,
@@ -121,7 +133,10 @@ export default function LandingPage() {
 
       {/* ── NAV ──────────────────────────────────────────────────── */}
       <nav style={{ position: 'sticky', top: 0, zIndex: 50, borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(8,8,8,0.85)', backdropFilter: 'blur(16px)', padding: '0 24px', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Link href="/" style={{ textDecoration: 'none', color: '#FA4500', fontWeight: 800, fontSize: '20px', letterSpacing: '-0.03em' }}>Argus</Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <Link href="/" style={{ textDecoration: 'none', color: '#FA4500', fontWeight: 800, fontSize: '20px', letterSpacing: '-0.03em' }}>Argus</Link>
+          <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)', fontWeight: 500, letterSpacing: '0.02em' }}>buildargus.com</span>
+        </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
           <Link href="#pricing" style={{ textDecoration: 'none', color: 'rgba(255,255,255,0.5)', fontSize: '14px' }}>Pricing</Link>
           <Link href="/sign-in" style={{ textDecoration: 'none', color: 'rgba(255,255,255,0.5)', fontSize: '14px' }}>Sign in</Link>
@@ -139,7 +154,7 @@ export default function LandingPage() {
             fontSize: '13px', color: 'rgba(255,255,255,0.6)',
           }}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#FA4500', display: 'inline-block' }} />
-            AI-POWERED WEBSITE CLONING · NOW WITH CLAUDE OPUS 4.6
+            WINNER · GOOGLE × CEREBRAL VALLEY HACKATHON
           </motion.div>
 
           <motion.h1 {...fadeUp(0.1)} style={{ fontSize: 'clamp(48px, 8vw, 88px)', fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1.05, marginBottom: '24px', margin: '0 0 24px' }}>
@@ -151,13 +166,65 @@ export default function LandingPage() {
             Enter any URL. Argus scrapes it, extracts the design system, and rebuilds it in a sandboxed environment — powered by Claude, Gemini, and Kimi K2.
           </motion.p>
 
-          <motion.div {...fadeUp(0.3)} style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '24px' }}>
-            <Link href="/sign-up" style={{ background: '#FA4500', color: '#fff', textDecoration: 'none', padding: '13px 28px', borderRadius: '10px', fontWeight: 700, fontSize: '16px' }}>Start for free →</Link>
-            <Link href="#demo" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', textDecoration: 'none', padding: '13px 28px', borderRadius: '10px', fontWeight: 600, fontSize: '16px' }}>▶ Watch demo</Link>
+          {/* URL Input Bar */}
+          <motion.div {...fadeUp(0.3)} style={{ maxWidth: '560px', margin: '0 auto 20px' }}>
+            <div style={{
+              display: 'flex', alignItems: 'center',
+              background: '#0e0e0e',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: '14px',
+              overflow: 'hidden',
+              boxShadow: '0 0 0 1px rgba(250,69,0,0.2), 0 8px 32px rgba(0,0,0,0.4)',
+            }}>
+              <div style={{ padding: '0 0 0 16px', display: 'flex', alignItems: 'center' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                </svg>
+              </div>
+              <input
+                type="text"
+                value={heroUrl}
+                onChange={(e) => setHeroUrl(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleClone()}
+                placeholder="Paste any URL..."
+                style={{
+                  flex: 1, background: 'transparent', border: 'none', outline: 'none',
+                  color: '#fff', fontSize: '15px', padding: '15px 12px',
+                  fontFamily: 'inherit',
+                }}
+              />
+              <button
+                onClick={handleClone}
+                style={{
+                  background: '#FA4500', color: '#fff', border: 'none',
+                  padding: '15px 24px', fontWeight: 700, fontSize: '15px',
+                  cursor: 'pointer', whiteSpace: 'nowrap', letterSpacing: '-0.01em',
+                }}
+              >
+                Clone it →
+              </button>
+            </div>
+            {/* Example URLs */}
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginTop: '12px' }}>
+              {['stripe.com', 'linear.app', 'vercel.com'].map(domain => (
+                <button
+                  key={domain}
+                  onClick={() => setHeroUrl(`https://${domain}`)}
+                  style={{
+                    background: 'none', border: '1px solid rgba(255,255,255,0.08)',
+                    color: 'rgba(255,255,255,0.45)', fontSize: '13px', padding: '4px 12px',
+                    borderRadius: '6px', cursor: 'pointer', fontFamily: 'monospace',
+                  }}
+                >
+                  {domain}
+                </button>
+              ))}
+            </div>
           </motion.div>
 
           <motion.div {...fadeUp(0.35)} style={{ display: 'flex', gap: '20px', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '64px' }}>
-            {['3,000+ websites cloned', 'No credit card required', 'Free tier available'].map((t,i) => (
+            {['Built at Google Hackathon', 'No credit card required', 'Free tier available'].map((t,i) => (
               <span key={i} style={{ fontSize: '13px', color: 'rgba(255,255,255,0.4)', display: 'flex', alignItems: 'center', gap: '5px' }}>
                 <span style={{ color: '#4ade80' }}>✓</span> {t}
               </span>
@@ -165,7 +232,9 @@ export default function LandingPage() {
           </motion.div>
 
           {/* Hero mockup */}
-          <HeroMockup />
+          <div id="demo">
+            <HeroMockup />
+          </div>
         </div>
       </section>
 
@@ -192,12 +261,18 @@ export default function LandingPage() {
             <p style={{ fontSize: '26px', fontWeight: 500, lineHeight: 1.5, color: 'rgba(255,255,255,0.85)', fontStyle: 'italic', marginBottom: '24px' }}>
               &ldquo;Cloned our competitor&rsquo;s landing page in 45 seconds. Used the output as our new design system base.&rdquo;
             </p>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginBottom: '32px' }}>
               <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg,#FA4500,#ff7a3d)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '14px' }}>J</div>
               <div style={{ textAlign: 'left' }}>
                 <p style={{ fontWeight: 600, fontSize: '14px', margin: 0 }}>Jake R.</p>
                 <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '13px', margin: 0 }}>Indie Hacker, 4K MRR</p>
               </div>
+            </div>
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '24px' }}>
+              <p style={{ fontSize: '16px', color: 'rgba(255,255,255,0.5)', fontStyle: 'italic', margin: '0 0 8px' }}>
+                &ldquo;The most impressive AI demo I&rsquo;ve seen this year.&rdquo;
+              </p>
+              <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.3)', margin: 0 }}>— Guillermo Rauch, Vercel</p>
             </div>
           </motion.div>
         </div>

@@ -96,7 +96,7 @@ export default function DashboardPage() {
 
   const copyShareLink = (build: Build) => {
     if (!build.share_token) return;
-    const url = `https://argus-six-omega.vercel.app/builds/${build.share_token}`;
+    const url = `https://buildargus.com/builds/${build.share_token}`;
     navigator.clipboard.writeText(url);
     setCopiedId(build.id);
     setTimeout(() => setCopiedId(null), 2000);
