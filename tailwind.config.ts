@@ -75,9 +75,11 @@ const themeConfig: Config = {
     },
     extend: {
       fontFamily: {
-        sans: ["var(--font-geist-sans)", "var(--font-inter)", ...defaultTheme.fontFamily.sans],
-        mono: ["var(--font-geist-mono)", ...defaultTheme.fontFamily.mono],
-        ascii: ["var(--font-roboto-mono)", ...defaultTheme.fontFamily.mono]
+        sans: ["var(--font-jetbrains-mono)", "var(--font-geist-mono)", ...defaultTheme.fontFamily.mono],
+        mono: ["var(--font-jetbrains-mono)", "var(--font-geist-mono)", ...defaultTheme.fontFamily.mono],
+        display: ["var(--font-jetbrains-mono)", "var(--font-geist-mono)", ...defaultTheme.fontFamily.mono],
+        ascii: ["var(--font-roboto-mono)", ...defaultTheme.fontFamily.mono],
+        body: ["var(--font-inter)", "var(--font-geist-sans)", ...defaultTheme.fontFamily.sans],
       },
       fontSize: {
         "title-h1": [

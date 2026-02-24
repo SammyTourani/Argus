@@ -1,53 +1,39 @@
 "use client";
 
 import Image from "next/image";
+import { motion } from "framer-motion";
 
 const LOGOS = [
-  "anthropic",
-  "openai",
-  "google",
-  "meta",
-  "apple",
-  "microsoft",
-  "stripe",
-  "shopify",
-  "amazon",
-  "uber",
-  "airbnb",
-  "deepmind",
-  "palantir",
-  "sentry",
-  "snowflake",
-  "zapier",
+  "anthropic", "openai", "google", "meta", "apple", "microsoft",
+  "stripe", "shopify", "amazon", "uber", "airbnb", "deepmind",
+  "palantir", "sentry", "snowflake", "zapier",
 ];
 
 export default function LogoMarquee() {
   return (
-    <section className="w-full border-t border-b border-border-faint py-24 overflow-hidden bg-background-base">
-      <div className="max-w-900 mx-auto px-16 mb-12">
-        <p className="text-label-x-small text-black-alpha-32 uppercase tracking-widest text-center">
+    <section className="w-full border-b border-[var(--landing-border)] py-40 lg:py-48 overflow-hidden">
+      <motion.div
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: true }}
+        className="max-w-900 mx-auto px-16 mb-20"
+      >
+        <p className="font-mono text-[11px] tracking-[0.2em] uppercase text-[var(--landing-text-faint)] text-center">
           Trusted by builders at
         </p>
-      </div>
+      </motion.div>
       <div className="relative">
-        {/* Fade edges */}
-        <div className="absolute left-0 top-0 bottom-0 w-40 sm:w-80 bg-gradient-to-r from-background-base to-transparent z-10 pointer-events-none" />
-        <div className="absolute right-0 top-0 bottom-0 w-40 sm:w-80 bg-gradient-to-l from-background-base to-transparent z-10 pointer-events-none" />
-
-        {/* Scrolling track */}
-        <div className="flex animate-argus-marquee" style={{ width: "fit-content" }}>
-          {/* Duplicate for seamless loop */}
+        <div className="absolute left-0 top-0 bottom-0 w-48 sm:w-96 bg-gradient-to-r from-[var(--landing-bg)] to-transparent z-10 pointer-events-none" />
+        <div className="absolute right-0 top-0 bottom-0 w-48 sm:w-96 bg-gradient-to-l from-[var(--landing-bg)] to-transparent z-10 pointer-events-none" />
+        <div className="flex animate-argus-marquee will-change-transform" style={{ width: "fit-content" }}>
           {[...LOGOS, ...LOGOS].map((logo, i) => (
-            <div
-              key={`${logo}-${i}`}
-              className="flex-shrink-0 mx-24 lg:mx-32 flex items-center"
-            >
+            <div key={`${logo}-${i}`} className="flex-shrink-0 mx-28 lg:mx-40 flex items-center">
               <Image
                 src={`/argus-assets/logos/${logo}.svg`}
                 alt={logo}
-                width={100}
-                height={28}
-                className="opacity-40 hover:opacity-60 transition-opacity h-20 lg:h-24 w-auto"
+                width={120}
+                height={36}
+                className="opacity-30 hover:opacity-50 transition-opacity h-28 lg:h-32 w-auto brightness-0"
               />
             </div>
           ))}

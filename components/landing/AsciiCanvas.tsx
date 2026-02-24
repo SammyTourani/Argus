@@ -7,22 +7,28 @@ interface AsciiCanvasProps {
   density?: number;
   opacity?: number;
   interactive?: boolean;
+  codeChars?: boolean;
 }
 
-const CHARS = ".\":,-_^=+~";
+const PUNCT_CHARS = ".\":,-_^=+~";
+const CODE_CHARS = "{}()<>/;:=01[]&|!?#@$%_+-*~^";
 
 export default function AsciiCanvas({
   className = "",
-  density = 10,
-  opacity = 0.06,
+  density = 16,
+  opacity = 0.35,
   interactive = true,
+  codeChars = true,
 }: AsciiCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mouseRef = useRef({ x: -1000, y: -1000 });
+  const scrollRef = useRef(0);
   const gridRef = useRef<
-    { x: number; y: number; char: string; changeAt: number }[]
+    { x: number; y: number; char: string; changeAt: number; seed: number }[]
   >([]);
   const parentRef = useRef<HTMLDivElement>(null);
+
+  const chars = codeChars ? CODE_CHARS : PUNCT_CHARS;
 
   const initGrid = useCallback(
     (width: number, height: number) => {
@@ -33,14 +39,15 @@ export default function AsciiCanvas({
           grid.push({
             x,
             y,
-            char: CHARS[Math.floor(Math.random() * CHARS.length)],
-            changeAt: now + 2000 + Math.random() * 3000,
+            char: chars[Math.floor(Math.random() * chars.length)],
+            changeAt: now + 500 + Math.random() * 1500,
+            seed: Math.random() * Math.PI * 2,
           });
         }
       }
       return grid;
     },
-    [density]
+    [density, chars]
   );
 
   useEffect(() => {
@@ -53,7 +60,7 @@ export default function AsciiCanvas({
     const dpr = window.devicePixelRatio || 1;
     let animId: number;
     let lastFrame = 0;
-    const targetInterval = 1000 / 24;
+    const targetInterval = 1000 / 36;
 
     const resize = () => {
       const rect = parent.getBoundingClientRect();
@@ -66,7 +73,6 @@ export default function AsciiCanvas({
     resize();
     window.addEventListener("resize", resize);
 
-    // Listen on parent for mouse events (canvas is pointer-events-none)
     const handleMouse = (e: MouseEvent) => {
       if (!interactive) return;
       const rect = parent.getBoundingClientRect();
@@ -77,10 +83,17 @@ export default function AsciiCanvas({
       mouseRef.current = { x: -1000, y: -1000 };
     };
 
+    const handleScroll = () => {
+      scrollRef.current = window.scrollY;
+    };
+
     if (interactive) {
       parent.addEventListener("mousemove", handleMouse);
       parent.addEventListener("mouseleave", handleMouseLeave);
     }
+    window.addEventListener("scroll", handleScroll, { passive: true });
+
+    const fontSize = Math.max(density - 4, 10);
 
     const draw = (time: number) => {
       animId = requestAnimationFrame(draw);
@@ -91,52 +104,67 @@ export default function AsciiCanvas({
       const rect = parent.getBoundingClientRect();
       ctx.clearRect(0, 0, rect.width, rect.height);
 
-      const isDark = document.documentElement.classList.contains("dark");
-      const charColor = isDark ? "255,255,255" : "38,38,38";
-
-      // Use actual font name, not CSS variable (canvas doesn't resolve CSS vars)
-      const fontSize = density - 2;
       ctx.font = `${fontSize}px "Roboto Mono", "Geist Mono", monospace`;
       ctx.textBaseline = "middle";
 
       const mx = mouseRef.current.x;
       const my = mouseRef.current.y;
+      const scroll = scrollRef.current;
       const centerX = rect.width / 2;
       const centerY = rect.height / 2;
 
       for (const cell of gridRef.current) {
+        // Character cycling
         if (time > cell.changeAt) {
-          cell.char = CHARS[Math.floor(Math.random() * CHARS.length)];
-          cell.changeAt = time + 2000 + Math.random() * 3000;
+          cell.char = chars[Math.floor(Math.random() * chars.length)];
+          cell.changeAt = time + 500 + Math.random() * 1500;
         }
 
-        const drift =
-          Math.sin(cell.x * 0.01 + time * 0.001) *
-          Math.sin(cell.y * 0.013 + time * 0.0007) *
-          3;
+        // Scroll-linked wave distortion
+        const scrollWave = Math.sin(
+          cell.x * 0.01 + cell.y * 0.006 + scroll * 0.004 + cell.seed
+        );
+        const timeWave = Math.sin(
+          cell.x * 0.016 + time * 0.0012 + cell.seed
+        ) * Math.cos(cell.y * 0.012 + time * 0.0008);
 
-        let drawX = cell.x + drift;
-        let drawY = cell.y + drift * 0.5;
+        let drawX = cell.x + scrollWave * 6 + timeWave * 5;
+        let drawY = cell.y + timeWave * 4 + Math.sin(cell.x * 0.02 + scroll * 0.002) * 3;
 
+        // Mouse repulsion
+        let mouseProximity = 0;
         if (interactive) {
           const dx = drawX - mx;
           const dy = drawY - my;
           const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 120 && dist > 0) {
-            const force = (120 - dist) / 120;
-            drawX += (dx / dist) * force * 8;
-            drawY += (dy / dist) * force * 8;
+          if (dist < 250 && dist > 0) {
+            const force = (250 - dist) / 250;
+            const eased = force * force;
+            drawX += (dx / dist) * eased * 35;
+            drawY += (dy / dist) * eased * 35;
+            mouseProximity = eased;
           }
         }
 
-        // Lower opacity near center so content remains readable
+        // Radial opacity falloff from center
         const distFromCenter = Math.sqrt(
-          Math.pow((drawX - centerX) / centerX, 2) +
-            Math.pow((drawY - centerY) / centerY, 2)
+          Math.pow((drawX - centerX) / (centerX || 1), 2) +
+            Math.pow((drawY - centerY) / (centerY || 1), 2)
         );
-        const cellOpacity = opacity * (0.3 + distFromCenter * 0.7);
+        const radialFade = Math.min(distFromCenter * 0.8, 1);
+        const waveBrightness = 0.6 + scrollWave * 0.2 + timeWave * 0.2;
+        const cellOpacity = opacity * radialFade * waveBrightness;
 
-        ctx.fillStyle = `rgba(${charColor}, ${cellOpacity})`;
+        if (cellOpacity < 0.01) continue;
+
+        // Orange glow near cursor, dark gray elsewhere
+        if (mouseProximity > 0.05) {
+          const orangeAlpha = cellOpacity * (0.5 + mouseProximity * 0.8);
+          ctx.fillStyle = `rgba(250, 93, 25, ${Math.min(orangeAlpha, 0.9)})`;
+        } else {
+          ctx.fillStyle = `rgba(26, 26, 26, ${cellOpacity * 0.8})`;
+        }
+
         ctx.fillText(cell.char, drawX, drawY);
       }
     };
@@ -155,13 +183,14 @@ export default function AsciiCanvas({
     return () => {
       cancelAnimationFrame(animId);
       window.removeEventListener("resize", resize);
+      window.removeEventListener("scroll", handleScroll);
       document.removeEventListener("visibilitychange", handleVisibility);
       if (interactive) {
         parent.removeEventListener("mousemove", handleMouse);
         parent.removeEventListener("mouseleave", handleMouseLeave);
       }
     };
-  }, [density, opacity, interactive, initGrid]);
+  }, [density, opacity, interactive, initGrid, chars]);
 
   return (
     <div ref={parentRef} className={`absolute inset-0 w-full h-full ${className}`}>

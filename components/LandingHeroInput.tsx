@@ -22,23 +22,23 @@ export default function LandingHeroInput() {
 
   return (
     <div className="max-w-552 mx-auto w-full z-[11] relative">
-      {/* White card with subtle shadow — same as HeroInput */}
+      {/* Dark card with subtle border glow */}
       <div
-        className="bg-accent-white rounded-20 relative overflow-hidden"
+        className="bg-[var(--landing-surface)] rounded-16 relative overflow-hidden border border-[var(--landing-border)]"
         style={{
           boxShadow:
-            "0px 0px 44px 0px rgba(0,0,0,0.02), 0px 88px 56px -20px rgba(0,0,0,0.03), 0px 0px 0px 1px rgba(0,0,0,0.05), 0px 0px 0px 10px #F9F9F9",
+            "0 0 60px -12px rgba(250, 93, 25, 0.06), 0 25px 50px -12px rgba(0, 0, 0, 0.08)",
         }}
       >
         {/* URL Input row */}
-        <label className="p-16 flex gap-8 items-center w-full border-b border-black-alpha-5">
+        <label className="p-16 flex gap-8 items-center w-full border-b border-[var(--landing-border)]">
           {/* Globe icon */}
           <svg
             width="16"
             height="16"
             viewBox="0 0 16 16"
             fill="none"
-            className="text-black-alpha-24 flex-shrink-0"
+            className="text-[var(--landing-text-tertiary)] flex-shrink-0"
           >
             <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.25" />
             <path
@@ -53,7 +53,7 @@ export default function LandingHeroInput() {
             onChange={e => setUrl(e.target.value)}
             onKeyDown={e => e.key === "Enter" && handleClone()}
             placeholder="https://example.com"
-            className="w-full bg-transparent text-body-input text-accent-black placeholder:text-black-alpha-48 outline-none"
+            className="w-full bg-transparent text-body-input text-[var(--landing-text)] placeholder:text-[var(--landing-text-tertiary)] outline-none"
           />
         </label>
 
@@ -65,12 +65,12 @@ export default function LandingHeroInput() {
               {phase}
             </div>
           ) : (
-            <div className="flex gap-6 overflow-hidden">
-              {["stripe.com", "linear.app", "vercel.com"].map(d => (
+            <div className="flex gap-6 overflow-hidden flex-nowrap">
+              {["stripe.com", "linear.app", "vercel.com"].map((d, i) => (
                 <button
                   key={d}
                   onClick={() => setUrl(`https://${d}`)}
-                  className="text-label-x-small text-black-alpha-48 hover:text-black-alpha-64 transition-colors font-mono border border-black-alpha-8 rounded-6 px-8 py-4 hover:bg-black-alpha-4"
+                  className={`text-[11px] text-[var(--landing-text-tertiary)] hover:text-[var(--landing-text-secondary)] transition-colors font-mono border border-[var(--landing-border)] rounded-6 px-8 py-4 hover:bg-black/5 flex-shrink-0 ${i === 2 ? "hidden xs:block" : ""}`}
                 >
                   {d}
                 </button>
@@ -80,7 +80,7 @@ export default function LandingHeroInput() {
           <button
             onClick={handleClone}
             disabled={isLoading}
-            className={`bg-heat-100 hover:bg-heat-90 text-white rounded-10 px-20 py-10 text-label-small font-semibold transition-all flex items-center gap-8 flex-shrink-0 ${isLoading ? "opacity-70 cursor-not-allowed" : ""}`}
+            className={`bg-heat-100 hover:bg-heat-90 text-white rounded-8 px-20 py-10 text-label-small font-mono font-semibold transition-all flex items-center gap-8 flex-shrink-0 ${isLoading ? "opacity-70 cursor-not-allowed" : ""}`}
           >
             Clone it &rarr;
           </button>
@@ -88,7 +88,7 @@ export default function LandingHeroInput() {
       </div>
 
       {/* Trust indicators */}
-      <div className="flex gap-16 justify-center mt-16 text-label-x-small text-black-alpha-24">
+      <div className="flex gap-16 justify-center mt-16 font-mono text-[11px] text-[var(--landing-text-faint)]">
         <span>No credit card</span>
         <span>&middot;</span>
         <span>3 free builds</span>
