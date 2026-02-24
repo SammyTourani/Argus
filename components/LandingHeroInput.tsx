@@ -65,7 +65,7 @@ export default function LandingHeroInput() {
               {phase}
             </div>
           ) : (
-            <div className="flex gap-6 flex-wrap">
+            <div className="flex gap-6 overflow-hidden">
               {["stripe.com", "linear.app", "vercel.com"].map(d => (
                 <button
                   key={d}
