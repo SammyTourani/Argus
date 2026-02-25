@@ -72,7 +72,7 @@ function WorkspacePageInner() {
   const [userName, setUserName] = useState<string | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
-  // Fetch projects from Supabase
+  // Fetch projects from API (not directly from Supabase)
   const fetchProjects = useCallback(async () => {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -84,16 +84,22 @@ function WorkspacePageInner() {
 
     setUserName(user.user_metadata?.full_name || user.email || null);
 
-    const { data, error } = await supabase
-      .from('projects')
-      .select('*, project_collaborators(profiles(*))')
-      .order('updated_at', { ascending: false });
-
-    if (error) {
-      console.error('Failed to fetch projects:', error);
+    try {
+      const res = await fetch('/api/projects');
+      if (res.status === 401) {
+        router.push('/sign-in');
+        return;
+      }
+      if (!res.ok) {
+        console.error('Failed to fetch projects:', res.status);
+        setProjects([]);
+      } else {
+        const { projects } = await res.json();
+        setProjects((projects || []) as Project[]);
+      }
+    } catch (err) {
+      console.error('Failed to fetch projects:', err);
       setProjects([]);
-    } else {
-      setProjects((data || []) as Project[]);
     }
     setLoading(false);
   }, [router]);

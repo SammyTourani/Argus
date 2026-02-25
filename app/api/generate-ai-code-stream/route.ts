@@ -10,6 +10,10 @@ import { executeSearchPlan, formatSearchResultsForAI, selectTargetFile } from '@
 import { FileManifest } from '@/types/file-manifest';
 import type { ConversationState, ConversationMessage, ConversationEdit } from '@/types/conversation';
 import { appConfig } from '@/config/app.config';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
+import { checkRateLimit, getClientIp } from '@/lib/ratelimit';
+import { validatePrompt, validateModel } from '@/lib/validation';
 
 // Force dynamic route to enable streaming
 export const dynamic = 'force-dynamic';
@@ -90,10 +94,63 @@ declare global {
 
 export async function POST(request: NextRequest) {
   try {
-    const { prompt, model = 'openai/gpt-oss-20b', context, isEdit = false } = await request.json();
-    
-    console.log('[generate-ai-code-stream] Received request:');
-    console.log('[generate-ai-code-stream] - prompt:', prompt);
+    // ── Auth Check ────────────────────────────────────────────────────────────
+    const cookieStore = await cookies();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll: () => cookieStore.getAll(),
+          setAll: (cookiesToSet) => {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            );
+          },
+        },
+      }
+    );
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // ── Rate Limiting ─────────────────────────────────────────────────────────
+    const rateLimitKey = `user:${user.id}`;
+    const rateLimit = await checkRateLimit(rateLimitKey, 'aiGenerate');
+    if (!rateLimit.allowed) {
+      const resetIn = Math.ceil((rateLimit.resetAt - Date.now()) / 1000);
+      return NextResponse.json(
+        { error: `Rate limit exceeded. Try again in ${resetIn}s.` },
+        {
+          status: 429,
+          headers: {
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': String(rateLimit.resetAt),
+            'Retry-After': String(resetIn),
+          },
+        }
+      );
+    }
+
+    // ── Parse & Validate Body ─────────────────────────────────────────────────
+    const rawBody = await request.json();
+    let prompt: string;
+    let model: string;
+    try {
+      prompt = validatePrompt(rawBody.prompt);
+      model = validateModel(rawBody.model, 'openai/gpt-oss-20b');
+    } catch (validationError) {
+      return NextResponse.json(
+        { error: (validationError as Error).message },
+        { status: 400 }
+      );
+    }
+    const { context, isEdit = false } = rawBody;
+
+    console.log('[generate-ai-code-stream] Received request (user:', user.id, '):');
+    console.log('[generate-ai-code-stream] - prompt length:', prompt.length);
+    console.log('[generate-ai-code-stream] - model:', model);
     console.log('[generate-ai-code-stream] - isEdit:', isEdit);
     console.log('[generate-ai-code-stream] - context.sandboxId:', context?.sandboxId);
     console.log('[generate-ai-code-stream] - context.currentFiles:', context?.currentFiles ? Object.keys(context.currentFiles) : 'none');
@@ -146,13 +203,8 @@ export async function POST(request: NextRequest) {
         typeof firstFile[1] === 'string' ? firstFile[1].substring(0, 100) + '...' : 'not a string');
     }
     
-    if (!prompt) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Prompt is required' 
-      }, { status: 400 });
-    }
-    
+    // (prompt validation already done above via validatePrompt)
+
     // Create a stream for real-time updates
     const encoder = new TextEncoder();
     const stream = new TransformStream();

@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { checkRateLimit } from '@/lib/ratelimit';
 
 async function createSupabaseServer() {
   const cookieStore = await cookies();
@@ -45,6 +46,23 @@ export async function POST(request: Request) {
 
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Rate limit: 3 deploys per hour per user
+    const rateLimit = await checkRateLimit(`user:${user.id}`, 'deploy');
+    if (!rateLimit.allowed) {
+      const resetIn = Math.ceil((rateLimit.resetAt - Date.now()) / 1000);
+      return NextResponse.json(
+        { error: `Deploy rate limit exceeded. Try again in ${Math.ceil(resetIn / 60)} minutes.` },
+        {
+          status: 429,
+          headers: {
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': String(rateLimit.resetAt),
+            'Retry-After': String(resetIn),
+          },
+        }
+      );
     }
 
     const body: DeployRequestBody = await request.json();

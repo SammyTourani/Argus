@@ -59,8 +59,8 @@ export async function POST(request: Request) {
       const supabase = await createClient();
       let body: any = {};
       try { body = await request.clone().json(); } catch {}
-      await supabase.from('builds').insert({
-        user_id: currentUser.id,
+      await supabase.from('project_builds').insert({
+        created_by: currentUser.id,
         input_url: body.url || null,
         input_prompt: body.prompt || null,
         style: body.style || null,

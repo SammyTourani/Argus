@@ -539,6 +539,7 @@ export default function BuilderPage() {
             isGenerating={isGenerating}
             error={previewError}
             onRetry={initSandbox}
+            iframeRef={iframeRef}
           />
         </div>
 

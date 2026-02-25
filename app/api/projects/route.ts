@@ -2,6 +2,8 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { nanoid } from 'nanoid';
+import { checkRateLimit } from '@/lib/ratelimit';
+import { validateProjectName, validateProjectDescription } from '@/lib/validation';
 
 async function createSupabaseServer() {
   const cookieStore = await cookies();

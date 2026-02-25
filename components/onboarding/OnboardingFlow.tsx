@@ -336,6 +336,10 @@ export default function OnboardingFlow() {
       try {
         await fetch('/api/user/onboarding', { method: 'PUT' });
       } catch {}
+      // Set argus_onboarding_done cookie so middleware/layouts skip onboarding
+      try {
+        document.cookie = 'argus_onboarding_done=1; path=/; max-age=31536000; SameSite=Lax';
+      } catch {}
       router.push('/workspace');
     }
   }, [step, router]);
