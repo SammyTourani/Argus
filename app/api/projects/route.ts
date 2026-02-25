@@ -82,19 +82,45 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { name, description, source_url, default_model, default_style } = body;
+    // Rate limit: 20 project creates per hour per user
+    const rateLimit = await checkRateLimit(`user:${user.id}`, 'projectCreate');
+    if (!rateLimit.allowed) {
+      const resetIn = Math.ceil((rateLimit.resetAt - Date.now()) / 1000);
+      return NextResponse.json(
+        { error: `Too many projects created. Try again in ${Math.ceil(resetIn / 60)} minutes.` },
+        {
+          status: 429,
+          headers: {
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': String(rateLimit.resetAt),
+            'Retry-After': String(resetIn),
+          },
+        }
+      );
+    }
 
-    if (!name || typeof name !== 'string' || name.trim().length === 0) {
-      return NextResponse.json({ error: 'Project name is required' }, { status: 400 });
+    const body = await request.json();
+    const { source_url, default_model, default_style } = body;
+
+    // Validate and sanitize inputs
+    let name: string;
+    let description: string | null;
+    try {
+      name = validateProjectName(body.name);
+      description = validateProjectDescription(body.description);
+    } catch (validationError) {
+      return NextResponse.json(
+        { error: (validationError as Error).message },
+        { status: 400 }
+      );
     }
 
     const { data: project, error } = await supabase
       .from('projects')
       .insert({
         created_by: user.id,
-        name: name.trim(),
-        description: description?.trim() ?? null,
+        name,
+        description,
         default_model: default_model ?? null,
         default_style: default_style ?? null,
         status: 'active',
