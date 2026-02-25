@@ -76,11 +76,19 @@ function Hero() {
           loop
           playsInline
           poster="/argus-assets/official_eye.png"
-          className="w-full h-full object-cover opacity-[0.50] mix-blend-multiply"
+          className="w-full h-full object-cover opacity-[0.10] mix-blend-multiply"
         >
           <source src="/argus-assets/final_eye.mp4" type="video/mp4" />
         </video>
       </div>
+
+      {/* Gradient glow — same frosted treatment as FinalCTA */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: "radial-gradient(ellipse at center, rgba(250, 93, 25, 0.06) 0%, transparent 50%)",
+        }}
+      />
 
       <div className="relative z-10 max-w-680 mx-auto px-16 lg:px-24 text-center py-64 lg:py-96">
         {/* Badge */}

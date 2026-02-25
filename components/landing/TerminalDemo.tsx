@@ -156,7 +156,7 @@ export default function TerminalDemo() {
 
           <div
             ref={termRef}
-            className="bg-[#08080C] p-12 sm:p-16 lg:p-24 font-ascii text-[11px] sm:text-[14px] leading-[18px] sm:leading-[22px] min-h-[280px] sm:min-h-[320px] max-h-[480px] overflow-y-auto overflow-x-auto relative z-[2]"
+            className="bg-[#08080C] p-12 sm:p-16 lg:p-24 font-ascii text-[11px] sm:text-[14px] leading-[18px] sm:leading-[22px] h-[380px] sm:h-[420px] overflow-y-auto overflow-x-auto relative z-[2]"
           >
             {cursorBlink && lines.length === 0 && !typingText && (
               <div className="text-white"><span className="animate-cursor-blink">{"\u2588"}</span></div>
