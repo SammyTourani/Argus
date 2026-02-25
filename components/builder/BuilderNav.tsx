@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { ArrowLeft, Share2, Rocket } from 'lucide-react';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import ModelSelector from './ModelSelector';
+import { createClient } from '@/lib/supabase/client';
 
 interface BuilderNavProps {
   projectName?: string;
@@ -39,6 +40,16 @@ export default function BuilderNav({
   publishSlot,
 }: BuilderNavProps) {
   const [showShareToast, setShowShareToast] = useState(false);
+  const [userInitial, setUserInitial] = useState('');
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      const name = user.user_metadata?.full_name || user.email || '';
+      setUserInitial(name.charAt(0).toUpperCase());
+    });
+  }, []);
 
   const handleShare = useCallback(async () => {
     try {
@@ -125,9 +136,9 @@ export default function BuilderNav({
           </button>
         )}
 
-        {/* User avatar placeholder */}
+        {/* User avatar */}
         <div className="w-7 h-7 rounded-full bg-[#2A2A2A] border border-[rgba(255,255,255,0.08)] flex items-center justify-center text-[11px] font-mono text-[#888]">
-          S
+          {userInitial || '?'}
         </div>
       </div>
 

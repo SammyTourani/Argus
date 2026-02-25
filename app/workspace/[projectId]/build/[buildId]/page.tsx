@@ -167,6 +167,16 @@ export default function BuilderPage() {
 
   useEffect(() => {
     initSandbox();
+    // Cleanup sandbox on unmount to prevent orphaned sandboxes
+    return () => {
+      if (sandboxId) {
+        fetch('/api/kill-sandbox', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sandboxId }),
+        }).catch(() => { /* best-effort cleanup */ });
+      }
+    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ─── Save messages to Supabase (server-side persistence, async, non-blocking) ─── */

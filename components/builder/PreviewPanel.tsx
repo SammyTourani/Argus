@@ -134,7 +134,7 @@ export default function PreviewPanel({
               className="w-full h-full border-none bg-white"
               title="App Preview"
               allow="clipboard-write"
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
+              sandbox="allow-scripts allow-same-origin allow-forms"
             />
           </div>
         ) : (

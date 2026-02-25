@@ -91,14 +91,24 @@ export function validateUrl(input: unknown): string {
     throw new Error('Invalid URL: must start with http:// or https://');
   }
   // Prevent SSRF to localhost / private IPs
-  const hostname = new URL(trimmed).hostname;
+  const hostname = new URL(trimmed).hostname.toLowerCase();
   if (
     hostname === 'localhost' ||
     hostname === '127.0.0.1' ||
+    hostname === '0.0.0.0' ||
+    hostname === '[::1]' ||
+    hostname === '::1' ||
     hostname.startsWith('192.168.') ||
     hostname.startsWith('10.') ||
     hostname.startsWith('172.16.') ||
-    hostname === '::1'
+    hostname.startsWith('172.17.') ||
+    hostname.startsWith('172.18.') ||
+    hostname.startsWith('172.19.') ||
+    hostname.startsWith('172.2') ||
+    hostname.startsWith('172.30.') ||
+    hostname.startsWith('172.31.') ||
+    hostname.endsWith('.local') ||
+    hostname.endsWith('.internal')
   ) {
     throw new Error('Invalid URL: internal/private addresses are not allowed');
   }

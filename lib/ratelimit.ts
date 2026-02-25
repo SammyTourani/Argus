@@ -66,7 +66,30 @@ if (
 
 // ─── In-Memory fallback (dev / single-instance) ───────────────────────────────
 
+const MAX_IN_MEMORY_ENTRIES = 10_000;
 const requestCounts = new Map<string, { count: number; resetAt: number }>();
+
+// Periodic cleanup of expired entries to prevent unbounded Map growth
+function evictExpiredEntries() {
+  const now = Date.now();
+  for (const [key, entry] of requestCounts) {
+    if (entry.resetAt < now) requestCounts.delete(key);
+  }
+  // Hard cap: if still too large, evict oldest entries
+  if (requestCounts.size > MAX_IN_MEMORY_ENTRIES) {
+    const excess = requestCounts.size - MAX_IN_MEMORY_ENTRIES;
+    const keys = requestCounts.keys();
+    for (let i = 0; i < excess; i++) {
+      const { value } = keys.next();
+      if (value) requestCounts.delete(value);
+    }
+  }
+}
+
+// Run cleanup every 5 minutes
+if (typeof setInterval !== 'undefined') {
+  setInterval(evictExpiredEntries, 5 * 60 * 1000);
+}
 
 export function checkRateLimitInMemory(
   key: string,

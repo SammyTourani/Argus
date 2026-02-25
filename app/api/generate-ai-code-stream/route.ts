@@ -89,7 +89,41 @@ function analyzeUserPreferences(messages: ConversationMessage[]): {
 
 declare global {
   var sandboxState: SandboxState;
-  var conversationState: ConversationState | null;
+  /** Per-user conversation states keyed by userId. Prevents cross-user data leakage. */
+  var conversationStates: Map<string, ConversationState>;
+}
+
+// Initialize the per-user map once
+if (!global.conversationStates) {
+  global.conversationStates = new Map();
+}
+
+// Cleanup stale conversations older than 2 hours to prevent memory leaks
+const CONVERSATION_TTL_MS = 2 * 60 * 60 * 1000;
+function getConversationState(userId: string): ConversationState {
+  const existing = global.conversationStates.get(userId);
+  if (existing && (Date.now() - existing.lastUpdated) < CONVERSATION_TTL_MS) {
+    return existing;
+  }
+  const fresh: ConversationState = {
+    conversationId: `conv-${Date.now()}`,
+    startedAt: Date.now(),
+    lastUpdated: Date.now(),
+    context: {
+      messages: [],
+      edits: [],
+      projectEvolution: { majorChanges: [] },
+      userPreferences: {}
+    }
+  };
+  global.conversationStates.set(userId, fresh);
+  // Evict stale entries while we're here
+  for (const [uid, state] of global.conversationStates) {
+    if (Date.now() - state.lastUpdated > CONVERSATION_TTL_MS) {
+      global.conversationStates.delete(uid);
+    }
+  }
+  return fresh;
 }
 
 export async function POST(request: NextRequest) {
@@ -156,21 +190,10 @@ export async function POST(request: NextRequest) {
     console.log('[generate-ai-code-stream] - context.currentFiles:', context?.currentFiles ? Object.keys(context.currentFiles) : 'none');
     console.log('[generate-ai-code-stream] - currentFiles count:', context?.currentFiles ? Object.keys(context.currentFiles).length : 0);
     
-    // Initialize conversation state if not exists
-    if (!global.conversationState) {
-      global.conversationState = {
-        conversationId: `conv-${Date.now()}`,
-        startedAt: Date.now(),
-        lastUpdated: Date.now(),
-        context: {
-          messages: [],
-          edits: [],
-          projectEvolution: { majorChanges: [] },
-          userPreferences: {}
-        }
-      };
-    }
-    
+    // Get per-user conversation state (thread-safe, auto-evicts stale)
+    const conversationState = getConversationState(user.id);
+    conversationState.lastUpdated = Date.now();
+
     // Add user message to conversation history
     const userMessage: ConversationMessage = {
       id: `msg-${Date.now()}`,
@@ -181,18 +204,17 @@ export async function POST(request: NextRequest) {
         sandboxId: context?.sandboxId
       }
     };
-    global.conversationState.context.messages.push(userMessage);
-    
+    conversationState.context.messages.push(userMessage);
+
     // Clean up old messages to prevent unbounded growth
-    if (global.conversationState.context.messages.length > 20) {
-      // Keep only the last 15 messages
-      global.conversationState.context.messages = global.conversationState.context.messages.slice(-15);
+    if (conversationState.context.messages.length > 20) {
+      conversationState.context.messages = conversationState.context.messages.slice(-15);
       console.log('[generate-ai-code-stream] Trimmed conversation history to prevent context overflow');
     }
-    
+
     // Clean up old edits
-    if (global.conversationState.context.edits.length > 10) {
-      global.conversationState.context.edits = global.conversationState.context.edits.slice(-8);
+    if (conversationState.context.edits.length > 10) {
+      conversationState.context.edits = conversationState.context.edits.slice(-8);
     }
     
     // Debug: Show a sample of actual file content
@@ -558,15 +580,15 @@ Remember: You are a SURGEON making a precise incision, not an artist repainting 
         
         // Build conversation context for system prompt
         let conversationContext = '';
-        if (global.conversationState && global.conversationState.context.messages.length > 1) {
+        if (conversationState.context.messages.length > 1) {
           console.log('[generate-ai-code-stream] Building conversation context');
-          console.log('[generate-ai-code-stream] Total messages:', global.conversationState.context.messages.length);
-          console.log('[generate-ai-code-stream] Total edits:', global.conversationState.context.edits.length);
+          console.log('[generate-ai-code-stream] Total messages:', conversationState.context.messages.length);
+          console.log('[generate-ai-code-stream] Total edits:', conversationState.context.edits.length);
           
           conversationContext = `\n\n## Conversation History (Recent)\n`;
           
           // Include only the last 3 edits to save context
-          const recentEdits = global.conversationState.context.edits.slice(-3);
+          const recentEdits = conversationState.context.edits.slice(-3);
           if (recentEdits.length > 0) {
             console.log('[generate-ai-code-stream] Including', recentEdits.length, 'recent edits in context');
             conversationContext += `\n### Recent Edits:\n`;
@@ -576,7 +598,7 @@ Remember: You are a SURGEON making a precise incision, not an artist repainting 
           }
           
           // Include recently created files - CRITICAL for preventing duplicates
-          const recentMsgs = global.conversationState.context.messages.slice(-5);
+          const recentMsgs = conversationState.context.messages.slice(-5);
           const recentlyCreatedFiles: string[] = [];
           recentMsgs.forEach(msg => {
             if (msg.metadata?.editedFiles) {
@@ -606,7 +628,7 @@ Remember: You are a SURGEON making a precise incision, not an artist repainting 
           }
           
           // Include only last 2 major changes
-          const majorChanges = global.conversationState.context.projectEvolution.majorChanges.slice(-2);
+          const majorChanges = conversationState.context.projectEvolution.majorChanges.slice(-2);
           if (majorChanges.length > 0) {
             conversationContext += `\n### Recent Changes:\n`;
             majorChanges.forEach(change => {
@@ -615,7 +637,7 @@ Remember: You are a SURGEON making a precise incision, not an artist repainting 
           }
           
           // Keep user preferences - they're concise
-          const userPrefs = analyzeUserPreferences(global.conversationState.context.messages);
+          const userPrefs = analyzeUserPreferences(conversationState.context.messages);
           if (userPrefs.commonPatterns.length > 0) {
             conversationContext += `\n### User Preferences:\n`;
             conversationContext += `- Edit style: ${userPrefs.preferredEditStyle}\n`;
@@ -1874,7 +1896,7 @@ Provide the complete file content without any truncation. Include all necessary 
         });
         
         // Track edit in conversation history
-        if (isEdit && editContext && global.conversationState) {
+        if (isEdit && editContext) {
           const editRecord: ConversationEdit = {
             timestamp: Date.now(),
             userRequest: prompt,
@@ -1883,20 +1905,20 @@ Provide the complete file content without any truncation. Include all necessary 
             confidence: editContext.editIntent.confidence,
             outcome: 'success' // Assuming success if we got here
           };
-          
-          global.conversationState.context.edits.push(editRecord);
-          
+
+          conversationState.context.edits.push(editRecord);
+
           // Track major changes
           if (editContext.editIntent.type === 'ADD_FEATURE' || files.length > 3) {
-            global.conversationState.context.projectEvolution.majorChanges.push({
+            conversationState.context.projectEvolution.majorChanges.push({
               timestamp: Date.now(),
               description: editContext.editIntent.description,
               filesAffected: editContext.primaryFiles
             });
           }
-          
+
           // Update last updated timestamp
-          global.conversationState.lastUpdated = Date.now();
+          conversationState.lastUpdated = Date.now();
           
           console.log('[generate-ai-code-stream] Updated conversation history with edit:', editRecord);
         }

@@ -6,26 +6,16 @@ import { X, Keyboard } from 'lucide-react';
 
 const SHORTCUTS = [
   { category: 'Navigation', items: [
-    { keys: ['⌘', 'K'], desc: 'Open project search' },
     { keys: ['⌘', '/'], desc: 'Toggle shortcuts' },
-    { keys: ['⌘', '\\'], desc: 'Toggle code panel' },
-    { keys: ['⌘', 'B'], desc: 'Toggle chat panel' },
+    { keys: ['⌘', 'K'], desc: 'Focus chat input' },
+    { keys: ['Esc'], desc: 'Close panel / editor' },
+  ]},
+  { category: 'Panels', items: [
+    { keys: ['⌘', '⇧', 'E'], desc: 'Toggle code panel' },
+    { keys: ['⌘', '⇧', 'V'], desc: 'Toggle visual editor' },
   ]},
   { category: 'Building', items: [
     { keys: ['⌘', '↵'], desc: 'Send message / generate' },
-    { keys: ['⌘', 'R'], desc: 'Refresh preview' },
-    { keys: ['⌘', 'P'], desc: 'Publish / deploy' },
-    { keys: ['⌘', 'E'], desc: 'Toggle visual editor' },
-  ]},
-  { category: 'Code', items: [
-    { keys: ['⌘', 'D'], desc: 'Download as ZIP' },
-    { keys: ['⌘', 'G'], desc: 'Push to GitHub' },
-    { keys: ['⌘', 'H'], desc: 'Open version history' },
-  ]},
-  { category: 'View', items: [
-    { keys: ['⌘', 'M'], desc: 'Toggle mobile preview' },
-    { keys: ['⌘', 'F'], desc: 'Fullscreen preview' },
-    { keys: ['Esc'], desc: 'Exit visual editor' },
   ]},
 ];
 
