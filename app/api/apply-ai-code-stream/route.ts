@@ -1,14 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { parseMorphEdits, applyMorphEditToFile } from '@/lib/morph-fast-apply';
-import type { ConversationState } from '@/types/conversation';
 import { sandboxManager } from '@/lib/sandbox/sandbox-manager';
 import { createClient } from '@/lib/supabase/server';
 import { getSandbox, setSandbox } from '@/lib/sandbox/registry';
 import { parseGeneratedFiles } from '@/lib/ai/parse-files';
-
-declare global {
-  var conversationState: ConversationState | null;
-}
+import { getConversationState } from '@/lib/conversation/per-user-state';
 
 interface ParsedResponse {
   explanation: string;
@@ -714,9 +710,10 @@ export async function POST(request: NextRequest) {
           message: `Successfully applied ${results.filesCreated.length} files`
         });
 
-        // Track applied files in conversation state
-        if (global.conversationState && results.filesCreated.length > 0) {
-          const messages = global.conversationState.context.messages;
+        // Track applied files in per-user conversation state
+        if (results.filesCreated.length > 0) {
+          const convState = getConversationState(user.id);
+          const messages = convState.context.messages;
           if (messages.length > 0) {
             const lastMessage = messages[messages.length - 1];
             if (lastMessage.role === 'user') {
@@ -728,15 +725,15 @@ export async function POST(request: NextRequest) {
           }
 
           // Track applied code in project evolution
-          if (global.conversationState.context.projectEvolution) {
-            global.conversationState.context.projectEvolution.majorChanges.push({
+          if (convState.context.projectEvolution) {
+            convState.context.projectEvolution.majorChanges.push({
               timestamp: Date.now(),
               description: parsed.explanation || 'Code applied',
               filesAffected: results.filesCreated || []
             });
           }
 
-          global.conversationState.lastUpdated = Date.now();
+          convState.lastUpdated = Date.now();
         }
 
       } catch (error) {

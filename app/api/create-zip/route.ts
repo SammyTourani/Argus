@@ -1,43 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sandboxManager } from '@/lib/sandbox/sandbox-manager';
-
-declare global {
-  var activeSandboxProvider: any;
-  var activeSandbox: any; // Legacy Vercel support
-}
+import { createClient } from '@/lib/supabase/server';
+import { getSandbox } from '@/lib/sandbox/registry';
 
 export async function POST(request: NextRequest) {
   try {
+    // Auth check — require authenticated user
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     // Parse request body to get sandboxId
     const { sandboxId } = await request.json().catch(() => ({}));
 
-    console.log('[create-zip] Request received:', { sandboxId });
+    console.log('[create-zip] Request received:', { sandboxId, userId: user.id });
 
-    // Get provider using the same pattern as apply-ai-code-stream
+    const entry = getSandbox(user.id);
+
+    // Get provider from sandbox manager or per-user registry
     let provider = sandboxId
       ? sandboxManager.getProvider(sandboxId)
-      : sandboxManager.getActiveProvider();
+      : entry.provider;
 
-    // Fallback to global state if not found in manager
-    if (!provider) {
-      provider = global.activeSandboxProvider;
-      console.log('[create-zip] Using global.activeSandboxProvider as fallback');
-    }
-
-    // Fallback to legacy Vercel sandbox for backward compatibility
-    const legacySandbox = global.activeSandbox;
+    // Fallback to legacy sandbox from per-user registry
+    const legacySandbox = entry.sandbox;
 
     if (!provider && !legacySandbox) {
-      console.error('[create-zip] No provider found');
-      console.error('[create-zip] Debug info:', {
-        receivedSandboxId: sandboxId,
-        hasActiveSandboxProvider: !!global.activeSandboxProvider,
-        hasLegacySandbox: !!global.activeSandbox,
-        sandboxManagerInfo: {
-          hasGetProvider: typeof sandboxManager.getProvider === 'function',
-          hasGetActiveProvider: typeof sandboxManager.getActiveProvider === 'function'
-        }
-      });
+      console.error('[create-zip] No provider found for user', user.id);
 
       return NextResponse.json({
         success: false,

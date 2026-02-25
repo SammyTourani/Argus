@@ -14,6 +14,8 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { checkRateLimit, getClientIp } from '@/lib/ratelimit';
 import { validatePrompt, validateModel } from '@/lib/validation';
+import { getSandbox } from '@/lib/sandbox/registry';
+import { getConversationState } from '@/lib/conversation/per-user-state';
 
 // Force dynamic route to enable streaming
 export const dynamic = 'force-dynamic';
@@ -87,44 +89,7 @@ function analyzeUserPreferences(messages: ConversationMessage[]): {
   };
 }
 
-declare global {
-  var sandboxState: SandboxState;
-  /** Per-user conversation states keyed by userId. Prevents cross-user data leakage. */
-  var conversationStates: Map<string, ConversationState>;
-}
-
-// Initialize the per-user map once
-if (!global.conversationStates) {
-  global.conversationStates = new Map();
-}
-
-// Cleanup stale conversations older than 2 hours to prevent memory leaks
-const CONVERSATION_TTL_MS = 2 * 60 * 60 * 1000;
-function getConversationState(userId: string): ConversationState {
-  const existing = global.conversationStates.get(userId);
-  if (existing && (Date.now() - existing.lastUpdated) < CONVERSATION_TTL_MS) {
-    return existing;
-  }
-  const fresh: ConversationState = {
-    conversationId: `conv-${Date.now()}`,
-    startedAt: Date.now(),
-    lastUpdated: Date.now(),
-    context: {
-      messages: [],
-      edits: [],
-      projectEvolution: { majorChanges: [] },
-      userPreferences: {}
-    }
-  };
-  global.conversationStates.set(userId, fresh);
-  // Evict stale entries while we're here
-  for (const [uid, state] of global.conversationStates) {
-    if (Date.now() - state.lastUpdated > CONVERSATION_TTL_MS) {
-      global.conversationStates.delete(uid);
-    }
-  }
-  return fresh;
-}
+// getConversationState and getSandbox are imported from shared per-user modules above
 
 export async function POST(request: NextRequest) {
   try {
@@ -194,6 +159,9 @@ export async function POST(request: NextRequest) {
     const conversationState = getConversationState(user.id);
     conversationState.lastUpdated = Date.now();
 
+    // Get per-user sandbox entry from the registry
+    const userSandboxEntry = getSandbox(user.id);
+
     // Add user message to conversation history
     const userMessage: ConversationMessage = {
       id: `msg-${Date.now()}`,
@@ -260,15 +228,15 @@ export async function POST(request: NextRequest) {
         
         if (isEdit) {
           console.log('[generate-ai-code-stream] Edit mode detected - starting agentic search workflow');
-          console.log('[generate-ai-code-stream] Has fileCache:', !!global.sandboxState?.fileCache);
-          console.log('[generate-ai-code-stream] Has manifest:', !!global.sandboxState?.fileCache?.manifest);
-          
-          const manifest: FileManifest | undefined = global.sandboxState?.fileCache?.manifest;
-          
+          console.log('[generate-ai-code-stream] Has fileCache:', !!userSandboxEntry.sandboxState?.fileCache);
+          console.log('[generate-ai-code-stream] Has manifest:', !!userSandboxEntry.sandboxState?.fileCache?.manifest);
+
+          const manifest: FileManifest | undefined = userSandboxEntry.sandboxState?.fileCache?.manifest;
+
           if (manifest) {
             await sendProgress({ type: 'status', message: '🔍 Creating search plan...' });
-            
-            const fileContents = global.sandboxState.fileCache?.files || {};
+
+            const fileContents = userSandboxEntry.sandboxState?.fileCache?.files || {};
             console.log('[generate-ai-code-stream] Files available for search:', Object.keys(fileContents).length);
             
             // STEP 1: Get search plan from AI
@@ -399,7 +367,7 @@ User request: "${prompt}"`;
             console.log('[generate-ai-code-stream] WARNING: No manifest available for edit mode!');
             
             // Try to fetch files from sandbox if we have one
-            if (global.activeSandbox) {
+            if (userSandboxEntry.sandbox) {
               await sendProgress({ type: 'status', message: 'Fetching current files from sandbox...' });
               
               try {
@@ -1033,17 +1001,17 @@ MORPH FAST APPLY MODE (EDIT-ONLY):
           }
           
           // Use backend file cache instead of frontend-provided files
-          let backendFiles = global.sandboxState?.fileCache?.files || {};
+          let backendFiles = userSandboxEntry.sandboxState?.fileCache?.files || {};
           let hasBackendFiles = Object.keys(backendFiles).length > 0;
-          
+
           console.log('[generate-ai-code-stream] Backend file cache status:');
-          console.log('[generate-ai-code-stream] - Has sandboxState:', !!global.sandboxState);
-          console.log('[generate-ai-code-stream] - Has fileCache:', !!global.sandboxState?.fileCache);
+          console.log('[generate-ai-code-stream] - Has sandboxState:', !!userSandboxEntry.sandboxState);
+          console.log('[generate-ai-code-stream] - Has fileCache:', !!userSandboxEntry.sandboxState?.fileCache);
           console.log('[generate-ai-code-stream] - File count:', Object.keys(backendFiles).length);
-          console.log('[generate-ai-code-stream] - Has manifest:', !!global.sandboxState?.fileCache?.manifest);
+          console.log('[generate-ai-code-stream] - Has manifest:', !!userSandboxEntry.sandboxState?.fileCache?.manifest);
           
           // If no backend files and we're in edit mode, try to fetch from sandbox
-          if (!hasBackendFiles && isEdit && (global.activeSandbox || context?.sandboxId)) {
+          if (!hasBackendFiles && isEdit && (userSandboxEntry.sandbox || context?.sandboxId)) {
             console.log('[generate-ai-code-stream] No backend files, attempting to fetch from sandbox...');
             
             try {
@@ -1058,35 +1026,36 @@ MORPH FAST APPLY MODE (EDIT-ONLY):
                   console.log('[generate-ai-code-stream] Successfully fetched', Object.keys(filesData.files).length, 'files from sandbox');
                   
                   // Initialize sandboxState if needed
-                  if (!global.sandboxState) {
-                    global.sandboxState = {
+                  if (!userSandboxEntry.sandboxState) {
+                    userSandboxEntry.sandboxState = {
                       fileCache: {
                         files: {},
                         lastSync: Date.now(),
                         sandboxId: context?.sandboxId || 'unknown'
                       }
                     } as any;
-                  } else if (!global.sandboxState.fileCache) {
-                    global.sandboxState.fileCache = {
+                  } else if (!userSandboxEntry.sandboxState.fileCache) {
+                    userSandboxEntry.sandboxState.fileCache = {
                       files: {},
                       lastSync: Date.now(),
                       sandboxId: context?.sandboxId || 'unknown'
                     };
                   }
-                  
-                  // Store files in cache
+
+                  // Store files in cache (sandboxState guaranteed non-null by the block above)
+                  const ssState = userSandboxEntry.sandboxState!;
                   for (const [path, content] of Object.entries(filesData.files)) {
                     const normalizedPath = path.replace('/home/user/app/', '');
-                    if (global.sandboxState.fileCache) {
-                      global.sandboxState.fileCache.files[normalizedPath] = {
+                    if (ssState.fileCache) {
+                      ssState.fileCache.files[normalizedPath] = {
                         content: content as string,
                         lastModified: Date.now()
                       };
                     }
                   }
-                  
-                  if (filesData.manifest && global.sandboxState.fileCache) {
-                    global.sandboxState.fileCache.manifest = filesData.manifest;
+
+                  if (filesData.manifest && ssState.fileCache) {
+                    ssState.fileCache.manifest = filesData.manifest;
                     
                     // Now try to analyze edit intent with the fetched manifest
                     if (!editContext) {
@@ -1117,7 +1086,7 @@ MORPH FAST APPLY MODE (EDIT-ONLY):
                   }
                   
                   // Update variables
-                  backendFiles = global.sandboxState.fileCache?.files || {};
+                  backendFiles = userSandboxEntry.sandboxState?.fileCache?.files || {};
                   hasBackendFiles = Object.keys(backendFiles).length > 0;
                   console.log('[generate-ai-code-stream] Updated backend cache with fetched files');
                 }
@@ -1135,8 +1104,8 @@ MORPH FAST APPLY MODE (EDIT-ONLY):
               contextParts.push(`\n${editContext.systemPrompt || enhancedSystemPrompt}\n`);
               
               // Get contents of primary and context files
-              const primaryFileContents = await getFileContents(editContext.primaryFiles, global.sandboxState!.fileCache!.manifest!);
-              const contextFileContents = await getFileContents(editContext.contextFiles, global.sandboxState!.fileCache!.manifest!);
+              const primaryFileContents = await getFileContents(editContext.primaryFiles, userSandboxEntry.sandboxState!.fileCache!.manifest!);
+              const contextFileContents = await getFileContents(editContext.contextFiles, userSandboxEntry.sandboxState!.fileCache!.manifest!);
               
               // Format files for AI
               const formattedFiles = formatFilesForAI(primaryFileContents, contextFileContents);

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sandboxManager } from '@/lib/sandbox/sandbox-manager';
 import { createClient } from '@/lib/supabase/server';
 import { getSandbox } from '@/lib/sandbox/registry';
 
@@ -22,9 +21,9 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Get provider from sandbox manager or per-user registry
+    // Get provider from per-user registry only — no global singleton fallback
     const entry = getSandbox(user.id);
-    const provider = sandboxManager.getActiveProvider() || entry.provider;
+    const provider = entry.provider;
 
     if (!provider) {
       return NextResponse.json({
