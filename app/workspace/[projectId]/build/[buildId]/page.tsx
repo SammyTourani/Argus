@@ -429,6 +429,16 @@ export default function BuilderPage() {
             />
           </>
         }
+        publishSlot={
+          <PublishButton
+            projectId={projectId}
+            buildId={buildId}
+            projectName={projectName || undefined}
+            sandboxUrl={sandboxUrl}
+            files={files}
+            onPublishSuccess={handlePublishSuccess}
+          />
+        }
       />
 
       {/* 3-panel grid */}
@@ -489,6 +499,14 @@ export default function BuilderPage() {
         isOpen={versionHistoryOpen}
         onClose={() => setVersionHistoryOpen(false)}
       />
+
+      {/* Deploy Success Banner */}
+      {showDeployBanner && deployUrl && (
+        <DeploySuccessBanner
+          url={deployUrl}
+          onDismiss={() => setShowDeployBanner(false)}
+        />
+      )}
     </div>
   );
 }

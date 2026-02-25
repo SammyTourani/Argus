@@ -20,6 +20,8 @@ interface BuilderNavProps {
   onToggleRight: () => void;
   /** Extra action buttons rendered before Share (e.g. VisualEditor toggle) */
   extraActions?: React.ReactNode;
+  /** Replaces the default Publish button — pass a <PublishButton /> here */
+  publishSlot?: React.ReactNode;
 }
 
 export default function BuilderNav({
@@ -34,6 +36,7 @@ export default function BuilderNav({
   rightPanelVisible,
   onToggleRight,
   extraActions,
+  publishSlot,
 }: BuilderNavProps) {
   const [showShareToast, setShowShareToast] = useState(false);
 
@@ -111,14 +114,16 @@ export default function BuilderNav({
           Share
         </button>
 
-        <button
-          onClick={onPublish}
-          disabled={isPublishing}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono text-white bg-[#FA4500] hover:bg-[#E63F00] disabled:opacity-50 transition-colors"
-        >
-          <Rocket className="w-3.5 h-3.5" />
-          {isPublishing ? 'Publishing...' : 'Publish'}
-        </button>
+        {publishSlot ?? (
+          <button
+            onClick={onPublish}
+            disabled={isPublishing}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono text-white bg-[#FA4500] hover:bg-[#E63F00] disabled:opacity-50 transition-colors"
+          >
+            <Rocket className="w-3.5 h-3.5" />
+            {isPublishing ? 'Publishing...' : 'Publish'}
+          </button>
+        )}
 
         {/* User avatar placeholder */}
         <div className="w-7 h-7 rounded-full bg-[#2A2A2A] border border-[rgba(255,255,255,0.08)] flex items-center justify-center text-[11px] font-mono text-[#888]">
