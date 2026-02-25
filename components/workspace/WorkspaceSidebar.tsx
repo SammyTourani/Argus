@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { LayoutGrid, Star, Users, Settings, Plus, ChevronDown, Zap, GalleryHorizontal } from 'lucide-react';
+import { LayoutGrid, Star, Users, Settings, Plus, ChevronDown, Zap, GalleryHorizontal, UserCircle } from 'lucide-react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -130,12 +130,15 @@ export default function WorkspaceSidebar({
           </Link>
         </div>
 
-        {/* Settings at bottom of nav */}
-        <div className="mt-2 border-t border-zinc-100 pt-3">
-          <button className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-zinc-500 transition-colors hover:bg-zinc-50 hover:text-zinc-900">
-            <Settings className="h-4 w-4 text-zinc-400" />
-            <span>Settings</span>
-          </button>
+        {/* Account settings at bottom of nav */}
+        <div className="mt-2 border-t border-zinc-100 pt-3 space-y-0.5">
+          <Link
+            href="/account"
+            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-zinc-500 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
+          >
+            <UserCircle className="h-4 w-4 text-zinc-400" />
+            <span>Account</span>
+          </Link>
         </div>
       </nav>
 
