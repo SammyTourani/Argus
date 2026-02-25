@@ -6,6 +6,9 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { generateObject } from 'ai';
 import { z } from 'zod';
 // import type { FileManifest } from '@/types/file-manifest'; // Type is used implicitly through manifest parameter
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
+import { checkRateLimit } from '@/lib/ratelimit';
 
 // Check if we're using Vercel AI Gateway
 const isUsingAIGateway = !!process.env.AI_GATEWAY_API_KEY;
@@ -61,6 +64,37 @@ const searchPlanSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    // Auth check
+    const cookieStore = await cookies();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll: () => cookieStore.getAll(),
+          setAll: (cookiesToSet) => {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            );
+          },
+        },
+      }
+    );
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Rate limit (shares the aiGenerate bucket)
+    const rateLimit = await checkRateLimit(`user:${user.id}`, 'aiGenerate');
+    if (!rateLimit.allowed) {
+      const resetIn = Math.ceil((rateLimit.resetAt - Date.now()) / 1000);
+      return NextResponse.json(
+        { error: `Rate limit exceeded. Try again in ${resetIn}s.` },
+        { status: 429, headers: { 'Retry-After': String(resetIn) } }
+      );
+    }
+
     const { prompt, manifest, model = 'openai/gpt-oss-20b' } = await request.json();
     
     console.log('[analyze-edit-intent] Request received');

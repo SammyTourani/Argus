@@ -1,0 +1,153 @@
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
+import { nanoid } from 'nanoid';
+import { checkRateLimit } from '@/lib/ratelimit';
+import { validateProjectName, validateProjectDescription } from '@/lib/validation';
+
+async function createSupabaseServer() {
+  const cookieStore = await cookies();
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll: () => cookieStore.getAll(),
+        setAll: (cookiesToSet) => {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            cookieStore.set(name, value, options)
+          );
+        },
+      },
+    }
+  );
+}
+
+// GET /api/projects — fetch all projects for current user
+export async function GET() {
+  try {
+    const supabase = await createSupabaseServer();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { data: projects, error } = await supabase
+      .from('projects')
+      .select(`
+        *,
+        project_collaborators (
+          id, role, status, user_id,
+          profiles ( full_name, avatar_url )
+        )
+      `)
+      .or(`created_by.eq.${user.id}`)
+      .order('updated_at', { ascending: false });
+
+    if (error) {
+      console.error('[GET /api/projects]', error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    // For each project, fetch the latest build thumbnail
+    const projectsWithBuilds = await Promise.all(
+      (projects ?? []).map(async (project) => {
+        const { data: latestBuild } = await supabase
+          .from('project_builds')
+          .select('id, status, preview_url, created_at, model_id, version_number')
+          .eq('project_id', project.id)
+          .order('version_number', { ascending: false })
+          .limit(1)
+          .single();
+
+        return { ...project, latest_build: latestBuild ?? null };
+      })
+    );
+
+    return NextResponse.json({ projects: projectsWithBuilds });
+  } catch (err) {
+    console.error('[GET /api/projects] unexpected:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+// POST /api/projects — create new project
+export async function POST(request: Request) {
+  try {
+    const supabase = await createSupabaseServer();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Rate limit: 20 project creates per hour per user
+    const rateLimit = await checkRateLimit(`user:${user.id}`, 'projectCreate');
+    if (!rateLimit.allowed) {
+      const resetIn = Math.ceil((rateLimit.resetAt - Date.now()) / 1000);
+      return NextResponse.json(
+        { error: `Too many projects created. Try again in ${Math.ceil(resetIn / 60)} minutes.` },
+        {
+          status: 429,
+          headers: {
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': String(rateLimit.resetAt),
+            'Retry-After': String(resetIn),
+          },
+        }
+      );
+    }
+
+    const body = await request.json();
+    const { source_url, default_model, default_style } = body;
+
+    // Validate and sanitize inputs
+    let name: string;
+    let description: string | null;
+    try {
+      name = validateProjectName(body.name);
+      description = validateProjectDescription(body.description);
+    } catch (validationError) {
+      return NextResponse.json(
+        { error: (validationError as Error).message },
+        { status: 400 }
+      );
+    }
+
+    const { data: project, error } = await supabase
+      .from('projects')
+      .insert({
+        created_by: user.id,
+        name,
+        description,
+        default_model: default_model ?? null,
+        default_style: default_style ?? null,
+        status: 'active',
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[POST /api/projects]', error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    // If source_url provided, create the first build immediately
+    if (source_url) {
+      await supabase.from('project_builds').insert({
+        project_id: project.id,
+        created_by: user.id,
+        source_url,
+        status: 'pending',
+        model_id: default_model ?? 'claude-sonnet-4-6',
+        style_preset: default_style ?? 'minimal',
+      });
+    }
+
+    return NextResponse.json({ project }, { status: 201 });
+  } catch (err) {
+    console.error('[POST /api/projects] unexpected:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}

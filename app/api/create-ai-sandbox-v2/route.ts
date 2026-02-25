@@ -3,6 +3,9 @@ import { SandboxFactory } from '@/lib/sandbox/factory';
 // SandboxProvider type is used through SandboxFactory
 import type { SandboxState } from '@/types/sandbox';
 import { sandboxManager } from '@/lib/sandbox/sandbox-manager';
+import { Ratelimit } from '@upstash/ratelimit';
+import { Redis } from '@upstash/redis';
+import { createClient } from '@/lib/supabase/server';
 
 // Store active sandbox globally
 declare global {
@@ -12,8 +15,63 @@ declare global {
   var sandboxState: SandboxState;
 }
 
-export async function POST() {
+const ratelimit = process.env.UPSTASH_REDIS_REST_URL
+  ? new Ratelimit({
+      redis: Redis.fromEnv(),
+      limiter: Ratelimit.slidingWindow(3, '30 d'),
+    })
+  : null;
+
+async function getUserTier(userId: string): Promise<string> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from('profiles')
+    .select('subscription_status')
+    .eq('id', userId)
+    .single();
+  return data?.subscription_status || 'free';
+}
+
+export async function POST(request: Request) {
   try {
+    // Auth + Rate limiting for free users
+    let currentUser: any = null;
+    const supabaseAuth = await createClient();
+    const { data: { user } } = await supabaseAuth.auth.getUser();
+    currentUser = user;
+
+    if (user && ratelimit) {
+      const tier = await getUserTier(user.id);
+      if (tier === 'free') {
+        const { success } = await ratelimit.limit(user.id);
+        if (!success) {
+          return NextResponse.json(
+            { error: 'Monthly build limit reached. Upgrade to Pro for unlimited builds.' },
+            { status: 429 }
+          );
+        }
+      }
+    }
+
+    // Log build start
+    if (currentUser) {
+      try {
+        const supabase = await createClient();
+        let body: any = {};
+        try { body = await request.clone().json(); } catch {}
+        await supabase.from('project_builds').insert({
+          created_by: currentUser.id,
+          input_url: body.url || null,
+          input_prompt: body.prompt || null,
+          style: body.style || null,
+          model: body.model || null,
+          status: 'generating',
+        });
+      } catch (e) {
+        console.error('[create-ai-sandbox-v2] Failed to log build:', e);
+      }
+    }
+
     console.log('[create-ai-sandbox-v2] Creating sandbox...');
     
     // Clean up all existing sandboxes

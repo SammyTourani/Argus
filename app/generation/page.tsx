@@ -3952,10 +3952,21 @@ Focus on the key sections and content, making it clean and modern.`;
   );
 }
 
-export default function Page() {
+function GenerationPageInner() {
   return (
     <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
       <AISandboxPage />
+    </Suspense>
+  );
+}
+export default function GenerationPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen items-center justify-center bg-zinc-50">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#FA4500] border-t-transparent" />
+      </div>
+    }>
+      <GenerationPageInner />
     </Suspense>
   );
 }
