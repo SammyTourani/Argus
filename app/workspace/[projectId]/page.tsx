@@ -3,7 +3,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Pencil, Share2, Plus, Clock, Cpu } from 'lucide-react';
+import { ArrowLeft, Pencil, Share2, Plus, Clock, Cpu, Settings } from 'lucide-react';
+import ShareDialog from '@/components/workspace/ShareDialog';
+import TeamPresence from '@/components/workspace/TeamPresence';
+import InviteButton from '@/components/workspace/InviteButton';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createClient } from '@/lib/supabase/client';
 import type { Project, Build } from '@/types/workspace';
@@ -58,6 +61,7 @@ export default function ProjectDetailPage() {
   const [project, setProject] = useState<Project | null>(null);
   const [builds, setBuilds] = useState<Build[]>([]);
   const [loading, setLoading] = useState(true);
+  const [shareOpen, setShareOpen] = useState(false);
 
   const fetchProjectData = useCallback(async () => {
     const supabase = createClient();
@@ -129,14 +133,28 @@ export default function ProjectDetailPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <button className="flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-1.5 text-[13px] font-medium text-zinc-600 transition-colors hover:bg-zinc-50">
-              <Pencil className="h-3.5 w-3.5" />
-              Edit
-            </button>
-            <button className="flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-1.5 text-[13px] font-medium text-zinc-600 transition-colors hover:bg-zinc-50">
-              <Share2 className="h-3.5 w-3.5" />
-              Share
-            </button>
+            {project && <TeamPresence projectId={project.id} />}
+            {project && (
+              <InviteButton
+                projectId={project.id}
+                projectName={project.name}
+              />
+            )}
+            {project && (
+              <ShareDialog
+                open={shareOpen}
+                onOpenChange={setShareOpen}
+                projectId={project.id}
+                projectName={project.name}
+              />
+            )}
+            <Link
+              href={`/workspace/${projectId}/settings`}
+              className="flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-1.5 text-[13px] font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
+            >
+              <Settings className="h-3.5 w-3.5" />
+              Settings
+            </Link>
           </div>
         </div>
       </header>

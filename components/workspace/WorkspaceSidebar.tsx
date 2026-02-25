@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { LayoutGrid, Star, Users, Settings, Plus, ChevronDown } from 'lucide-react';
+import { LayoutGrid, Star, Users, Settings, Plus, ChevronDown, Zap, GalleryHorizontal } from 'lucide-react';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import type { WorkspaceView } from '@/types/workspace';
@@ -110,8 +111,27 @@ export default function WorkspaceSidebar({
           })}
         </div>
 
+        {/* Explore links */}
+        <div className="mt-6 border-t border-zinc-100 pt-3 space-y-0.5">
+          <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Explore</p>
+          <Link
+            href="/marketplace"
+            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
+          >
+            <Zap className="h-4 w-4 text-zinc-400" />
+            <span>Model Marketplace</span>
+          </Link>
+          <Link
+            href="/gallery"
+            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
+          >
+            <GalleryHorizontal className="h-4 w-4 text-zinc-400" />
+            <span>Gallery</span>
+          </Link>
+        </div>
+
         {/* Settings at bottom of nav */}
-        <div className="mt-6 border-t border-zinc-100 pt-3">
+        <div className="mt-2 border-t border-zinc-100 pt-3">
           <button className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-zinc-500 transition-colors hover:bg-zinc-50 hover:text-zinc-900">
             <Settings className="h-4 w-4 text-zinc-400" />
             <span>Settings</span>

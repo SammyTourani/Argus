@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Star, MoreHorizontal, Pencil, Copy, Trash2 } from 'lucide-react';
+import { Star, MoreHorizontal, Pencil, Copy, Trash2, Settings } from 'lucide-react';
 import * as ContextMenu from '@radix-ui/react-context-menu';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -194,6 +194,13 @@ export default function ProjectCard({ project, onStarToggle, onDuplicate, onDele
           >
             <Copy className="h-3.5 w-3.5 text-zinc-400" />
             Duplicate
+          </ContextMenu.Item>
+          <ContextMenu.Item
+            className="flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-[13px] text-zinc-700 outline-none hover:bg-zinc-50"
+            onSelect={() => router.push(`/workspace/${project.id}/settings`)}
+          >
+            <Settings className="h-3.5 w-3.5 text-zinc-400" />
+            Settings
           </ContextMenu.Item>
           <ContextMenu.Separator className="my-1 h-px bg-zinc-100" />
           <ContextMenu.Item

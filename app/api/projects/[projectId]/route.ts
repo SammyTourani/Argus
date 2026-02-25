@@ -2,8 +2,8 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
-function createSupabaseServer() {
-  const cookieStore = cookies();
+async function createSupabaseServer() {
+  const cookieStore = await cookies();
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -20,12 +20,13 @@ function createSupabaseServer() {
   );
 }
 
-type RouteParams = { params: { projectId: string } };
+type RouteParams = { params: Promise<{ projectId: string }> };
 
 // GET /api/projects/[projectId]
 export async function GET(_req: Request, { params }: RouteParams) {
   try {
-    const supabase = createSupabaseServer();
+    const { projectId } = await params;
+    const supabase = await createSupabaseServer();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -36,14 +37,9 @@ export async function GET(_req: Request, { params }: RouteParams) {
         project_collaborators (
           id, role, status, user_id,
           profiles ( full_name, avatar_url, email )
-        ),
-        project_builds (
-          id, version_number, status, preview_url, model_id,
-          style_preset, created_at, build_duration_ms
-          order: version_number.desc
         )
       `)
-      .eq('id', params.projectId)
+      .eq('id', projectId)
       .single();
 
     if (error || !project) {
@@ -51,9 +47,10 @@ export async function GET(_req: Request, { params }: RouteParams) {
     }
 
     // Access check: must be creator or collaborator
-    const isCreator = project.created_by === user.id;
-    const isCollaborator = project.project_collaborators?.some(
-      (c: { user_id: string; status: string }) => c.user_id === user.id && c.status === 'accepted'
+    const isCreator = (project as { created_by: string }).created_by === user.id;
+    const collaborators = (project as { project_collaborators?: Array<{ user_id: string; status: string }> }).project_collaborators;
+    const isCollaborator = collaborators?.some(
+      (c) => c.user_id === user.id && c.status === 'accepted'
     );
 
     if (!isCreator && !isCollaborator) {
@@ -70,7 +67,8 @@ export async function GET(_req: Request, { params }: RouteParams) {
 // PATCH /api/projects/[projectId] — update project
 export async function PATCH(request: Request, { params }: RouteParams) {
   try {
-    const supabase = createSupabaseServer();
+    const { projectId } = await params;
+    const supabase = await createSupabaseServer();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -88,7 +86,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     const { data: project, error } = await supabase
       .from('projects')
       .update(updates)
-      .eq('id', params.projectId)
+      .eq('id', projectId)
       .eq('created_by', user.id) // only owner can update
       .select()
       .single();
@@ -106,14 +104,15 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 // DELETE /api/projects/[projectId] — owner-only delete
 export async function DELETE(_req: Request, { params }: RouteParams) {
   try {
-    const supabase = createSupabaseServer();
+    const { projectId } = await params;
+    const supabase = await createSupabaseServer();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { error } = await supabase
       .from('projects')
       .delete()
-      .eq('id', params.projectId)
+      .eq('id', projectId)
       .eq('created_by', user.id);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });

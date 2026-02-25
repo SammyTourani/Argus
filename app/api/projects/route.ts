@@ -3,8 +3,8 @@ import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { nanoid } from 'nanoid';
 
-function createSupabaseServer() {
-  const cookieStore = cookies();
+async function createSupabaseServer() {
+  const cookieStore = await cookies();
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -24,7 +24,7 @@ function createSupabaseServer() {
 // GET /api/projects — fetch all projects for current user
 export async function GET() {
   try {
-    const supabase = createSupabaseServer();
+    const supabase = await createSupabaseServer();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
@@ -73,7 +73,7 @@ export async function GET() {
 // POST /api/projects — create new project
 export async function POST(request: Request) {
   try {
-    const supabase = createSupabaseServer();
+    const supabase = await createSupabaseServer();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {

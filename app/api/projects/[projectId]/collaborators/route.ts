@@ -6,8 +6,8 @@ import { nanoid } from 'nanoid';
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
-function createSupabaseServer() {
-  const cookieStore = cookies();
+async function createSupabaseServer() {
+  const cookieStore = await cookies();
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -24,19 +24,20 @@ function createSupabaseServer() {
   );
 }
 
-type RouteParams = { params: { projectId: string } };
+type RouteParams = { params: Promise<{ projectId: string }> };
 
 // GET /api/projects/[projectId]/collaborators
 export async function GET(_req: Request, { params }: RouteParams) {
   try {
-    const supabase = createSupabaseServer();
+    const { projectId } = await params;
+    const supabase = await createSupabaseServer();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { data: collaborators, error } = await supabase
       .from('project_collaborators')
       .select('*, profiles(full_name, avatar_url, email)')
-      .eq('project_id', params.projectId);
+      .eq('project_id', projectId);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
@@ -50,7 +51,8 @@ export async function GET(_req: Request, { params }: RouteParams) {
 // POST /api/projects/[projectId]/collaborators — invite by email
 export async function POST(request: Request, { params }: RouteParams) {
   try {
-    const supabase = createSupabaseServer();
+    const { projectId } = await params;
+    const supabase = await createSupabaseServer();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -69,7 +71,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     const { data: project } = await supabase
       .from('projects')
       .select('id, name, created_by')
-      .eq('id', params.projectId)
+      .eq('id', projectId)
       .eq('created_by', user.id)
       .single();
 
@@ -79,7 +81,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     const { data: existing } = await supabase
       .from('project_collaborators')
       .select('id, status')
-      .eq('project_id', params.projectId)
+      .eq('project_id', projectId)
       .eq('invite_email', email)
       .single();
 
@@ -95,7 +97,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       .from('project_collaborators')
       .upsert(
         {
-          project_id: params.projectId,
+          project_id: projectId,
           invited_by: user.id,
           invite_email: email,
           role,
@@ -114,12 +116,13 @@ export async function POST(request: Request, { params }: RouteParams) {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://argus-six-omega.vercel.app';
     const inviteUrl = `${appUrl}/workspace/invite/${inviteToken}`;
     const inviterName = user.user_metadata?.full_name ?? user.email ?? 'Someone';
+    const projectName = (project as { name: string }).name;
 
     try {
       await resend.emails.send({
         from: 'Argus <noreply@argus.build>',
         to: [email],
-        subject: `${inviterName} invited you to collaborate on "${project.name}"`,
+        subject: `${inviterName} invited you to collaborate on "${projectName}"`,
         html: `
 <!DOCTYPE html>
 <html>
@@ -131,7 +134,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       <strong>${inviterName}</strong> invited you to collaborate on
     </div>
     <div style="background:#111;border:1px solid #222;border-radius:8px;padding:20px;margin-bottom:24px;">
-      <div style="color:#FA4500;font-size:18px;font-weight:600;">${project.name}</div>
+      <div style="color:#FA4500;font-size:18px;font-weight:600;">${projectName}</div>
       <div style="color:#666;font-size:13px;margin-top:4px;">Role: ${role}</div>
     </div>
     <a href="${inviteUrl}"
@@ -160,3 +163,6 @@ export async function POST(request: Request, { params }: RouteParams) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+
+// DELETE /api/projects/[projectId]/collaborators/[collaboratorId]
+// Note: handled in a separate route file
