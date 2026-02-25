@@ -17,7 +17,26 @@ export default function LandingHeroInput() {
       setPhase(p);
       await new Promise(r => setTimeout(r, 500));
     }
-    router.push(`/app?url=${encodeURIComponent(target)}`);
+    // Create project via API then redirect to new build page
+    try {
+      const res = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: new URL(target).hostname.replace('www.', ''),
+          source_url: target,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.project?.id) {
+        router.push(`/workspace/${data.project.id}/build/new?url=${encodeURIComponent(target)}`);
+      } else {
+        // Not logged in — redirect to sign-up with return URL
+        router.push(`/sign-up?redirect=/workspace`);
+      }
+    } catch {
+      router.push(`/sign-up?redirect=/workspace`);
+    }
   };
 
   return (

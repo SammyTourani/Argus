@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useState, useRef, useEffect } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Link2, Wand2, ArrowRight, X, Loader2 } from 'lucide-react';
 import Link from 'next/link';
@@ -28,6 +28,7 @@ export default function NewBuildPage() {
   const router = useRouter();
   const projectId = params?.projectId as string;
 
+  const searchParams = useSearchParams();
   const [mode, setMode] = useState<Mode>('url');
   const [url, setUrl] = useState('');
   const [prompt, setPrompt] = useState('');
@@ -35,6 +36,15 @@ export default function NewBuildPage() {
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Pre-fill URL from query param (e.g., coming from landing page hero)
+  useEffect(() => {
+    const prefilledUrl = searchParams?.get('url');
+    if (prefilledUrl) {
+      setUrl(decodeURIComponent(prefilledUrl));
+      setMode('url');
+    }
+  }, [searchParams]);
 
   const handleCreate = async () => {
     const value = mode === 'url' ? url.trim() : prompt.trim();
