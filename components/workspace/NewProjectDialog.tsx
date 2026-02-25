@@ -5,8 +5,6 @@ import { useRouter } from 'next/navigation';
 import * as Dialog from '@radix-ui/react-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Globe, FileCode, LayoutTemplate } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
-
 type StartFrom = 'blank' | 'url' | 'template';
 
 interface NewProjectDialogProps {
@@ -34,29 +32,28 @@ export default function NewProjectDialog({ open, onOpenChange }: NewProjectDialo
     setError(null);
 
     try {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setError('You must be signed in');
-        return;
-      }
-
-      const { data, error: insertError } = await supabase
-        .from('projects')
-        .insert({
+      // Use the API route so server-side auth is consistent
+      const res = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           name: name.trim(),
           description: description.trim() || null,
-          user_id: user.id,
-          status: 'active',
-          is_starred: false,
-        })
-        .select('id')
-        .single();
+          source_url: startFrom === 'url' && cloneUrl.trim() ? cloneUrl.trim() : undefined,
+        }),
+      });
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error ?? 'Failed to create project');
+      const data = resData.project;
 
-      if (insertError) throw insertError;
-      if (data) {
+      if (data?.id) {
         onOpenChange(false);
-        router.push(`/workspace/${data.id}`);
+        // If starting from URL, go straight to builder; otherwise project overview
+        if (startFrom === 'url' && cloneUrl.trim()) {
+          router.push(`/workspace/${data.id}/build/new`);
+        } else {
+          router.push(`/workspace/${data.id}`);
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create project');

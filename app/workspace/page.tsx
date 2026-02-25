@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Search, Settings } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as Dialog from '@radix-ui/react-dialog';
@@ -55,10 +55,18 @@ function EmptyState({ onCreateProject }: { onCreateProject: () => void }) {
 
 export default function WorkspacePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeView, setActiveView] = useState<WorkspaceView>('all');
   const [dialogOpen, setDialogOpen] = useState(false);
+
+  // Handle ?clone=<galleryId> — open new project dialog automatically
+  useEffect(() => {
+    if (searchParams?.get('clone')) {
+      setDialogOpen(true);
+    }
+  }, [searchParams]);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [userName, setUserName] = useState<string | null>(null);
