@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, Suspense, useRef, useEffect } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link2, Wand2, ArrowRight, X, Loader2, LayoutTemplate } from 'lucide-react';
@@ -24,7 +24,7 @@ const PROMPT_STARTERS = [
 
 type Mode = 'url' | 'prompt' | 'template';
 
-export default function NewBuildPage() {
+function NewBuildPageInner() {
   const params = useParams();
   const router = useRouter();
   const projectId = params?.projectId as string;
@@ -248,5 +248,17 @@ export default function NewBuildPage() {
         </motion.div>
       </div>
     </div>
+  );
+}
+
+export default function NewBuildPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen items-center justify-center bg-zinc-50">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#FA4500] border-t-transparent" />
+      </div>
+    }>
+      <NewBuildPageInner />
+    </Suspense>
   );
 }

@@ -80,7 +80,7 @@ function Divider() {
 }
 
 /* ─── Main page ─── */
-export default function SignInPage() {
+function SignInPageInner() {
   return (
     <Suspense>
       <SignInContent />
@@ -322,5 +322,17 @@ function SignInContent() {
         </Link>
       </p>
     </AuthLayout>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen items-center justify-center bg-zinc-50">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#FA4500] border-t-transparent" />
+      </div>
+    }>
+      <SignInPageInner />
+    </Suspense>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, Suspense, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Menu, Search, Settings } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -53,7 +53,7 @@ function EmptyState({ onCreateProject }: { onCreateProject: () => void }) {
   );
 }
 
-export default function WorkspacePage() {
+function WorkspacePageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [projects, setProjects] = useState<Project[]>([]);
@@ -366,5 +366,17 @@ export default function WorkspacePage() {
         </Dialog.Portal>
       </Dialog.Root>
     </div>
+  );
+}
+
+export default function WorkspacePage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen items-center justify-center bg-zinc-50">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#FA4500] border-t-transparent" />
+      </div>
+    }>
+      <WorkspacePageInner />
+    </Suspense>
   );
 }
