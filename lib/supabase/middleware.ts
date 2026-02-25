@@ -57,5 +57,39 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Onboarding guard: if authenticated user hits /workspace and hasn't finished onboarding
+  // We check a cookie set after onboarding completes to avoid a DB call on every request
+  if (user && pathname.startsWith('/workspace') && !pathname.startsWith('/workspace/invite')) {
+    const onboardingDone = request.cookies.get('argus_onboarding_done');
+    if (!onboardingDone) {
+      // Check DB — only do this once, then set cookie
+      const { data: state } = await supabase
+        .from('onboarding_state')
+        .select('completed')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!state?.completed) {
+        const url = request.nextUrl.clone();
+        url.pathname = '/onboarding';
+        return NextResponse.redirect(url);
+      }
+
+      // Set cookie so we skip DB check on subsequent requests (expires 365 days)
+      supabaseResponse.cookies.set('argus_onboarding_done', '1', {
+        maxAge: 365 * 24 * 60 * 60,
+        path: '/',
+        httpOnly: false,
+        sameSite: 'lax',
+      });
+    }
+  }
+
+  // After completing onboarding, set the done cookie
+  if (user && pathname === '/onboarding') {
+    // Clear any stale onboarding cookie so it re-checks when they return
+    supabaseResponse.cookies.delete('argus_onboarding_done');
+  }
+
   return supabaseResponse;
 }

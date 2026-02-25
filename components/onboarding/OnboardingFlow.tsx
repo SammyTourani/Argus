@@ -320,11 +320,23 @@ export default function OnboardingFlow() {
   const [step, setStep] = useState(0);
   const router = useRouter();
 
-  const nextStep = useCallback(() => {
+  const nextStep = useCallback(async () => {
     if (step < 3) {
+      // Persist step progress to server
+      try {
+        await fetch('/api/user/onboarding', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ step: step + 1, data: {} }),
+        });
+      } catch {}
       setStep((s) => s + 1);
     } else {
-      router.push('/app');
+      // Mark onboarding complete
+      try {
+        await fetch('/api/user/onboarding', { method: 'PUT' });
+      } catch {}
+      router.push('/workspace');
     }
   }, [step, router]);
 
