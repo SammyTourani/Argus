@@ -553,6 +553,14 @@ export default function BuilderPage() {
         onClose={() => setVersionHistoryOpen(false)}
       />
 
+      {/* Build Status Bar */}
+      <BuildStatusBar
+        status={buildStatus}
+        message={buildStatusMessage}
+        filesChanged={buildFilesChanged}
+        duration={buildDuration}
+      />
+
       {/* Deploy Success Banner */}
       {showDeployBanner && deployUrl && (
         <DeploySuccessBanner
