@@ -50,20 +50,29 @@ export async function GET() {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // For each project, fetch the latest build thumbnail
-    const projectsWithBuilds = await Promise.all(
-      (projects ?? []).map(async (project) => {
-        const { data: latestBuild } = await supabase
-          .from('project_builds')
-          .select('id, status, preview_url, created_at, model_id, version_number')
-          .eq('project_id', project.id)
-          .order('version_number', { ascending: false })
-          .limit(1)
-          .single();
+    // Batch-fetch latest build for every project in ONE query (fixes N+1)
+    const projectIds = (projects ?? []).map((p) => p.id);
+    let latestBuildsByProject: Record<string, any> = {};
 
-        return { ...project, latest_build: latestBuild ?? null };
-      })
-    );
+    if (projectIds.length > 0) {
+      const { data: allBuilds } = await supabase
+        .from('project_builds')
+        .select('id, project_id, status, preview_url, created_at, model_id, version_number')
+        .in('project_id', projectIds)
+        .order('version_number', { ascending: false });
+
+      // Group by project_id, keeping only the first (latest) build per project
+      for (const build of allBuilds ?? []) {
+        if (!latestBuildsByProject[build.project_id]) {
+          latestBuildsByProject[build.project_id] = build;
+        }
+      }
+    }
+
+    const projectsWithBuilds = (projects ?? []).map((project) => ({
+      ...project,
+      latest_build: latestBuildsByProject[project.id] ?? null,
+    }));
 
     return NextResponse.json({ projects: projectsWithBuilds });
   } catch (err) {

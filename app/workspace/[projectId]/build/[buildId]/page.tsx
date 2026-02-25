@@ -17,6 +17,7 @@ import BuildStatusBar, { type BuildStatus } from '@/components/builder/BuildStat
 import KeyboardShortcuts from '@/components/builder/KeyboardShortcuts';
 import { nanoid } from 'nanoid';
 import { createClient } from '@/lib/supabase/client';
+import { parseGeneratedFiles } from '@/lib/ai/parse-files';
 import { History, MonitorX } from 'lucide-react';
 import Link from 'next/link';
 
@@ -66,13 +67,15 @@ export default function BuilderPage() {
   const [projectName, setProjectName] = useState<string>('');
 
   /* ─── Model ─── */
-  const [selectedModelId, setSelectedModelId] = useState<string>(() => {
+  const [selectedModelId, setSelectedModelId] = useState<string>('claude-sonnet-4-6');
+
+  // Hydrate model selection from localStorage after mount (SSR-safe)
+  useEffect(() => {
     try {
-      return localStorage.getItem(`argus_model_${projectId}`) ?? 'claude-sonnet-4-6';
-    } catch {
-      return 'claude-sonnet-4-6';
-    }
-  });
+      const stored = localStorage.getItem(`argus_model_${projectId}`);
+      if (stored) setSelectedModelId(stored);
+    } catch { /* noop — SSR or private browsing */ }
+  }, [projectId]);
 
   const selectedModel = MODELS.find((m) => m.id === selectedModelId) ?? MODELS[0];
 
@@ -89,6 +92,7 @@ export default function BuilderPage() {
   /* ─── Preview / Sandbox ─── */
   const [sandboxUrl, setSandboxUrl] = useState<string | undefined>(undefined);
   const [sandboxId, setSandboxId] = useState<string | undefined>(undefined);
+  const sandboxIdRef = useRef<string | undefined>(undefined);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
@@ -154,9 +158,12 @@ export default function BuilderPage() {
       const data = await res.json();
       if (data.success && data.url) {
         setSandboxUrl(data.url);
-        if (data.sandboxId) setSandboxId(data.sandboxId);
+        if (data.sandboxId) {
+          setSandboxId(data.sandboxId);
+          sandboxIdRef.current = data.sandboxId;
+        }
       } else {
-        setPreviewError('Failed to create sandbox');
+        setPreviewError(data.error || 'Failed to create sandbox');
       }
     } catch {
       setPreviewError('Failed to create sandbox');
@@ -167,13 +174,14 @@ export default function BuilderPage() {
 
   useEffect(() => {
     initSandbox();
-    // Cleanup sandbox on unmount to prevent orphaned sandboxes
+    // Cleanup sandbox on unmount — use ref to avoid stale closure
     return () => {
-      if (sandboxId) {
+      const id = sandboxIdRef.current;
+      if (id) {
         fetch('/api/kill-sandbox', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sandboxId }),
+          body: JSON.stringify({ sandboxId: id }),
         }).catch(() => { /* best-effort cleanup */ });
       }
     };
@@ -271,15 +279,10 @@ export default function BuilderPage() {
           }
         }
 
-        // Parse files from generated code
-        const fileRegex = /<file path="([^"]+)">([^]*?)<\/file>/g;
-        const parsedFiles: FileEntry[] = [];
-        let match;
-        const changedFiles: string[] = [];
-        while ((match = fileRegex.exec(generatedCode)) !== null) {
-          parsedFiles.push({ path: match[1], content: match[2].trim() });
-          changedFiles.push(match[1]);
-        }
+        // Parse files from generated code using robust parser
+        const rawParsed = parseGeneratedFiles(generatedCode);
+        const parsedFiles: FileEntry[] = rawParsed.map(f => ({ path: f.path, content: f.content }));
+        const changedFiles: string[] = rawParsed.map(f => f.path);
 
         if (parsedFiles.length > 0) {
           setFiles(parsedFiles);

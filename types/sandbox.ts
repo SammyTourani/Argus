@@ -14,18 +14,11 @@ export interface SandboxFileCache {
 
 export interface SandboxState {
   fileCache: SandboxFileCache | null;
-  sandbox: any; // E2B sandbox instance
+  sandbox: any; // E2B sandbox instance or provider
   sandboxData: {
     sandboxId: string;
     url: string;
   } | null;
-}
-
-// Declare global types
-declare global {
-  var activeSandbox: any;
-  var sandboxState: SandboxState;
-  var existingFiles: Set<string>;
 }
 
 export {};

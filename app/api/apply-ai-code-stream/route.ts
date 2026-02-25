@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { parseMorphEdits, applyMorphEditToFile } from '@/lib/morph-fast-apply';
-// Sandbox import not needed - using global sandbox from sandbox-manager
-import type { SandboxState } from '@/types/sandbox';
 import type { ConversationState } from '@/types/conversation';
 import { sandboxManager } from '@/lib/sandbox/sandbox-manager';
+import { createClient } from '@/lib/supabase/server';
+import { getSandbox, setSandbox } from '@/lib/sandbox/registry';
+import { parseGeneratedFiles } from '@/lib/ai/parse-files';
 
 declare global {
   var conversationState: ConversationState | null;
-  var activeSandboxProvider: any;
-  var existingFiles: Set<string>;
-  var sandboxState: SandboxState;
 }
 
 interface ParsedResponse {
@@ -66,51 +64,14 @@ function parseAIResponse(response: string): ParsedResponse {
   // Parse file sections - handle duplicates and prefer complete versions
   const fileMap = new Map<string, { content: string; isComplete: boolean }>();
 
-  // First pass: Find all file declarations
-  const fileRegex = /<file path="([^"]+)">([\s\S]*?)(?:<\/file>|$)/g;
-  let match;
-  while ((match = fileRegex.exec(response)) !== null) {
-    const filePath = match[1];
-    const content = match[2].trim();
-    const hasClosingTag = response.substring(match.index, match.index + match[0].length).includes('</file>');
-
-    // Check if this file already exists in our map
-    const existing = fileMap.get(filePath);
-
-    // Decide whether to keep this version
-    let shouldReplace = false;
-    if (!existing) {
-      shouldReplace = true; // First occurrence
-    } else if (!existing.isComplete && hasClosingTag) {
-      shouldReplace = true; // Replace incomplete with complete
-      console.log(`[apply-ai-code-stream] Replacing incomplete ${filePath} with complete version`);
-    } else if (existing.isComplete && hasClosingTag && content.length > existing.content.length) {
-      shouldReplace = true; // Replace with longer complete version
-      console.log(`[apply-ai-code-stream] Replacing ${filePath} with longer complete version`);
-    } else if (!existing.isComplete && !hasClosingTag && content.length > existing.content.length) {
-      shouldReplace = true; // Both incomplete, keep longer one
-    }
-
-    if (shouldReplace) {
-      // Additional validation: reject obviously broken content
-      if (content.includes('...') && !content.includes('...props') && !content.includes('...rest')) {
-        console.warn(`[apply-ai-code-stream] Warning: ${filePath} contains ellipsis, may be truncated`);
-        // Still use it if it's the only version we have
-        if (!existing) {
-          fileMap.set(filePath, { content, isComplete: hasClosingTag });
-        }
-      } else {
-        fileMap.set(filePath, { content, isComplete: hasClosingTag });
-      }
-    }
+  // Use the robust file parser for <file> tags
+  const parsedFileEntries = parseGeneratedFiles(response);
+  for (const entry of parsedFileEntries) {
+    fileMap.set(entry.path, { content: entry.content, isComplete: true });
   }
 
   // Convert map to array for sections.files
-  for (const [path, { content, isComplete }] of fileMap.entries()) {
-    if (!isComplete) {
-      console.log(`[apply-ai-code-stream] Warning: File ${path} appears to be truncated (no closing tag)`);
-    }
-
+  for (const [path, { content }] of fileMap.entries()) {
     sections.files.push({
       path,
       content
@@ -121,12 +82,13 @@ function parseAIResponse(response: string): ParsedResponse {
     for (const pkg of filePackages) {
       if (!sections.packages.includes(pkg)) {
         sections.packages.push(pkg);
-        console.log(`[apply-ai-code-stream] 📦 Package detected from imports: ${pkg}`);
+        console.log(`[apply-ai-code-stream] Package detected from imports: ${pkg}`);
       }
     }
   }
 
   // Also parse markdown code blocks with file paths
+  let match;
   const markdownFileRegex = /```(?:file )?path="([^"]+)"\n([\s\S]*?)```/g;
   while ((match = markdownFileRegex.exec(response)) !== null) {
     const filePath = match[1];
@@ -263,6 +225,16 @@ function parseAIResponse(response: string): ParsedResponse {
 
 export async function POST(request: NextRequest) {
   try {
+    // Auth — resolve user's sandbox
+    const supabaseClient = await createClient();
+    const { data: { user } } = await supabaseClient.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const userEntry = getSandbox(user.id);
+
     const { response, isEdit = false, packages = [], sandboxId } = await request.json();
 
     if (!response) {
@@ -286,7 +258,7 @@ export async function POST(request: NextRequest) {
     if (morphEnabled) {
       console.log('[apply-ai-code-stream] Morph edits found:', morphEdits.length);
     }
-    
+
     // Log what was parsed
     console.log('[apply-ai-code-stream] Parsed result:');
     console.log('[apply-ai-code-stream] Files found:', parsed.files.length);
@@ -297,17 +269,12 @@ export async function POST(request: NextRequest) {
     }
     console.log('[apply-ai-code-stream] Packages found:', parsed.packages);
 
-    // Initialize existingFiles if not already
-    if (!global.existingFiles) {
-      global.existingFiles = new Set<string>();
-    }
-
-    // Try to get provider from sandbox manager first
+    // Try to get provider from sandbox manager first, then per-user registry
     let provider = sandboxId ? sandboxManager.getProvider(sandboxId) : sandboxManager.getActiveProvider();
 
-    // Fall back to global state if not found in manager
+    // Fall back to per-user registry
     if (!provider) {
-      provider = global.activeSandboxProvider;
+      provider = userEntry.provider;
     }
 
     // If we have a sandboxId but no provider, try to get or create one
@@ -325,8 +292,8 @@ export async function POST(request: NextRequest) {
           sandboxManager.registerSandbox(sandboxId, provider);
         }
 
-        // Update legacy global state
-        global.activeSandboxProvider = provider;
+        // Update per-user registry
+        setSandbox(user.id, { provider });
         console.log(`[apply-ai-code-stream] Successfully got provider for sandbox ${sandboxId}`);
       } catch (providerError) {
         console.error(`[apply-ai-code-stream] Failed to get or create provider for sandbox ${sandboxId}:`, providerError);
@@ -359,12 +326,14 @@ export async function POST(request: NextRequest) {
         // Register with sandbox manager
         sandboxManager.registerSandbox(sandboxInfo.sandboxId, provider);
 
-        // Store in legacy global state
-        global.activeSandboxProvider = provider;
-        global.sandboxData = {
-          sandboxId: sandboxInfo.sandboxId,
-          url: sandboxInfo.url
-        };
+        // Store in per-user registry
+        setSandbox(user.id, {
+          provider,
+          sandboxData: {
+            sandboxId: sandboxInfo.sandboxId,
+            url: sandboxInfo.url,
+          },
+        });
 
         console.log(`[apply-ai-code-stream] Created new sandbox successfully`);
       } catch (createError) {
@@ -536,7 +505,7 @@ export async function POST(request: NextRequest) {
         // If Morph is enabled and we have edits, apply them before file writes
         const morphUpdatedPaths = new Set<string>();
         if (morphEnabled && morphEdits.length > 0) {
-          const morphSandbox = (global as any).activeSandbox || providerInstance;
+          const morphSandbox = userEntry.sandbox || providerInstance;
           if (!morphSandbox) {
             console.warn('[apply-ai-code-stream] No sandbox available to apply Morph edits');
             await sendProgress({ type: 'warning', message: 'No sandbox available to apply Morph edits' });
@@ -611,7 +580,7 @@ export async function POST(request: NextRequest) {
               normalizedPath = 'src/' + normalizedPath;
             }
 
-            const isUpdate = global.existingFiles.has(normalizedPath);
+            const isUpdate = userEntry.existingFiles.has(normalizedPath);
 
             // Remove any CSS imports from JSX/JS files (we're using Tailwind)
             let fileContent = file.content;
@@ -638,8 +607,8 @@ export async function POST(request: NextRequest) {
             await providerInstance.writeFile(normalizedPath, fileContent);
 
             // Update file cache
-            if (global.sandboxState?.fileCache) {
-              global.sandboxState.fileCache.files[normalizedPath] = {
+            if (userEntry.sandboxState?.fileCache) {
+              userEntry.sandboxState.fileCache.files[normalizedPath] = {
                 content: fileContent,
                 lastModified: Date.now()
               };
@@ -649,7 +618,7 @@ export async function POST(request: NextRequest) {
               if (results.filesUpdated) results.filesUpdated.push(normalizedPath);
             } else {
               if (results.filesCreated) results.filesCreated.push(normalizedPath);
-              if (global.existingFiles) global.existingFiles.add(normalizedPath);
+              if (userEntry.existingFiles) userEntry.existingFiles.add(normalizedPath);
             }
 
             await sendProgress({

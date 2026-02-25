@@ -8,7 +8,6 @@ import ShareDialog from '@/components/workspace/ShareDialog';
 import TeamPresence from '@/components/workspace/TeamPresence';
 import InviteButton from '@/components/workspace/InviteButton';
 import { motion, AnimatePresence } from 'framer-motion';
-import { createClient } from '@/lib/supabase/client';
 import type { Project, Build } from '@/types/workspace';
 import ActivityFeed from '@/components/workspace/ActivityFeed';
 
@@ -65,37 +64,35 @@ export default function ProjectDetailPage() {
   const [shareOpen, setShareOpen] = useState(false);
 
   const fetchProjectData = useCallback(async () => {
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    try {
+      // Fetch project via API layer (authenticated server-side)
+      const projectRes = await fetch(`/api/projects/${projectId}`);
+      if (!projectRes.ok) {
+        if (projectRes.status === 401) {
+          router.push('/sign-in');
+          return;
+        }
+        router.push('/workspace');
+        return;
+      }
+      const { project: projectData } = await projectRes.json();
+      if (!projectData) {
+        router.push('/workspace');
+        return;
+      }
+      setProject(projectData as Project);
 
-    if (!user) {
-      router.push('/sign-in');
-      return;
-    }
-
-    // Fetch project
-    const { data: projectData, error: projectError } = await supabase
-      .from('projects')
-      .select('*')
-      .eq('id', projectId)
-      .single();
-
-    if (projectError || !projectData) {
+      // Fetch builds via API layer
+      const buildsRes = await fetch(`/api/projects/${projectId}/builds`);
+      if (buildsRes.ok) {
+        const { builds: buildsData } = await buildsRes.json();
+        setBuilds((buildsData || []) as Build[]);
+      }
+    } catch {
       router.push('/workspace');
-      return;
+    } finally {
+      setLoading(false);
     }
-
-    setProject(projectData as Project);
-
-    // Fetch builds for this project
-    const { data: buildsData } = await supabase
-      .from('project_builds')
-      .select('*')
-      .eq('project_id', projectId)
-      .order('version_number', { ascending: false });
-
-    setBuilds((buildsData || []) as Build[]);
-    setLoading(false);
   }, [projectId, router]);
 
   useEffect(() => {

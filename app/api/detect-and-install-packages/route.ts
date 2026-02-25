@@ -1,21 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-declare global {
-  var activeSandbox: any;
-}
+import { createClient } from '@/lib/supabase/server';
+import { getSandbox } from '@/lib/sandbox/registry';
 
 export async function POST(request: NextRequest) {
   try {
+    // Auth — resolve the current user's sandbox
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { files } = await request.json();
-    
+
     if (!files || typeof files !== 'object') {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Files object is required' 
+      return NextResponse.json({
+        success: false,
+        error: 'Files object is required'
       }, { status: 400 });
     }
 
-    if (!global.activeSandbox) {
+    const entry = getSandbox(user.id);
+    const sandbox = entry.sandbox;
+
+    if (!sandbox) {
       return NextResponse.json({
         success: false,
         error: 'No active sandbox'
@@ -98,7 +107,7 @@ export async function POST(request: NextRequest) {
     
     for (const packageName of uniquePackages) {
       try {
-        const checkResult = await global.activeSandbox.runCommand({
+        const checkResult = await sandbox.runCommand({
           cmd: 'test',
           args: ['-d', `node_modules/${packageName}`]
         });
@@ -129,7 +138,7 @@ export async function POST(request: NextRequest) {
     // Install missing packages
     console.log('[detect-and-install-packages] Installing packages:', missing);
     
-    const installResult = await global.activeSandbox.runCommand({
+    const installResult = await sandbox.runCommand({
       cmd: 'npm',
       args: ['install', '--save', ...missing]
     });
@@ -148,7 +157,7 @@ export async function POST(request: NextRequest) {
 
     for (const packageName of missing) {
       try {
-        const verifyResult = await global.activeSandbox.runCommand({
+        const verifyResult = await sandbox.runCommand({
           cmd: 'test',
           args: ['-d', `node_modules/${packageName}`]
         });

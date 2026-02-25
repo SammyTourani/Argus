@@ -1,19 +1,10 @@
 import { NextResponse } from 'next/server';
 import { SandboxFactory } from '@/lib/sandbox/factory';
-// SandboxProvider type is used through SandboxFactory
-import type { SandboxState } from '@/types/sandbox';
 import { sandboxManager } from '@/lib/sandbox/sandbox-manager';
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 import { createClient } from '@/lib/supabase/server';
-
-// Store active sandbox globally
-declare global {
-  var activeSandboxProvider: any;
-  var sandboxData: any;
-  var existingFiles: Set<string>;
-  var sandboxState: SandboxState;
-}
+import { getSandbox, setSandbox, cleanupStale } from '@/lib/sandbox/registry';
 
 const ratelimit = process.env.UPSTASH_REDIS_REST_URL
   ? new Ratelimit({
@@ -34,16 +25,20 @@ async function getUserTier(userId: string): Promise<string> {
 
 export async function POST(request: Request) {
   try {
-    // Auth + Rate limiting for free users
-    let currentUser: any = null;
+    // Auth — require authenticated user for sandbox isolation
     const supabaseAuth = await createClient();
     const { data: { user } } = await supabaseAuth.auth.getUser();
-    currentUser = user;
 
-    if (user && ratelimit) {
-      const tier = await getUserTier(user.id);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const userId = user.id;
+
+    if (ratelimit) {
+      const tier = await getUserTier(userId);
       if (tier === 'free') {
-        const { success } = await ratelimit.limit(user.id);
+        const { success } = await ratelimit.limit(userId);
         if (!success) {
           return NextResponse.json(
             { error: 'Monthly build limit reached. Upgrade to Pro for unlimited builds.' },
@@ -54,80 +49,83 @@ export async function POST(request: Request) {
     }
 
     // Log build start
-    if (currentUser) {
+    try {
+      const supabase = await createClient();
+      let body: any = {};
+      try { body = await request.clone().json(); } catch {}
+      await supabase.from('project_builds').insert({
+        created_by: userId,
+        input_url: body.url || null,
+        input_prompt: body.prompt || null,
+        style: body.style || null,
+        model: body.model || null,
+        status: 'generating',
+      });
+    } catch (e) {
+      console.error('[create-ai-sandbox-v2] Failed to log build:', e);
+    }
+
+    console.log(`[create-ai-sandbox-v2] Creating sandbox for user ${userId}...`);
+
+    const entry = getSandbox(userId);
+
+    // Clean up existing sandbox for this user
+    console.log('[create-ai-sandbox-v2] Cleaning up existing sandboxes...');
+    await sandboxManager.terminateAll();
+
+    // Also clean up this user's legacy state
+    if (entry.provider) {
       try {
-        const supabase = await createClient();
-        let body: any = {};
-        try { body = await request.clone().json(); } catch {}
-        await supabase.from('project_builds').insert({
-          created_by: currentUser.id,
-          input_url: body.url || null,
-          input_prompt: body.prompt || null,
-          style: body.style || null,
-          model: body.model || null,
-          status: 'generating',
-        });
+        await entry.provider.terminate();
       } catch (e) {
-        console.error('[create-ai-sandbox-v2] Failed to log build:', e);
+        console.error('Failed to terminate legacy user sandbox:', e);
       }
     }
 
-    console.log('[create-ai-sandbox-v2] Creating sandbox...');
-    
-    // Clean up all existing sandboxes
-    console.log('[create-ai-sandbox-v2] Cleaning up existing sandboxes...');
-    await sandboxManager.terminateAll();
-    
-    // Also clean up legacy global state
-    if (global.activeSandboxProvider) {
-      try {
-        await global.activeSandboxProvider.terminate();
-      } catch (e) {
-        console.error('Failed to terminate legacy global sandbox:', e);
-      }
-      global.activeSandboxProvider = null;
-    }
-    
     // Clear existing files tracking
-    if (global.existingFiles) {
-      global.existingFiles.clear();
-    } else {
-      global.existingFiles = new Set<string>();
-    }
+    entry.existingFiles.clear();
 
     // Create new sandbox using factory
     const provider = SandboxFactory.create();
-    const sandboxInfo = await provider.createSandbox();
-    
+
+    // Timeout sandbox creation at 30 seconds
+    const creationTimeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Sandbox creation timed out after 30 seconds')), 30_000)
+    );
+    const sandboxInfo = await Promise.race([provider.createSandbox(), creationTimeout]);
+
     console.log('[create-ai-sandbox-v2] Setting up Vite React app...');
     await provider.setupViteApp();
-    
+
     // Register with sandbox manager
     sandboxManager.registerSandbox(sandboxInfo.sandboxId, provider);
-    
-    // Also store in legacy global state for backward compatibility
-    global.activeSandboxProvider = provider;
-    global.sandboxData = {
-      sandboxId: sandboxInfo.sandboxId,
-      url: sandboxInfo.url
-    };
-    
-    // Initialize sandbox state
-    global.sandboxState = {
-      fileCache: {
-        files: {},
-        lastSync: Date.now(),
-        sandboxId: sandboxInfo.sandboxId
-      },
-      sandbox: provider, // Store the provider instead of raw sandbox
+
+    // Store in per-user registry
+    setSandbox(userId, {
+      provider,
       sandboxData: {
         sandboxId: sandboxInfo.sandboxId,
-        url: sandboxInfo.url
-      }
-    };
-    
+        url: sandboxInfo.url,
+      },
+      sandboxState: {
+        fileCache: {
+          files: {},
+          lastSync: Date.now(),
+          sandboxId: sandboxInfo.sandboxId,
+        },
+        sandbox: provider,
+        sandboxData: {
+          sandboxId: sandboxInfo.sandboxId,
+          url: sandboxInfo.url,
+        },
+      },
+    });
+
+    // Housekeeping
+    cleanupStale();
+
     console.log('[create-ai-sandbox-v2] Sandbox ready at:', sandboxInfo.url);
-    
+
     return NextResponse.json({
       success: true,
       sandboxId: sandboxInfo.sandboxId,
@@ -138,20 +136,12 @@ export async function POST(request: Request) {
 
   } catch (error) {
     console.error('[create-ai-sandbox-v2] Error:', error);
-    
+
     // Clean up on error
     await sandboxManager.terminateAll();
-    if (global.activeSandboxProvider) {
-      try {
-        await global.activeSandboxProvider.terminate();
-      } catch (e) {
-        console.error('Failed to terminate sandbox on error:', e);
-      }
-      global.activeSandboxProvider = null;
-    }
-    
+
     return NextResponse.json(
-      { 
+      {
         error: error instanceof Error ? error.message : 'Failed to create sandbox',
         details: error instanceof Error ? error.stack : undefined
       },

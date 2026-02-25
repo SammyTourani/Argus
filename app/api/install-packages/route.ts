@@ -1,44 +1,47 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-declare global {
-  var activeSandbox: any;
-  var activeSandboxProvider: any;
-  var sandboxData: any;
-}
+import { createClient } from '@/lib/supabase/server';
+import { getSandbox } from '@/lib/sandbox/registry';
 
 export async function POST(request: NextRequest) {
   try {
+    // Auth — resolve the current user's sandbox
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { packages } = await request.json();
-    // sandboxId not used - using global sandbox
-    
+
     if (!packages || !Array.isArray(packages) || packages.length === 0) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Packages array is required' 
+      return NextResponse.json({
+        success: false,
+        error: 'Packages array is required'
       }, { status: 400 });
     }
-    
+
     // Validate and deduplicate package names
     const validPackages = [...new Set(packages)]
       .filter(pkg => pkg && typeof pkg === 'string' && pkg.trim() !== '')
       .map(pkg => pkg.trim());
-    
+
     if (validPackages.length === 0) {
       return NextResponse.json({
         success: false,
         error: 'No valid package names provided'
       }, { status: 400 });
     }
-    
-    // Log if duplicates were found
+
     if (packages.length !== validPackages.length) {
       console.log(`[install-packages] Cleaned packages: removed ${packages.length - validPackages.length} invalid/duplicate entries`);
       console.log(`[install-packages] Original:`, packages);
       console.log(`[install-packages] Cleaned:`, validPackages);
     }
-    
-    // Get active sandbox provider
-    const provider = global.activeSandboxProvider;
+
+    // Get active sandbox provider for this user
+    const entry = getSandbox(user.id);
+    const provider = entry.provider;
     
     if (!provider) {
       return NextResponse.json({ 

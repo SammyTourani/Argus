@@ -1,20 +1,10 @@
 import { NextResponse } from 'next/server';
 import { Sandbox } from '@vercel/sandbox';
-import type { SandboxState } from '@/types/sandbox';
 import { appConfig } from '@/config/app.config';
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 import { createClient } from '@/lib/supabase/server';
-
-// Store active sandbox globally
-declare global {
-  var activeSandbox: any;
-  var sandboxData: any;
-  var existingFiles: Set<string>;
-  var sandboxState: SandboxState;
-  var sandboxCreationInProgress: boolean;
-  var sandboxCreationPromise: Promise<any> | null;
-}
+import { getSandbox, setSandbox, cleanupStale } from '@/lib/sandbox/registry';
 
 const ratelimit = process.env.UPSTASH_REDIS_REST_URL
   ? new Ratelimit({
@@ -34,16 +24,21 @@ async function getUserTier(userId: string): Promise<string> {
 }
 
 export async function POST(request: Request) {
-  // Auth + Rate limiting for free users
-  let currentUser: any = null;
+  // Auth — require authenticated user for sandbox isolation
   const supabaseAuth = await createClient();
   const { data: { user } } = await supabaseAuth.auth.getUser();
-  currentUser = user;
 
-  if (user && ratelimit) {
-    const tier = await getUserTier(user.id);
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const userId = user.id;
+
+  // Rate limiting for free users
+  if (ratelimit) {
+    const tier = await getUserTier(userId);
     if (tier === 'free') {
-      const { success } = await ratelimit.limit(user.id);
+      const { success } = await ratelimit.limit(userId);
       if (!success) {
         return NextResponse.json(
           { error: 'Monthly build limit reached. Upgrade to Pro for unlimited builds.' },
@@ -54,29 +49,30 @@ export async function POST(request: Request) {
   }
 
   // Log build start
-  if (currentUser) {
-    try {
-      const supabase = await createClient();
-      let body: any = {};
-      try { body = await request.clone().json(); } catch {}
-      await supabase.from('project_builds').insert({
-        created_by: currentUser.id,
-        input_url: body.url || null,
-        input_prompt: body.prompt || null,
-        style: body.style || null,
-        model: body.model || null,
-        status: 'generating',
-      });
-    } catch (e) {
-      console.error('[create-ai-sandbox] Failed to log build:', e);
-    }
+  try {
+    const supabase = await createClient();
+    let body: any = {};
+    try { body = await request.clone().json(); } catch {}
+    await supabase.from('project_builds').insert({
+      created_by: userId,
+      input_url: body.url || null,
+      input_prompt: body.prompt || null,
+      style: body.style || null,
+      model: body.model || null,
+      status: 'generating',
+    });
+  } catch (e) {
+    console.error('[create-ai-sandbox] Failed to log build:', e);
   }
 
-  // Check if sandbox creation is already in progress
-  if (global.sandboxCreationInProgress && global.sandboxCreationPromise) {
-    console.log('[create-ai-sandbox] Sandbox creation already in progress, waiting for existing creation...');
+  // Get or initialise this user's sandbox entry
+  const entry = getSandbox(userId);
+
+  // Check if sandbox creation is already in progress for this user
+  if (entry.creationInProgress && entry.creationPromise) {
+    console.log(`[create-ai-sandbox] Sandbox creation already in progress for user ${userId}, waiting...`);
     try {
-      const existingResult = await global.sandboxCreationPromise;
+      const existingResult = await entry.creationPromise;
       console.log('[create-ai-sandbox] Returning existing sandbox creation result');
       return NextResponse.json(existingResult);
     } catch (error) {
@@ -85,75 +81,74 @@ export async function POST(request: Request) {
     }
   }
 
-  // Check if we already have an active sandbox
-  if (global.activeSandbox && global.sandboxData) {
-    console.log('[create-ai-sandbox] Returning existing active sandbox');
+  // Check if we already have an active sandbox for this user
+  if (entry.sandbox && entry.sandboxData) {
+    console.log(`[create-ai-sandbox] Returning existing active sandbox for user ${userId}`);
     return NextResponse.json({
       success: true,
-      sandboxId: global.sandboxData.sandboxId,
-      url: global.sandboxData.url
+      sandboxId: entry.sandboxData.sandboxId,
+      url: entry.sandboxData.url
     });
   }
 
   // Set the creation flag
-  global.sandboxCreationInProgress = true;
-  
+  entry.creationInProgress = true;
+
   // Create the promise that other requests can await
-  global.sandboxCreationPromise = createSandboxInternal();
-  
+  entry.creationPromise = createSandboxInternal(userId);
+
   try {
-    const result = await global.sandboxCreationPromise;
+    const result = await entry.creationPromise;
     return NextResponse.json(result);
   } catch (error) {
     console.error('[create-ai-sandbox] Sandbox creation failed:', error);
     return NextResponse.json(
-      { 
+      {
         error: error instanceof Error ? error.message : 'Failed to create sandbox',
         details: error instanceof Error ? error.stack : undefined
       },
       { status: 500 }
     );
   } finally {
-    global.sandboxCreationInProgress = false;
-    global.sandboxCreationPromise = null;
+    entry.creationInProgress = false;
+    entry.creationPromise = null;
+    // Housekeeping: remove stale entries from other users
+    cleanupStale();
   }
 }
 
-async function createSandboxInternal() {
+async function createSandboxInternal(userId: string) {
   let sandbox: any = null;
+  const entry = getSandbox(userId);
 
   try {
-    console.log('[create-ai-sandbox] Creating Vercel sandbox...');
-    
-    // Kill existing sandbox if any
-    if (global.activeSandbox) {
+    console.log(`[create-ai-sandbox] Creating Vercel sandbox for user ${userId}...`);
+
+    // Kill existing sandbox for this user if any
+    if (entry.sandbox) {
       console.log('[create-ai-sandbox] Stopping existing sandbox...');
       try {
-        await global.activeSandbox.stop();
+        await entry.sandbox.stop();
       } catch (e) {
         console.error('Failed to stop existing sandbox:', e);
       }
-      global.activeSandbox = null;
-      global.sandboxData = null;
+      entry.sandbox = null;
+      entry.sandboxData = null;
     }
-    
+
     // Clear existing files tracking
-    if (global.existingFiles) {
-      global.existingFiles.clear();
-    } else {
-      global.existingFiles = new Set<string>();
-    }
+    entry.existingFiles.clear();
 
     // Create Vercel sandbox with flexible authentication
     console.log(`[create-ai-sandbox] Creating Vercel sandbox with ${appConfig.vercelSandbox.timeoutMinutes} minute timeout...`);
-    
+
     // Prepare sandbox configuration
     const sandboxConfig: any = {
       timeout: appConfig.vercelSandbox.timeoutMs,
       runtime: appConfig.vercelSandbox.runtime,
       ports: [appConfig.vercelSandbox.devPort]
     };
-    
+
     // Add authentication parameters if using personal access token
     if (process.env.VERCEL_TOKEN && process.env.VERCEL_TEAM_ID && process.env.VERCEL_PROJECT_ID) {
       console.log('[create-ai-sandbox] Using personal access token authentication');
@@ -165,22 +160,25 @@ async function createSandboxInternal() {
     } else {
       console.log('[create-ai-sandbox] No authentication found - relying on default Vercel authentication');
     }
-    
-    sandbox = await Sandbox.create(sandboxConfig);
-    
+
+    // Timeout sandbox creation at 30 seconds
+    const creationTimeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Sandbox creation timed out after 30 seconds')), 30_000)
+    );
+    sandbox = await Promise.race([Sandbox.create(sandboxConfig), creationTimeout]);
+
     const sandboxId = sandbox.sandboxId;
     console.log(`[create-ai-sandbox] Sandbox created: ${sandboxId}`);
 
     // Set up a basic Vite React app
     console.log('[create-ai-sandbox] Setting up Vite React app...');
-    
+
     // First, change to the working directory
     await sandbox.runCommand('pwd');
-    // workDir is defined in appConfig - not needed here
-    
+
     // Get the sandbox URL using the correct Vercel Sandbox API
     const sandboxUrl = sandbox.domain(appConfig.vercelSandbox.devPort);
-    
+
     // Extract the hostname from the sandbox URL for Vite config
     const sandboxHostname = new URL(sandboxUrl).hostname;
     console.log(`[create-ai-sandbox] Sandbox hostname: ${sandboxHostname}`);
@@ -322,7 +320,7 @@ export default App`)
     -moz-osx-font-smoothing: grayscale;
     -webkit-text-size-adjust: 100%;
   }
-  
+
   * {
     margin: 0;
     padding: 0;
@@ -342,11 +340,11 @@ body {
       cmd: 'mkdir',
       args: ['-p', 'src']
     });
-    
+
     // Write all files
     await sandbox.writeFiles(projectFiles);
-    console.log('[create-ai-sandbox] ✓ Project files created');
-    
+    console.log('[create-ai-sandbox] Project files created');
+
     // Install dependencies
     console.log('[create-ai-sandbox] Installing dependencies...');
     const installResult = await sandbox.runCommand({
@@ -354,11 +352,11 @@ body {
       args: ['install', '--loglevel', 'info']
     });
     if (installResult.exitCode === 0) {
-      console.log('[create-ai-sandbox] ✓ Dependencies installed successfully');
+      console.log('[create-ai-sandbox] Dependencies installed successfully');
     } else {
-      console.log('[create-ai-sandbox] ⚠ Warning: npm install had issues but continuing...');
+      console.log('[create-ai-sandbox] Warning: npm install had issues but continuing...');
     }
-    
+
     // Start Vite dev server in detached mode
     console.log('[create-ai-sandbox] Starting Vite dev server...');
     const viteProcess = await sandbox.runCommand({
@@ -366,64 +364,67 @@ body {
       args: ['run', 'dev'],
       detached: true
     });
-    
-    console.log('[create-ai-sandbox] ✓ Vite dev server started');
-    
+
+    console.log('[create-ai-sandbox] Vite dev server started');
+
     // Wait for Vite to be fully ready
     await new Promise(resolve => setTimeout(resolve, appConfig.vercelSandbox.devServerStartupDelay));
 
-    // Store sandbox globally
-    global.activeSandbox = sandbox;
-    global.sandboxData = {
-      sandboxId,
-      url: sandboxUrl,
-      viteProcess
-    };
-    
-    // Initialize sandbox state
-    global.sandboxState = {
-      fileCache: {
-        files: {},
-        lastSync: Date.now(),
-        sandboxId
-      },
+    // Store sandbox in the per-user registry
+    setSandbox(userId, {
       sandbox,
       sandboxData: {
         sandboxId,
-        url: sandboxUrl
-      }
-    };
-    
+        url: sandboxUrl,
+        viteProcess,
+      },
+      sandboxState: {
+        fileCache: {
+          files: {},
+          lastSync: Date.now(),
+          sandboxId,
+        },
+        sandbox,
+        sandboxData: {
+          sandboxId,
+          url: sandboxUrl,
+        },
+      },
+    });
+
     // Track initial files
-    global.existingFiles.add('src/App.jsx');
-    global.existingFiles.add('src/main.jsx');
-    global.existingFiles.add('src/index.css');
-    global.existingFiles.add('index.html');
-    global.existingFiles.add('package.json');
-    global.existingFiles.add('vite.config.js');
-    global.existingFiles.add('tailwind.config.js');
-    global.existingFiles.add('postcss.config.js');
-    
+    const userEntry = getSandbox(userId);
+    userEntry.existingFiles.add('src/App.jsx');
+    userEntry.existingFiles.add('src/main.jsx');
+    userEntry.existingFiles.add('src/index.css');
+    userEntry.existingFiles.add('index.html');
+    userEntry.existingFiles.add('package.json');
+    userEntry.existingFiles.add('vite.config.js');
+    userEntry.existingFiles.add('tailwind.config.js');
+    userEntry.existingFiles.add('postcss.config.js');
+
     console.log('[create-ai-sandbox] Sandbox ready at:', sandboxUrl);
-    
+
     const result = {
       success: true,
       sandboxId,
       url: sandboxUrl,
       message: 'Vercel sandbox created and Vite React app initialized'
     };
-    
-    // Store the result for reuse
-    global.sandboxData = {
-      ...global.sandboxData,
-      ...result
-    };
-    
+
+    // Update sandboxData with result info
+    setSandbox(userId, {
+      sandboxData: {
+        ...userEntry.sandboxData,
+        ...result,
+      },
+    });
+
     return result;
 
   } catch (error) {
     console.error('[create-ai-sandbox] Error:', error);
-    
+
     // Clean up on error
     if (sandbox) {
       try {
@@ -432,11 +433,13 @@ body {
         console.error('Failed to stop sandbox on error:', e);
       }
     }
-    
-    // Clear global state on error
-    global.activeSandbox = null;
-    global.sandboxData = null;
-    
+
+    // Clear user's sandbox state on error
+    setSandbox(userId, {
+      sandbox: null,
+      sandboxData: null,
+    });
+
     throw error; // Throw to be caught by the outer handler
   }
 }
