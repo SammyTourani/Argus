@@ -35,8 +35,15 @@ export async function updateSession(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
+  // Backward compat redirects: /dashboard and /app → /workspace
+  if (pathname === '/dashboard' || pathname === '/app') {
+    const url = request.nextUrl.clone();
+    url.pathname = '/workspace';
+    return NextResponse.redirect(url);
+  }
+
   // Protected routes — require auth
-  if (!user && (pathname.startsWith('/app') || pathname.startsWith('/dashboard') || pathname.startsWith('/generation'))) {
+  if (!user && (pathname.startsWith('/workspace') || pathname.startsWith('/app') || pathname.startsWith('/dashboard') || pathname.startsWith('/generation'))) {
     const url = request.nextUrl.clone();
     url.pathname = '/sign-in';
     url.searchParams.set('redirect', pathname);
@@ -46,7 +53,7 @@ export async function updateSession(request: NextRequest) {
   // Redirect authenticated users away from auth pages
   if (user && (pathname === '/sign-in' || pathname === '/sign-up')) {
     const url = request.nextUrl.clone();
-    url.pathname = '/app';
+    url.pathname = '/workspace';
     return NextResponse.redirect(url);
   }
 
