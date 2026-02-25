@@ -7,6 +7,8 @@ import ChatPanel, { type ChatMessage } from '@/components/builder/ChatPanel';
 import PreviewPanel from '@/components/builder/PreviewPanel';
 import CodePanel, { type FileEntry } from '@/components/builder/CodePanel';
 import VisualEditor from '@/components/builder/VisualEditor';
+import PublishButton from '@/components/builder/PublishButton';
+import DeploySuccessBanner from '@/components/builder/DeploySuccessBanner';
 import { MODELS } from '@/components/builder/ModelSelector';
 import VersionHistoryPanel from '@/components/builder/VersionHistoryPanel';
 import VersionDiffBadge from '@/components/builder/VersionDiffBadge';
@@ -92,6 +94,10 @@ export default function BuilderPage() {
   /* ─── Code files ─── */
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [buildLogs, setBuildLogs] = useState<string[]>([]);
+
+  /* ─── Deploy / publish ─── */
+  const [deployUrl, setDeployUrl] = useState<string | null>(null);
+  const [showDeployBanner, setShowDeployBanner] = useState(false);
 
   /* ─── Load project name + conversation history on mount ─── */
   useEffect(() => {
@@ -355,6 +361,16 @@ export default function BuilderPage() {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
     };
+  }, []);
+
+  /* ─── Publish success handler ─── */
+  const handlePublishSuccess = useCallback((url: string) => {
+    setDeployUrl(url);
+    setShowDeployBanner(true);
+    setBuildLogs((prev) => [
+      ...prev,
+      `[${new Date().toLocaleTimeString()}] ✅ Deployed: ${url}`,
+    ]);
   }, []);
 
   /* ─── Download ZIP ─── */

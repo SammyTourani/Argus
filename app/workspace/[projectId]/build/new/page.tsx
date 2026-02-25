@@ -2,10 +2,11 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { motion } from 'framer-motion';
-import { Link2, Wand2, ArrowRight, X, Loader2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Link2, Wand2, ArrowRight, X, Loader2, LayoutTemplate } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import TemplateLibrary, { type Template } from '@/components/workspace/TemplateLibrary';
 
 const EXAMPLES = [
   { label: 'Clone Stripe', url: 'https://stripe.com/payments' },
@@ -21,7 +22,7 @@ const PROMPT_STARTERS = [
   'A Kanban task manager with drag-and-drop',
 ];
 
-type Mode = 'url' | 'prompt';
+type Mode = 'url' | 'prompt' | 'template';
 
 export default function NewBuildPage() {
   const params = useParams();
@@ -49,7 +50,7 @@ export default function NewBuildPage() {
   const handleCreate = async () => {
     const value = mode === 'url' ? url.trim() : prompt.trim();
     if (!value) {
-      setError(mode === 'url' ? 'Enter a URL to clone' : 'Describe what to build');
+      setError(mode === 'url' ? 'Enter a URL to clone' : mode === 'template' ? 'Select a template first' : 'Describe what to build');
       return;
     }
 
@@ -130,10 +131,39 @@ export default function NewBuildPage() {
               <Wand2 size={14} />
               Prompt
             </button>
+            <button
+              onClick={() => { setMode('template'); setError(null); }}
+              className={cn(
+                'flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all',
+                mode === 'template' ? 'bg-[#FA4500] text-white' : 'text-zinc-500 hover:text-zinc-300'
+              )}
+            >
+              <LayoutTemplate size={14} />
+              Templates
+            </button>
           </div>
 
-          {/* Input area */}
-          <div className="mb-3">
+          {/* Template mode */}
+          <AnimatePresence>
+            {mode === 'template' && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 8 }}
+                className="mb-6"
+              >
+                <TemplateLibrary
+                  onSelectTemplate={(template: Template) => {
+                    setPrompt(template.prompt);
+                    setMode('prompt');
+                  }}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Input area (hidden in template mode) */}
+          <div className={cn('mb-3', mode === 'template' && 'hidden')}>
             {mode === 'url' ? (
               <div className="flex items-center gap-2 rounded-xl border px-4 py-3.5 transition-colors"
                 style={{ background: '#111', borderColor: error ? '#EF4444' : '#222' }}>
