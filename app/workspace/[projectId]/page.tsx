@@ -10,6 +10,7 @@ import InviteButton from '@/components/workspace/InviteButton';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createClient } from '@/lib/supabase/client';
 import type { Project, Build } from '@/types/workspace';
+import ActivityFeed from '@/components/workspace/ActivityFeed';
 
 function timeAgo(dateStr: string): string {
   const date = new Date(dateStr);
@@ -267,6 +268,17 @@ export default function ProjectDetailPage() {
             </AnimatePresence>
           </div>
         )}
+      </div>
+
+      {/* Activity Feed */}
+      <div className="mx-auto max-w-7xl w-full px-6 pb-10">
+        <div className="rounded-xl border border-zinc-200 bg-white p-6">
+          <h2 className="text-sm font-semibold text-zinc-700 mb-4 flex items-center gap-2">
+            <Clock className="w-4 h-4 text-zinc-400" />
+            Recent Activity
+          </h2>
+          <ActivityFeed projectId={projectId} maxItems={8} />
+        </div>
       </div>
     </div>
   );
