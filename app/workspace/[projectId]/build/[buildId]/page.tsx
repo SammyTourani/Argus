@@ -14,6 +14,7 @@ import VersionHistoryPanel from '@/components/builder/VersionHistoryPanel';
 import VersionDiffBadge from '@/components/builder/VersionDiffBadge';
 import GitSyncButton from '@/components/builder/GitSyncButton';
 import BuildStatusBar, { type BuildStatus } from '@/components/builder/BuildStatusBar';
+import KeyboardShortcuts from '@/components/builder/KeyboardShortcuts';
 import { nanoid } from 'nanoid';
 import { createClient } from '@/lib/supabase/client';
 import { History } from 'lucide-react';
@@ -96,6 +97,7 @@ export default function BuilderPage() {
 
   /* ─── Version history ─── */
   const [versionHistoryOpen, setVersionHistoryOpen] = useState(false);
+  const [keyboardShortcutsOpen, setKeyboardShortcutsOpen] = useState(false);
   const [buildCount, setBuildCount] = useState(0);
 
   /* ─── Code files ─── */
@@ -409,6 +411,20 @@ export default function BuilderPage() {
     };
   }, []);
 
+  /* ─── Global keyboard shortcuts ─── */
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const meta = e.metaKey || e.ctrlKey;
+      if (meta && e.key === '/') { e.preventDefault(); setKeyboardShortcutsOpen(prev => !prev); }
+      if (meta && e.key === 'k') { e.preventDefault(); /* focus chat input — ChatPanel handles this via ref */ }
+      if (meta && e.shiftKey && e.key === 'e') { e.preventDefault(); setRightVisible(prev => !prev); }
+      if (meta && e.shiftKey && e.key === 'v') { e.preventDefault(); setVisualEditorActive(prev => !prev); }
+      if (e.key === 'Escape') { setVisualEditorActive(false); setVersionHistoryOpen(false); setKeyboardShortcutsOpen(false); }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
   /* ─── Publish success handler ─── */
   const handlePublishSuccess = useCallback((url: string) => {
     setDeployUrl(url);
@@ -552,6 +568,9 @@ export default function BuilderPage() {
         isOpen={versionHistoryOpen}
         onClose={() => setVersionHistoryOpen(false)}
       />
+
+      {/* Keyboard Shortcuts Modal */}
+      <KeyboardShortcuts isOpen={keyboardShortcutsOpen} onClose={() => setKeyboardShortcutsOpen(false)} />
 
       {/* Build Status Bar */}
       <BuildStatusBar
