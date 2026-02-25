@@ -934,3 +934,32 @@ COMMENT ON TABLE public.project_builds IS 'Each build attempt within a project. 
 COMMENT ON TABLE public.marketplace_listings IS 'Public community gallery. Pro users can publish builds here.';
 COMMENT ON TABLE public.onboarding_state IS 'Per-user onboarding wizard progress. 4 steps. Never repeats.';
 COMMENT ON TABLE public.user_model_preferences IS 'Default AI model and style preset per user.';
+
+-- ============================================================
+-- TABLE: build_messages
+-- Stores full conversation history per build for context persistence.
+-- Allows AI to have memory of what was built across sessions.
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS public.build_messages (
+  id          UUID        DEFAULT gen_random_uuid() PRIMARY KEY,
+  build_id    UUID        NOT NULL REFERENCES public.project_builds(id) ON DELETE CASCADE,
+  project_id  UUID        NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
+  user_id     UUID        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  role        TEXT        NOT NULL CHECK (role IN ('user', 'assistant', 'system')),
+  content     TEXT        NOT NULL,
+  file_changes TEXT[]     DEFAULT '{}',
+  created_at  TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_build_messages_build_id ON public.build_messages (build_id, created_at ASC);
+
+ALTER TABLE public.build_messages ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "build_messages_select_own"
+  ON public.build_messages FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "build_messages_insert_own"
+  ON public.build_messages FOR INSERT
+  WITH CHECK (auth.uid() = user_id);

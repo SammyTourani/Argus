@@ -85,6 +85,10 @@ export default function BuilderPage() {
   /* ─── Visual editor ─── */
   const [visualEditorActive, setVisualEditorActive] = useState(false);
 
+  /* ─── Version history ─── */
+  const [versionHistoryOpen, setVersionHistoryOpen] = useState(false);
+  const [buildCount, setBuildCount] = useState(0);
+
   /* ─── Code files ─── */
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [buildLogs, setBuildLogs] = useState<string[]>([]);
@@ -289,6 +293,24 @@ export default function BuilderPage() {
     [selectedModelId, sandboxId, persistMessageToSupabase],
   );
 
+  /* ─── Fetch build count for version badge ─── */
+  useEffect(() => {
+    if (!projectId || projectId === 'new') return;
+    fetch(`/api/projects/${projectId}/builds`)
+      .then((r) => r.json())
+      .then((d) => setBuildCount((d.builds ?? []).length))
+      .catch(() => {/* noop */});
+  }, [projectId]);
+
+  /* ─── Version select handler ─── */
+  const handleSelectVersion = useCallback(
+    (selectedBuildId: string) => {
+      setVersionHistoryOpen(false);
+      router.push(`/workspace/${projectId}/build/${selectedBuildId}`);
+    },
+    [projectId, router]
+  );
+
   /* ─── Visual editor prompt handler ─── */
   const handleVisualEditorPrompt = useCallback((prompt: string) => {
     setVisualEditorActive(false);
@@ -367,12 +389,29 @@ export default function BuilderPage() {
         rightPanelVisible={rightVisible}
         onToggleRight={() => setRightVisible((v) => !v)}
         extraActions={
-          <VisualEditor
-            isActive={visualEditorActive}
-            onToggle={() => setVisualEditorActive((v) => !v)}
-            iframeRef={iframeRef}
-            onGeneratePrompt={handleVisualEditorPrompt}
-          />
+          <>
+            {/* Version history button + badge */}
+            <button
+              onClick={() => setVersionHistoryOpen((o) => !o)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-mono text-[#888] hover:text-white border border-[rgba(255,255,255,0.08)] hover:border-[rgba(255,255,255,0.15)] transition-colors"
+              title="Version history"
+            >
+              <History className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">History</span>
+            </button>
+            {buildCount > 0 && (
+              <VersionDiffBadge
+                count={buildCount}
+                onClick={() => setVersionHistoryOpen((o) => !o)}
+              />
+            )}
+            <VisualEditor
+              isActive={visualEditorActive}
+              onToggle={() => setVisualEditorActive((v) => !v)}
+              iframeRef={iframeRef}
+              onGeneratePrompt={handleVisualEditorPrompt}
+            />
+          </>
         }
       />
 
@@ -425,6 +464,15 @@ export default function BuilderPage() {
           </>
         )}
       </div>
+
+      {/* Version History Panel */}
+      <VersionHistoryPanel
+        projectId={projectId}
+        currentBuildId={buildId}
+        onSelectVersion={handleSelectVersion}
+        isOpen={versionHistoryOpen}
+        onClose={() => setVersionHistoryOpen(false)}
+      />
     </div>
   );
 }
