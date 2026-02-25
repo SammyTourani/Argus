@@ -193,8 +193,8 @@ function StepUrlCloning({ onNext }: { onNext: () => void }) {
 /* ─── Step 3: Model Selection ─── */
 const MODELS = [
   { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI', color: '#10A37F' },
-  { id: 'claude-sonnet', name: 'Claude Sonnet', provider: 'Anthropic', color: '#D97757' },
-  { id: 'gemini-flash', name: 'Gemini Flash', provider: 'Google', color: '#4285F4' },
+  { id: 'claude-sonnet-4-6', name: 'Claude Sonnet 4.6', provider: 'Anthropic', color: '#D97757' },
+  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'Google', color: '#4285F4' },
 ];
 
 function StepModelSelect({ onNext }: { onNext: () => void }) {
@@ -320,14 +320,17 @@ export default function OnboardingFlow() {
   const [step, setStep] = useState(0);
   const router = useRouter();
 
+  // Map UI step index to the text-enum step names the API expects
+  const STEP_NAMES = ['welcome', 'what_to_build', 'choose_model', 'first_build'] as const;
+
   const nextStep = useCallback(async () => {
     if (step < 3) {
-      // Persist step progress to server
+      // Persist step progress to server using text-enum step name
       try {
         await fetch('/api/user/onboarding', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ step: step + 1, data: {} }),
+          body: JSON.stringify({ step: STEP_NAMES[step], data: {} }),
         });
       } catch {}
       setStep((s) => s + 1);

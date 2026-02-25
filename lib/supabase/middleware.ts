@@ -65,11 +65,11 @@ export async function updateSession(request: NextRequest) {
       // Check DB — only do this once, then set cookie
       const { data: state } = await supabase
         .from('onboarding_state')
-        .select('completed')
+        .select('current_step, completed_at')
         .eq('user_id', user.id)
         .single();
 
-      if (!state?.completed) {
+      if (!state || state.current_step !== 'completed') {
         const url = request.nextUrl.clone();
         url.pathname = '/onboarding';
         return NextResponse.redirect(url);

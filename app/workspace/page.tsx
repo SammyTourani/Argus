@@ -10,7 +10,24 @@ import WorkspaceSidebar from '@/components/workspace/WorkspaceSidebar';
 import ProjectCard from '@/components/workspace/ProjectCard';
 import NewProjectCard from '@/components/workspace/NewProjectCard';
 import NewProjectDialog from '@/components/workspace/NewProjectDialog';
+import type { CloneData } from '@/components/workspace/NewProjectDialog';
 import type { Project, WorkspaceView } from '@/types/workspace';
+
+// Gallery items for clone-by-id lookup (matches gallery page data)
+const GALLERY_ITEMS: Record<string, { name: string; desc: string }> = {
+  '1': { name: 'SaaS Landing Page', desc: 'Clean SaaS landing with pricing and testimonials' },
+  '2': { name: 'Analytics Dashboard', desc: 'Real-time analytics dashboard with charts' },
+  '3': { name: 'E-commerce Store', desc: 'Full product catalog with cart and checkout' },
+  '4': { name: 'Portfolio Site', desc: 'Minimal portfolio with project showcases' },
+  '5': { name: 'Social Network', desc: 'Twitter-like social platform with feeds' },
+  '6': { name: 'Task Manager', desc: 'Kanban-style project management tool' },
+  '7': { name: 'Food Delivery App', desc: 'Restaurant ordering with live tracking' },
+  '8': { name: 'Crypto Tracker', desc: 'Portfolio tracker with price alerts' },
+  '9': { name: 'Blog Platform', desc: 'CMS with markdown editor and comments' },
+  '10': { name: 'Booking System', desc: 'Appointment scheduler with calendar sync' },
+  '11': { name: 'AI Chat Interface', desc: 'Custom ChatGPT interface with personas' },
+  '12': { name: 'Learning Platform', desc: 'Course platform with video + quizzes' },
+};
 
 // Loading skeleton for project cards
 function ProjectCardSkeleton() {
@@ -60,10 +77,16 @@ function WorkspacePageInner() {
   const [loading, setLoading] = useState(true);
   const [activeView, setActiveView] = useState<WorkspaceView>('all');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [cloneData, setCloneData] = useState<CloneData | null>(null);
 
-  // Handle ?clone=<galleryId> — open new project dialog automatically
+  // Handle ?clone=<galleryId> — open new project dialog pre-filled with gallery data
   useEffect(() => {
-    if (searchParams?.get('clone')) {
+    const cloneId = searchParams?.get('clone');
+    if (cloneId) {
+      const item = GALLERY_ITEMS[cloneId];
+      if (item) {
+        setCloneData({ name: item.name, description: item.desc });
+      }
       setDialogOpen(true);
     }
   }, [searchParams]);
@@ -294,7 +317,7 @@ function WorkspacePageInner() {
       </main>
 
       {/* New project dialog */}
-      <NewProjectDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+      <NewProjectDialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setCloneData(null); }} initialData={cloneData} />
 
       {/* Search dialog (⌘K) */}
       <Dialog.Root open={searchOpen} onOpenChange={setSearchOpen}>

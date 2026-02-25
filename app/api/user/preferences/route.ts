@@ -37,12 +37,21 @@ export async function GET() {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Return defaults if no preferences set yet
+    // Return preferences mapped to the API field names consumers expect.
+    // DB columns: preferred_model, preferred_style
+    // API fields: default_model_id, default_style_preset (for backward compat with frontend)
     return NextResponse.json({
-      preferences: prefs ?? {
-        default_model_id: 'claude-sonnet-4-6',
-        default_style_preset: 'minimal',
-      },
+      preferences: prefs
+        ? {
+            default_model_id: prefs.preferred_model,
+            default_style_preset: prefs.preferred_style,
+            total_builds: prefs.total_builds,
+            last_model_used: prefs.last_model_used,
+          }
+        : {
+            default_model_id: 'claude-sonnet-4-6',
+            default_style_preset: 'minimal',
+          },
     });
   } catch (err) {
     console.error('[GET /api/user/preferences]', err);
@@ -60,9 +69,10 @@ export async function PUT(request: Request) {
     const body = await request.json();
     const { default_model_id, default_style_preset } = body;
 
+    // Map API field names to actual DB column names
     const updates: Record<string, string> = { user_id: user.id };
-    if (default_model_id) updates.default_model_id = default_model_id;
-    if (default_style_preset) updates.default_style_preset = default_style_preset;
+    if (default_model_id) updates.preferred_model = default_model_id;
+    if (default_style_preset) updates.preferred_style = default_style_preset;
 
     const { data: prefs, error } = await supabase
       .from('user_model_preferences')
@@ -72,7 +82,14 @@ export async function PUT(request: Request) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    return NextResponse.json({ preferences: prefs });
+    return NextResponse.json({
+      preferences: {
+        default_model_id: prefs.preferred_model,
+        default_style_preset: prefs.preferred_style,
+        total_builds: prefs.total_builds,
+        last_model_used: prefs.last_model_used,
+      },
+    });
   } catch (err) {
     console.error('[PUT /api/user/preferences]', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

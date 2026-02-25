@@ -30,15 +30,30 @@ export async function DELETE(_req: Request, { params }: RouteParams) {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // Only project owner can remove collaborators
+    // Check if requester is the project owner
     const { data: project } = await supabase
       .from('projects')
       .select('id, created_by')
       .eq('id', projectId)
-      .eq('created_by', user.id)
       .single();
 
-    if (!project) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+
+    const isOwner = project.created_by === user.id;
+
+    // If not owner, check if the requester is the collaborator removing themselves
+    if (!isOwner) {
+      const { data: collab } = await supabase
+        .from('project_collaborators')
+        .select('id, user_id')
+        .eq('id', collaboratorId)
+        .eq('project_id', projectId)
+        .single();
+
+      if (!collab || collab.user_id !== user.id) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
 
     const { error } = await supabase
       .from('project_collaborators')

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, Trash2, Save, UserMinus, Loader2 } from 'lucide-react'
 import Link from 'next/link'
+import { MODELS as SHARED_MODELS } from '@/lib/models'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -26,13 +27,7 @@ interface Collaborator {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const MODELS = [
-  { value: 'gpt-4o', label: 'GPT-4o' },
-  { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
-  { value: 'claude-3-5-sonnet', label: 'Claude 3.5 Sonnet' },
-  { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
-  { value: 'llama-3.3-70b', label: 'Llama 3.3 70B' },
-]
+const MODELS = SHARED_MODELS.map((m) => ({ value: m.id, label: m.name }))
 
 const STYLE_PRESETS = [
   { value: 'modern', label: 'Modern', desc: 'Clean lines, minimal' },
@@ -174,7 +169,7 @@ export default function ProjectSettingsPage() {
     setDeleting(true)
     try {
       await fetch(`/api/projects/${projectId}`, { method: 'DELETE' })
-      router.push('/dashboard')
+      router.push('/workspace')
     } catch {
       setDeleting(false)
     }
@@ -217,7 +212,7 @@ export default function ProjectSettingsPage() {
                 type="text"
                 value={projectName}
                 onChange={(e) => setProjectName(e.target.value)}
-                className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent"
+                className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#FA4500] focus:border-transparent"
                 placeholder="My awesome project"
               />
             </div>
@@ -230,7 +225,7 @@ export default function ProjectSettingsPage() {
                 value={projectDescription}
                 onChange={(e) => setProjectDescription(e.target.value)}
                 rows={3}
-                className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent resize-none"
+                className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#FA4500] focus:border-transparent resize-none"
                 placeholder="What's this project about?"
               />
             </div>
@@ -239,7 +234,7 @@ export default function ProjectSettingsPage() {
               <button
                 onClick={handleSaveGeneral}
                 disabled={savingGeneral}
-                className="flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-50 transition-colors"
+                className="flex items-center gap-1.5 rounded-lg bg-[#FA4500] px-4 py-2 text-sm font-medium text-white hover:bg-[#E03E00] disabled:opacity-50 transition-colors"
               >
                 {savingGeneral ? (
                   <Loader2 size={14} className="animate-spin" />
@@ -365,7 +360,7 @@ export default function ProjectSettingsPage() {
             <select
               value={selectedModel}
               onChange={(e) => setSelectedModel(e.target.value)}
-              className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent"
+              className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 bg-white focus:outline-none focus:ring-2 focus:ring-[#FA4500] focus:border-transparent"
             >
               {MODELS.map((m) => (
                 <option key={m.value} value={m.value}>
@@ -388,7 +383,7 @@ export default function ProjectSettingsPage() {
                   onClick={() => setSelectedStyle(style.value)}
                   className={`rounded-lg border px-3 py-2.5 text-left transition-colors ${
                     selectedStyle === style.value
-                      ? 'border-zinc-900 bg-zinc-900 text-white'
+                      ? 'border-[#FA4500] bg-[#FA4500] text-white'
                       : 'border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50'
                   }`}
                 >
@@ -409,7 +404,7 @@ export default function ProjectSettingsPage() {
             <button
               onClick={handleSaveModel}
               disabled={savingModel}
-              className="flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-50 transition-colors"
+              className="flex items-center gap-1.5 rounded-lg bg-[#FA4500] px-4 py-2 text-sm font-medium text-white hover:bg-[#E03E00] disabled:opacity-50 transition-colors"
             >
               {savingModel ? (
                 <Loader2 size={14} className="animate-spin" />

@@ -82,16 +82,15 @@ export async function POST(request: Request, { params }: RouteParams) {
       .from('project_collaborators')
       .select('id, status')
       .eq('project_id', projectId)
-      .eq('invite_email', email)
+      .eq('email', email)
       .single();
 
     if (existing && existing.status === 'accepted') {
       return NextResponse.json({ error: 'User is already a collaborator' }, { status: 409 });
     }
 
-    // Create invite token (expires in 7 days)
+    // Create invite token
     const inviteToken = nanoid(32);
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
     const { data: invite, error: inviteError } = await supabase
       .from('project_collaborators')
@@ -99,13 +98,12 @@ export async function POST(request: Request, { params }: RouteParams) {
         {
           project_id: projectId,
           invited_by: user.id,
-          invite_email: email,
+          email,
           role,
           status: 'pending',
           invite_token: inviteToken,
-          invite_expires_at: expiresAt,
         },
-        { onConflict: 'project_id,invite_email' }
+        { onConflict: 'project_id,email' }
       )
       .select()
       .single();

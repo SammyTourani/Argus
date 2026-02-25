@@ -8,7 +8,7 @@ import AuthLayout from '@/components/auth/AuthLayout';
 
 /* ─── SVG icons ─── */
 const GoogleIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24">
+  <svg width="18" height="18" viewBox="0 0 24 24">
     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
     <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
     <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
@@ -17,13 +17,13 @@ const GoogleIcon = () => (
 );
 
 const GitHubIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="#1A1A1A">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="#1A1A1A">
     <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z" />
   </svg>
 );
 
 const MicrosoftIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 23 23">
+  <svg width="18" height="18" viewBox="0 0 23 23">
     <rect x="1" y="1" width="10" height="10" fill="#F25022" />
     <rect x="12" y="1" width="10" height="10" fill="#7FBA00" />
     <rect x="1" y="12" width="10" height="10" fill="#00A4EF" />
@@ -32,16 +32,37 @@ const MicrosoftIcon = () => (
 );
 
 /* ─── OAuth button ─── */
-function OAuthButton({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) {
+function OAuthButton({
+  icon,
+  label,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="w-full flex items-center justify-center gap-3 py-3 rounded-full border transition-colors hover:bg-gray-50 active:scale-[0.98]"
-      style={{ borderColor: 'rgba(0,0,0,0.12)', background: 'white' }}
+      className="w-full flex items-center justify-center gap-3 py-3 px-4 text-sm font-medium transition-all duration-150 active:scale-[0.98]"
+      style={{
+        borderRadius: '10px',
+        border: '1px solid #E5E5E5',
+        background: 'white',
+        color: '#1A1A1A',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = '#C8C8C8';
+        e.currentTarget.style.background = '#F8F8F8';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = '#E5E5E5';
+        e.currentTarget.style.background = 'white';
+      }}
     >
       {icon}
-      <span className="text-sm font-medium" style={{ color: '#1A1A1A' }}>{label}</span>
+      <span>{label}</span>
     </button>
   );
 }
@@ -49,10 +70,119 @@ function OAuthButton({ icon, label, onClick }: { icon: React.ReactNode; label: s
 /* ─── Divider ─── */
 function Divider() {
   return (
-    <div className="flex items-center gap-4 my-6">
-      <div className="flex-1 h-px bg-gray-200" />
-      <span className="text-xs text-gray-400">or</span>
-      <div className="flex-1 h-px bg-gray-200" />
+    <div className="flex items-center gap-4 my-7">
+      <div className="flex-1 h-px" style={{ background: '#EBEBEB' }} />
+      <span
+        style={{
+          fontSize: '11px',
+          color: '#B0B0B0',
+          fontFamily: '"JetBrains Mono", monospace',
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+        }}
+      >
+        or
+      </span>
+      <div className="flex-1 h-px" style={{ background: '#EBEBEB' }} />
+    </div>
+  );
+}
+
+/* ─── Input component ─── */
+function AuthInput({
+  type = 'text',
+  value,
+  onChange,
+  placeholder,
+  required = false,
+  minLength,
+}: {
+  type?: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  placeholder?: string;
+  required?: boolean;
+  minLength?: number;
+}) {
+  return (
+    <input
+      type={type}
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      required={required}
+      minLength={minLength}
+      className="w-full px-4 py-3 text-sm transition-all duration-150 focus:outline-none"
+      style={{
+        borderRadius: '10px',
+        border: '1px solid #E0E0E0',
+        background: 'white',
+        color: '#1A1A1A',
+      }}
+      onFocus={(e) => {
+        e.currentTarget.style.borderColor = '#FA4500';
+        e.currentTarget.style.boxShadow = '0 0 0 3px rgba(250, 69, 0, 0.06)';
+      }}
+      onBlur={(e) => {
+        e.currentTarget.style.borderColor = '#E0E0E0';
+        e.currentTarget.style.boxShadow = 'none';
+      }}
+    />
+  );
+}
+
+/* ─── Primary button ─── */
+function PrimaryButton({
+  loading,
+  children,
+}: {
+  loading: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="submit"
+      disabled={loading}
+      className="w-full py-3 text-center text-sm font-semibold text-white transition-all duration-150 active:scale-[0.98] disabled:opacity-50"
+      style={{
+        borderRadius: '10px',
+        background: loading ? '#D63D00' : '#FA4500',
+      }}
+      onMouseEnter={(e) => {
+        if (!loading) e.currentTarget.style.background = '#E53D00';
+      }}
+      onMouseLeave={(e) => {
+        if (!loading) e.currentTarget.style.background = '#FA4500';
+      }}
+    >
+      {loading ? (
+        <span className="inline-flex items-center justify-center gap-2">
+          <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+          Creating account...
+        </span>
+      ) : (
+        children
+      )}
+    </button>
+  );
+}
+
+/* ─── Error display ─── */
+function ErrorMessage({ message }: { message: string }) {
+  return (
+    <div
+      className="text-xs px-3 py-2.5"
+      style={{
+        borderRadius: '8px',
+        color: '#C0392B',
+        background: 'rgba(192, 57, 43, 0.06)',
+        border: '1px solid rgba(192, 57, 43, 0.12)',
+      }}
+    >
+      {message}
     </div>
   );
 }
@@ -125,25 +255,43 @@ export default function SignUpPage() {
     });
   };
 
+  /* ── Success state ── */
   if (success) {
     return (
       <AuthLayout mode="signup">
         <div className="text-center py-8">
           <div
-            className="w-12 h-12 rounded-full mx-auto mb-4 flex items-center justify-center"
+            className="w-11 h-11 rounded-full mx-auto mb-4 flex items-center justify-center"
             style={{ background: '#FA4500' }}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="20 6 9 17 4 12" />
             </svg>
           </div>
-          <h2 className="text-lg font-semibold mb-2" style={{ color: '#1A1A1A' }}>
+          <h2
+            className="text-lg font-semibold mb-2"
+            style={{
+              color: '#1A1A1A',
+              fontFamily: '"JetBrains Mono", monospace',
+            }}
+          >
             Check your email
           </h2>
           <p className="text-sm" style={{ color: '#888' }}>
-            We sent a confirmation link to <strong style={{ color: '#1A1A1A' }}>{email}</strong>.
+            We sent a confirmation link to{' '}
+            <strong style={{ color: '#555' }}>{email}</strong>.
+            <br />
             Click it to activate your account.
           </p>
+          <Link
+            href="/sign-in"
+            className="inline-block mt-6 text-xs font-medium transition-colors duration-150"
+            style={{ color: '#FA4500' }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = '#D63D00')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = '#FA4500')}
+          >
+            Back to sign in
+          </Link>
         </div>
       </AuthLayout>
     );
@@ -152,19 +300,42 @@ export default function SignUpPage() {
   return (
     <AuthLayout mode="signup">
       {/* Wordmark */}
-      <div className="mb-8">
+      <div className="mb-10">
         <Link href="/">
-          <span className="text-[22px] font-bold tracking-tight" style={{ color: '#FA4500' }}>
+          <span
+            style={{
+              fontFamily: '"JetBrains Mono", monospace',
+              fontSize: '18px',
+              fontWeight: 700,
+              color: '#FA4500',
+              letterSpacing: '0.08em',
+            }}
+          >
             ARGUS
           </span>
         </Link>
       </div>
 
       {/* Heading */}
-      <h1 className="text-[28px] font-bold mb-2" style={{ color: '#1A1A1A' }}>
+      <h1
+        style={{
+          fontFamily: '"JetBrains Mono", monospace',
+          fontSize: '30px',
+          fontWeight: 800,
+          color: '#1A1A1A',
+          lineHeight: 1.1,
+          marginBottom: '8px',
+        }}
+      >
         Start building
       </h1>
-      <p className="text-sm mb-8" style={{ color: '#888' }}>
+      <p
+        style={{
+          fontSize: '14px',
+          color: '#888',
+          marginBottom: '32px',
+        }}
+      >
         Create your free account
       </p>
 
@@ -179,68 +350,56 @@ export default function SignUpPage() {
 
       {/* Form */}
       <form onSubmit={handleEmailSignUp} className="flex flex-col gap-4">
-        <input
+        <AuthInput
           type="text"
           value={fullName}
           onChange={(e) => setFullName(e.target.value)}
-          className="w-full px-4 py-3 rounded-lg text-sm bg-white transition-all focus:outline-none"
-          style={{ border: '1px solid rgba(0,0,0,0.1)', color: '#1A1A1A' }}
-          onFocus={(e) => (e.currentTarget.style.borderColor = '#FA4500')}
-          onBlur={(e) => (e.currentTarget.style.borderColor = 'rgba(0,0,0,0.1)')}
           placeholder="Full name"
         />
-        <input
+        <AuthInput
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="w-full px-4 py-3 rounded-lg text-sm bg-white transition-all focus:outline-none"
-          style={{ border: '1px solid rgba(0,0,0,0.1)', color: '#1A1A1A' }}
-          onFocus={(e) => (e.currentTarget.style.borderColor = '#FA4500')}
-          onBlur={(e) => (e.currentTarget.style.borderColor = 'rgba(0,0,0,0.1)')}
           placeholder="you@example.com"
           required
         />
-        <input
+        <AuthInput
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full px-4 py-3 rounded-lg text-sm bg-white transition-all focus:outline-none"
-          style={{ border: '1px solid rgba(0,0,0,0.1)', color: '#1A1A1A' }}
-          onFocus={(e) => (e.currentTarget.style.borderColor = '#FA4500')}
-          onBlur={(e) => (e.currentTarget.style.borderColor = 'rgba(0,0,0,0.1)')}
-          placeholder="Min 6 characters"
+          placeholder="Password (min 8 characters)"
           required
-          minLength={6}
+          minLength={8}
         />
 
-        {error && (
-          <div className="text-xs px-3 py-2 rounded-lg" style={{ color: '#c0392b', background: 'rgba(192,57,43,0.07)', border: '1px solid rgba(192,57,43,0.15)' }}>
-            {error}
-          </div>
-        )}
+        {error && <ErrorMessage message={error} />}
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full py-3 rounded-lg text-sm font-medium text-white transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-50"
-          style={{ background: '#FA4500' }}
-        >
-          {loading ? 'Creating account...' : 'Create account'}
-        </button>
+        <PrimaryButton loading={loading}>Create account</PrimaryButton>
 
-        <p className="text-[11px] text-center" style={{ color: '#aaa' }}>
+        <p className="text-center" style={{ fontSize: '11px', color: '#B0B0B0', lineHeight: 1.5 }}>
           By creating an account, you agree to our{' '}
-          <Link href="/terms" className="underline">Terms of Service</Link>{' '}
+          <Link href="/terms" className="underline hover:no-underline" style={{ color: '#999' }}>
+            Terms of Service
+          </Link>{' '}
           and{' '}
-          <Link href="/privacy" className="underline">Privacy Policy</Link>.
+          <Link href="/privacy" className="underline hover:no-underline" style={{ color: '#999' }}>
+            Privacy Policy
+          </Link>
+          .
         </p>
       </form>
 
       {/* Footer */}
-      <p className="text-center text-xs mt-8" style={{ color: '#888' }}>
+      <p className="text-center text-xs mt-10" style={{ color: '#999' }}>
         Already have an account?{' '}
-        <Link href="/sign-in" className="font-medium hover:underline" style={{ color: '#FA4500' }}>
-          Sign in →
+        <Link
+          href="/sign-in"
+          className="font-medium transition-colors duration-150"
+          style={{ color: '#FA4500' }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = '#D63D00')}
+          onMouseLeave={(e) => (e.currentTarget.style.color = '#FA4500')}
+        >
+          Sign in
         </Link>
       </p>
     </AuthLayout>

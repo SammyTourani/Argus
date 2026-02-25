@@ -8,6 +8,7 @@ import { ArrowLeft, Save, LogOut, Key, Bell, CreditCard, User } from 'lucide-rea
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/components/ui/Toast';
+import { MODELS as SHARED_MODELS } from '@/lib/models';
 
 type Section = 'profile' | 'model' | 'billing' | 'notifications';
 
@@ -18,13 +19,7 @@ const SECTIONS: { id: Section; label: string; icon: typeof User }[] = [
   { id: 'notifications', label: 'Notifications', icon: Bell },
 ];
 
-const MODELS = [
-  { id: 'claude-sonnet-4-6', name: 'Claude Sonnet 4.6', provider: 'Anthropic' },
-  { id: 'claude-opus-4-6', name: 'Claude Opus 4.6', provider: 'Anthropic' },
-  { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI' },
-  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'Google' },
-  { id: 'llama-3.3-70b', name: 'Llama 3.3 70B', provider: 'Groq (Free)' },
-];
+const MODELS = SHARED_MODELS.map((m) => ({ id: m.id, name: m.name, provider: m.provider }));
 
 function AccountPageInner() {
   const router = useRouter();
@@ -44,10 +39,24 @@ function AccountPageInner() {
   // Model preference
   const [defaultModel, setDefaultModel] = useState('claude-sonnet-4-6');
 
-  // Notification prefs
+  // Notification prefs — persisted to localStorage
+  // TODO: Add notifications column to profiles or user_preferences table for DB persistence
   const [notifyBuilds, setNotifyBuilds] = useState(true);
   const [notifyInvites, setNotifyInvites] = useState(true);
   const [notifyMarketing, setNotifyMarketing] = useState(false);
+
+  // Load notification prefs from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('argus_notification_prefs');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (typeof parsed.notifyBuilds === 'boolean') setNotifyBuilds(parsed.notifyBuilds);
+        if (typeof parsed.notifyInvites === 'boolean') setNotifyInvites(parsed.notifyInvites);
+        if (typeof parsed.notifyMarketing === 'boolean') setNotifyMarketing(parsed.notifyMarketing);
+      }
+    } catch {}
+  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -371,7 +380,17 @@ function AccountPageInner() {
                   ))}
                 </div>
                 <button
-                  onClick={() => { setSaved(true); setTimeout(() => setSaved(false), 2000); }}
+                  onClick={() => {
+                    try {
+                      localStorage.setItem('argus_notification_prefs', JSON.stringify({
+                        notifyBuilds,
+                        notifyInvites,
+                        notifyMarketing,
+                      }));
+                    } catch {}
+                    setSaved(true);
+                    setTimeout(() => setSaved(false), 2000);
+                  }}
                   className="mt-6 flex items-center gap-2 rounded-lg bg-[#FA4500] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#e03e00] transition-colors"
                 >
                   <Save size={14} />

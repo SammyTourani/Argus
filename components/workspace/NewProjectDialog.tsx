@@ -1,18 +1,25 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import * as Dialog from '@radix-ui/react-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Globe, FileCode, LayoutTemplate } from 'lucide-react';
 type StartFrom = 'blank' | 'url' | 'template';
 
+export interface CloneData {
+  name?: string;
+  description?: string;
+  source_url?: string;
+}
+
 interface NewProjectDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  initialData?: CloneData | null;
 }
 
-export default function NewProjectDialog({ open, onOpenChange }: NewProjectDialogProps) {
+export default function NewProjectDialog({ open, onOpenChange, initialData }: NewProjectDialogProps) {
   const router = useRouter();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -20,6 +27,18 @@ export default function NewProjectDialog({ open, onOpenChange }: NewProjectDialo
   const [cloneUrl, setCloneUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Pre-fill from gallery clone data when dialog opens
+  useEffect(() => {
+    if (open && initialData) {
+      if (initialData.name) setName(initialData.name);
+      if (initialData.description) setDescription(initialData.description);
+      if (initialData.source_url) {
+        setCloneUrl(initialData.source_url);
+        setStartFrom('url');
+      }
+    }
+  }, [open, initialData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

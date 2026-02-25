@@ -84,7 +84,7 @@ export default function ModelSelector({ projectId, selectedModelId, onModelChang
                     </span>
                   </div>
                   <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[11px] text-[#666]">{model.tag}</span>
+                    <span className="text-[11px] text-[#666]">{model.tags[0]}</span>
                     <span className="text-[11px] text-[#555]">·</span>
                     <span className="text-[11px] text-[#555] font-mono">
                       {model.costPer1k === 0 ? 'Free' : `$${model.costPer1k}/1k tokens`}

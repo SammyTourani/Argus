@@ -57,6 +57,10 @@ export const ALLOWED_MODELS: ReadonlySet<string> = new Set([
   // Deepseek
   'deepseek-r1',
   'deepseek-v3',
+  // Mistral
+  'mistral-large',
+  // Alibaba
+  'qwen-2.5-72b',
   // OpenRouter / custom
   'openai/gpt-oss-20b',
   'openai/gpt-oss-120b',

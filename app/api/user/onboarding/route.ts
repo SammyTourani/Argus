@@ -2,6 +2,9 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
+const STEP_ORDER = ['welcome', 'what_to_build', 'choose_model', 'first_build', 'completed'] as const;
+type OnboardingStep = typeof STEP_ORDER[number];
+
 async function createSupabaseServer() {
   const cookieStore = await cookies();
   return createServerClient(
@@ -39,13 +42,18 @@ export async function GET() {
 
     // No row = new user, needs onboarding
     if (!state) {
-      return NextResponse.json({ completed: false, current_step: 1, step_data: {} });
+      return NextResponse.json({
+        current_step: 'welcome',
+        what_to_build: null,
+        chosen_model: null,
+        completed_at: null,
+      });
     }
 
     return NextResponse.json({
-      completed: state.completed,
       current_step: state.current_step,
-      step_data: state.step_data ?? {},
+      what_to_build: state.what_to_build,
+      chosen_model: state.chosen_model,
       completed_at: state.completed_at,
     });
   } catch (err) {
@@ -64,43 +72,50 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { step, data: stepData } = body;
 
-    if (typeof step !== 'number' || step < 1 || step > 4) {
-      return NextResponse.json({ error: 'Invalid step (must be 1-4)' }, { status: 400 });
+    // Validate step is a valid text enum value
+    if (!step || !STEP_ORDER.includes(step as OnboardingStep)) {
+      return NextResponse.json(
+        { error: `Invalid step. Must be one of: ${STEP_ORDER.join(', ')}` },
+        { status: 400 }
+      );
     }
 
-    // Fetch existing state to merge step_data
-    const { data: existing } = await supabase
-      .from('onboarding_state')
-      .select('step_data')
-      .eq('user_id', user.id)
-      .single();
+    // Determine the next step
+    const currentIndex = STEP_ORDER.indexOf(step as OnboardingStep);
+    const nextStep = currentIndex < STEP_ORDER.length - 1
+      ? STEP_ORDER[currentIndex + 1]
+      : 'completed';
 
-    const mergedStepData = {
-      ...(existing?.step_data ?? {}),
-      ...(stepData ? { [`step_${step}`]: stepData } : {}),
+    // Build the upsert payload with correct column names
+    const upsertData: Record<string, unknown> = {
+      user_id: user.id,
+      current_step: nextStep,
     };
+
+    // Store step-specific data in the correct columns
+    if (step === 'what_to_build' && stepData?.what_to_build) {
+      upsertData.what_to_build = stepData.what_to_build;
+    }
+    if (step === 'choose_model' && stepData?.chosen_model) {
+      upsertData.chosen_model = stepData.chosen_model;
+    }
+    if (nextStep === 'completed') {
+      upsertData.completed_at = new Date().toISOString();
+    }
 
     const { data: state, error } = await supabase
       .from('onboarding_state')
-      .upsert(
-        {
-          user_id: user.id,
-          current_step: step + 1,
-          completed: step >= 4,
-          step_data: mergedStepData,
-          completed_at: step >= 4 ? new Date().toISOString() : null,
-        },
-        { onConflict: 'user_id' }
-      )
+      .upsert(upsertData, { onConflict: 'user_id' })
       .select()
       .single();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     return NextResponse.json({
-      completed: state.completed,
       current_step: state.current_step,
-      step_data: state.step_data,
+      what_to_build: state.what_to_build,
+      chosen_model: state.chosen_model,
+      completed_at: state.completed_at,
     });
   } catch (err) {
     console.error('[POST /api/user/onboarding]', err);
@@ -120,8 +135,7 @@ export async function PUT() {
       .upsert(
         {
           user_id: user.id,
-          current_step: 4,
-          completed: true,
+          current_step: 'completed',
           completed_at: new Date().toISOString(),
         },
         { onConflict: 'user_id' }
@@ -129,7 +143,7 @@ export async function PUT() {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    return NextResponse.json({ completed: true });
+    return NextResponse.json({ current_step: 'completed', completed_at: new Date().toISOString() });
   } catch (err) {
     console.error('[PUT /api/user/onboarding]', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

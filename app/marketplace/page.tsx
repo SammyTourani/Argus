@@ -5,17 +5,19 @@ import { motion } from 'framer-motion';
 import { Check, DollarSign } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import { MODELS as SHARED_MODELS } from '@/lib/models';
 
-const MODELS = [
-  { id: 'claude-sonnet-4-6', name: 'Claude Sonnet 4.6', provider: 'Anthropic', description: 'Best overall — sharp reasoning, clean code output', costPer1k: 0.003, badge: 'Most Popular', badgeColor: 'bg-orange-500', dotColor: '#CC785C', capabilities: ['Frontend', 'Full-stack', 'Logic'] },
-  { id: 'claude-opus-4-6', name: 'Claude Opus 4.6', provider: 'Anthropic', description: 'Maximum intelligence for complex architectures and systems', costPer1k: 0.015, badge: 'Pro', badgeColor: 'bg-violet-500', dotColor: '#CC785C', capabilities: ['Architecture', 'Complex apps', 'Reasoning'] },
-  { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI', description: 'Excellent at structured UI generation and API design', costPer1k: 0.005, badge: null, dotColor: '#10A37F', capabilities: ['UI', 'APIs', 'Integration'] },
-  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'Google', description: 'Ultra-fast iteration. Best for quick prototypes and MVPs', costPer1k: 0.001, badge: 'Fastest', badgeColor: 'bg-blue-500', dotColor: '#4285F4', capabilities: ['Speed', 'Prototypes', 'Iteration'] },
-  { id: 'llama-3.3-70b', name: 'Llama 3.3 70B', provider: 'Groq', description: 'Free on all plans. Solid for standard web apps', costPer1k: 0, badge: 'Free', badgeColor: 'bg-emerald-500', dotColor: '#7C3AED', capabilities: ['Free', 'Standard', 'Open source'] },
-  { id: 'deepseek-r1', name: 'DeepSeek R1', provider: 'DeepSeek', description: 'Chain-of-thought reasoning. Best for complex logic and algorithms', costPer1k: 0.002, badge: null, dotColor: '#0EA5E9', capabilities: ['Logic', 'Algorithms', 'Backend'] },
-  { id: 'mistral-large', name: 'Mistral Large', provider: 'Mistral', description: 'European AI, strong at multilingual and enterprise features', costPer1k: 0.002, badge: null, dotColor: '#FF6B35', capabilities: ['Enterprise', 'Multilingual', 'EU'] },
-  { id: 'qwen-2.5-72b', name: 'Qwen 2.5 72B', provider: 'Alibaba', description: 'Exceptional code generation and debugging performance', costPer1k: 0.001, badge: null, dotColor: '#FF6900', capabilities: ['Code gen', 'Debug', 'Performance'] },
-] as const;
+const MODELS = SHARED_MODELS.map((m) => ({
+  id: m.id,
+  name: m.name,
+  provider: m.provider,
+  description: m.description,
+  costPer1k: m.costPer1k,
+  badge: m.badge,
+  badgeColor: m.badgeColor,
+  dotColor: m.color,
+  capabilities: m.tags,
+}));
 
 const STYLE_PRESETS = [
   { id: 'minimal', name: 'Minimal', description: 'Clean whitespace, subtle shadows', swatchColor: '#F8F8F8', swatchBorder: '#E0E0E0' },
