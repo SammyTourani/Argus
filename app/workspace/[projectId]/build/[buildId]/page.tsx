@@ -1,13 +1,18 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import BuilderNav from '@/components/builder/BuilderNav';
 import ChatPanel, { type ChatMessage } from '@/components/builder/ChatPanel';
 import PreviewPanel from '@/components/builder/PreviewPanel';
 import CodePanel, { type FileEntry } from '@/components/builder/CodePanel';
+import VisualEditor from '@/components/builder/VisualEditor';
 import { MODELS } from '@/components/builder/ModelSelector';
+import VersionHistoryPanel from '@/components/builder/VersionHistoryPanel';
+import VersionDiffBadge from '@/components/builder/VersionDiffBadge';
 import { nanoid } from 'nanoid';
+import { createClient } from '@/lib/supabase/client';
+import { History } from 'lucide-react';
 
 /* ─── Resizable panels ─── */
 const MIN_LEFT = 220;
@@ -15,8 +20,31 @@ const MAX_LEFT = 500;
 const MIN_RIGHT = 240;
 const MAX_RIGHT = 520;
 
+/* ─── Context persistence helpers ─── */
+async function loadConversationHistory(projectId: string, buildId: string): Promise<ChatMessage[]> {
+  try {
+    const key = `argus_chat_${projectId}_${buildId}`;
+    const stored = localStorage.getItem(key);
+    if (!stored) return [];
+    const parsed = JSON.parse(stored);
+    return parsed.map((m: ChatMessage) => ({ ...m, timestamp: new Date(m.timestamp) }));
+  } catch {
+    return [];
+  }
+}
+
+function saveConversationHistory(projectId: string, buildId: string, messages: ChatMessage[]) {
+  try {
+    const key = `argus_chat_${projectId}_${buildId}`;
+    // Keep last 50 messages to avoid localStorage bloat
+    const toSave = messages.slice(-50);
+    localStorage.setItem(key, JSON.stringify(toSave));
+  } catch { /* noop */ }
+}
+
 export default function BuilderPage() {
   const params = useParams();
+  const router = useRouter();
   const projectId = (params?.projectId as string) ?? 'new';
   const buildId = (params?.buildId as string) ?? 'latest';
 
@@ -27,6 +55,9 @@ export default function BuilderPage() {
   /* ─── Panel widths (px) ─── */
   const [leftWidth, setLeftWidth] = useState(300);
   const [rightWidth, setRightWidth] = useState(340);
+
+  /* ─── Project metadata ─── */
+  const [projectName, setProjectName] = useState<string>('');
 
   /* ─── Model ─── */
   const [selectedModelId, setSelectedModelId] = useState<string>(() => {
@@ -42,40 +73,90 @@ export default function BuilderPage() {
   /* ─── Chat ─── */
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
 
   /* ─── Preview / Sandbox ─── */
   const [sandboxUrl, setSandboxUrl] = useState<string | undefined>(undefined);
+  const [sandboxId, setSandboxId] = useState<string | undefined>(undefined);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+
+  /* ─── Visual editor ─── */
+  const [visualEditorActive, setVisualEditorActive] = useState(false);
 
   /* ─── Code files ─── */
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [buildLogs, setBuildLogs] = useState<string[]>([]);
 
-  /* ─── Sandbox initialisation ─── */
+  /* ─── Load project name + conversation history on mount ─── */
   useEffect(() => {
-    let mounted = true;
-    const initSandbox = async () => {
-      setPreviewLoading(true);
-      try {
-        const res = await fetch('/api/create-ai-sandbox-v2', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({}),
-        });
-        const data = await res.json();
-        if (mounted && data.success && data.url) {
-          setSandboxUrl(data.url);
-        }
-      } catch {
-        if (mounted) setPreviewError('Failed to create sandbox');
-      } finally {
-        if (mounted) setPreviewLoading(false);
+    // Load project name
+    const supabase = createClient();
+    supabase
+      .from('projects')
+      .select('name')
+      .eq('id', projectId)
+      .single()
+      .then(({ data }) => {
+        if (data?.name) setProjectName(data.name);
+      });
+
+    // Load conversation history
+    loadConversationHistory(projectId, buildId).then((history) => {
+      if (history.length > 0) setMessages(history);
+      setHistoryLoaded(true);
+    });
+  }, [projectId, buildId]);
+
+  /* ─── Persist conversation on every message change ─── */
+  useEffect(() => {
+    if (!historyLoaded) return;
+    saveConversationHistory(projectId, buildId, messages);
+  }, [messages, projectId, buildId, historyLoaded]);
+
+  /* ─── Sandbox initialisation ─── */
+  const initSandbox = useCallback(async () => {
+    setPreviewLoading(true);
+    setPreviewError(null);
+    try {
+      const res = await fetch('/api/create-ai-sandbox-v2', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (data.success && data.url) {
+        setSandboxUrl(data.url);
+        if (data.sandboxId) setSandboxId(data.sandboxId);
+      } else {
+        setPreviewError('Failed to create sandbox');
       }
-    };
-    initSandbox();
-    return () => { mounted = false; };
+    } catch {
+      setPreviewError('Failed to create sandbox');
+    } finally {
+      setPreviewLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    initSandbox();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* ─── Save messages to Supabase (server-side persistence, async, non-blocking) ─── */
+  const persistMessageToSupabase = useCallback(async (message: ChatMessage) => {
+    try {
+      await fetch(`/api/projects/${projectId}/builds/${buildId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          role: message.role,
+          content: message.content,
+          file_changes: message.fileChanges ?? [],
+        }),
+      });
+    } catch { /* non-blocking */ }
+  }, [projectId, buildId]);
 
   /* ─── Chat send ─── */
   const handleSendMessage = useCallback(
@@ -87,6 +168,7 @@ export default function BuilderPage() {
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, userMsg]);
+      persistMessageToSupabase(userMsg);
       setIsGenerating(true);
 
       try {
@@ -96,7 +178,7 @@ export default function BuilderPage() {
           body: JSON.stringify({
             prompt: content,
             model: selectedModelId,
-            context: { sandboxId: undefined },
+            context: { sandboxId },
           }),
         });
 
@@ -141,9 +223,7 @@ export default function BuilderPage() {
           changedFiles.push(match[1]);
         }
 
-        if (parsedFiles.length > 0) {
-          setFiles(parsedFiles);
-        }
+        if (parsedFiles.length > 0) setFiles(parsedFiles);
 
         const displayText = explanation || partialText || 'Done!';
         const aiMsg: ChatMessage = {
@@ -154,6 +234,7 @@ export default function BuilderPage() {
           fileChanges: changedFiles.length > 0 ? changedFiles : undefined,
         };
         setMessages((prev) => [...prev, aiMsg]);
+        persistMessageToSupabase(aiMsg);
 
         // Apply code to sandbox
         if (generatedCode) {
@@ -182,9 +263,7 @@ export default function BuilderPage() {
                     } else if (ad.type === 'error') {
                       setBuildLogs((prev) => [...prev, `[${new Date().toLocaleTimeString()}] Error: ${ad.message}`]);
                     }
-                  } catch {
-                    /* skip */
-                  }
+                  } catch { /* skip */ }
                 }
               }
             }
@@ -207,16 +286,20 @@ export default function BuilderPage() {
         setIsGenerating(false);
       }
     },
-    [selectedModelId],
+    [selectedModelId, sandboxId, persistMessageToSupabase],
   );
+
+  /* ─── Visual editor prompt handler ─── */
+  const handleVisualEditorPrompt = useCallback((prompt: string) => {
+    setVisualEditorActive(false);
+    handleSendMessage(prompt);
+  }, [handleSendMessage]);
 
   /* ─── Model change ─── */
   const handleModelChange = useCallback(
     (id: string) => {
       setSelectedModelId(id);
-      try {
-        localStorage.setItem(`argus_model_${projectId}`, id);
-      } catch { /* noop */ }
+      try { localStorage.setItem(`argus_model_${projectId}`, id); } catch { /* noop */ }
     },
     [projectId],
   );
@@ -252,7 +335,7 @@ export default function BuilderPage() {
     };
   }, []);
 
-  /* ─── Download ZIP (stub) ─── */
+  /* ─── Download ZIP ─── */
   const handleDownloadZip = useCallback(async () => {
     try {
       const res = await fetch('/api/create-zip', {
@@ -269,15 +352,13 @@ export default function BuilderPage() {
         a.click();
         document.body.removeChild(a);
       }
-    } catch {
-      /* noop */
-    }
+    } catch { /* noop */ }
   }, []);
 
   return (
     <div className="h-screen flex flex-col bg-[#080808] overflow-hidden">
       <BuilderNav
-        projectName={`Project ${projectId.slice(0, 6)}`}
+        projectName={projectName || `Project ${projectId.slice(0, 6)}`}
         projectId={projectId}
         selectedModelId={selectedModelId}
         onModelChange={handleModelChange}
@@ -285,6 +366,14 @@ export default function BuilderPage() {
         onToggleLeft={() => setLeftVisible((v) => !v)}
         rightPanelVisible={rightVisible}
         onToggleRight={() => setRightVisible((v) => !v)}
+        extraActions={
+          <VisualEditor
+            isActive={visualEditorActive}
+            onToggle={() => setVisualEditorActive((v) => !v)}
+            iframeRef={iframeRef}
+            onGeneratePrompt={handleVisualEditorPrompt}
+          />
+        }
       />
 
       {/* 3-panel grid */}
@@ -301,7 +390,6 @@ export default function BuilderPage() {
                 selectedModelColor={selectedModel.color}
               />
             </div>
-            {/* Drag handle */}
             <div
               onMouseDown={() => onMouseDown('left')}
               className="w-1 cursor-col-resize hover:bg-[#FA4500]/40 active:bg-[#FA4500]/60 transition-colors flex-shrink-0"
@@ -309,36 +397,20 @@ export default function BuilderPage() {
           </>
         )}
 
-        {/* CENTER: Preview */}
-        <div className="flex-1 min-w-0">
+        {/* CENTER: Preview (pass iframeRef) */}
+        <div className="flex-1 min-w-0 relative">
           <PreviewPanel
             sandboxUrl={sandboxUrl}
             isLoading={previewLoading}
             isGenerating={isGenerating}
             error={previewError}
-            onRetry={() => {
-              setPreviewError(null);
-              setPreviewLoading(true);
-              fetch('/api/create-ai-sandbox-v2', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({}),
-              })
-                .then((r) => r.json())
-                .then((d) => {
-                  if (d.success && d.url) setSandboxUrl(d.url);
-                  else setPreviewError('Retry failed');
-                })
-                .catch(() => setPreviewError('Retry failed'))
-                .finally(() => setPreviewLoading(false));
-            }}
+            onRetry={initSandbox}
           />
         </div>
 
         {/* RIGHT: Code panel */}
         {rightVisible && (
           <>
-            {/* Drag handle */}
             <div
               onMouseDown={() => onMouseDown('right')}
               className="w-1 cursor-col-resize hover:bg-[#FA4500]/40 active:bg-[#FA4500]/60 transition-colors flex-shrink-0"

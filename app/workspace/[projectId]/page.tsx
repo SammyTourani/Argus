@@ -88,10 +88,10 @@ export default function ProjectDetailPage() {
 
     // Fetch builds for this project
     const { data: buildsData } = await supabase
-      .from('builds')
+      .from('project_builds')
       .select('*')
       .eq('project_id', projectId)
-      .order('created_at', { ascending: false });
+      .order('version_number', { ascending: false });
 
     setBuilds((buildsData || []) as Build[]);
     setLoading(false);

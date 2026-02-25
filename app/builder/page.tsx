@@ -1,7 +1,8 @@
-import { redirect } from 'next/navigation'
-
-// /builder was a prototype mock — real builder is at /app → /generation
-// Redirect anyone who navigates here to the actual product
-export default function BuilderPage() {
-  redirect('/app')
+'use client';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+export default function RedirectPage() {
+  const router = useRouter();
+  useEffect(() => { router.replace('/workspace'); }, [router]);
+  return null;
 }

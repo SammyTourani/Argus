@@ -9,6 +9,7 @@ interface PreviewPanelProps {
   isGenerating?: boolean;
   error?: string | null;
   onRetry?: () => void;
+  iframeRef?: React.RefObject<HTMLIFrameElement | null>;
 }
 
 export default function PreviewPanel({
@@ -17,11 +18,13 @@ export default function PreviewPanel({
   isGenerating = false,
   error = null,
   onRetry,
+  iframeRef: externalIframeRef,
 }: PreviewPanelProps) {
   const [iframeKey, setIframeKey] = useState(0);
   const [viewMode, setViewMode] = useState<'desktop' | 'mobile'>('desktop');
   const [showToast, setShowToast] = useState(false);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const internalIframeRef = useRef<HTMLIFrameElement>(null);
+  const iframeRef = externalIframeRef ?? internalIframeRef;
 
   const handleRefresh = useCallback(() => {
     setIframeKey((k) => k + 1);

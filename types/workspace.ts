@@ -16,7 +16,7 @@ export interface Project {
   updated_at: string;
   status: 'active' | 'building' | 'archived';
   is_starred: boolean;
-  user_id: string;
+  created_by: string;
   project_collaborators?: {
     profiles: Collaborator;
   }[];
@@ -32,6 +32,7 @@ export interface Build {
   preview_url: string | null;
   created_at: string;
   title: string | null;
+  version_number?: number;
 }
 
 export type WorkspaceView = 'all' | 'starred' | 'shared';

@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Check, Zap, Globe, DollarSign } from 'lucide-react';
+import { Check, DollarSign } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 

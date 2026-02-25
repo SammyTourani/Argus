@@ -134,7 +134,7 @@ export default function WorkspacePage() {
     const { error } = await supabase.from('projects').insert({
       name: `${project.name} (copy)`,
       description: project.description,
-      user_id: user.id,
+      created_by: user.id,
       status: 'active',
       is_starred: false,
     });

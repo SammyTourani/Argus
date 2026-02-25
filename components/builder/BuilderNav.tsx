@@ -18,6 +18,8 @@ interface BuilderNavProps {
   /** Toggle right panel */
   rightPanelVisible: boolean;
   onToggleRight: () => void;
+  /** Extra action buttons rendered before Share (e.g. VisualEditor toggle) */
+  extraActions?: React.ReactNode;
 }
 
 export default function BuilderNav({
@@ -31,6 +33,7 @@ export default function BuilderNav({
   onToggleLeft,
   rightPanelVisible,
   onToggleRight,
+  extraActions,
 }: BuilderNavProps) {
   const [showShareToast, setShowShareToast] = useState(false);
 
@@ -49,7 +52,7 @@ export default function BuilderNav({
       {/* Left: Breadcrumb */}
       <div className="flex items-center gap-2 min-w-0">
         <Link
-          href="/dashboard"
+          href="/workspace"
           className="flex items-center gap-1.5 text-[#666] hover:text-white transition-colors text-sm font-mono flex-shrink-0"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
@@ -99,6 +102,7 @@ export default function BuilderNav({
 
       {/* Right: Actions */}
       <div className="flex items-center gap-2 flex-shrink-0">
+        {extraActions}
         <button
           onClick={handleShare}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono text-[#888] hover:text-white border border-[rgba(255,255,255,0.08)] hover:border-[rgba(255,255,255,0.15)] transition-colors"
