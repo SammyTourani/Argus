@@ -1,14 +1,33 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe/config';
 import { createClient } from '@/lib/supabase/server';
 
-export async function POST() {
+export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Read plan from body (optional — defaults to 'pro')
+    let plan: 'pro' | 'team' = 'pro';
+    try {
+      const body = await req.json();
+      if (body?.plan === 'team') plan = 'team';
+    } catch {
+      // body is optional — ignore parse errors
+    }
+
+    // Resolve price ID from env
+    const priceId =
+      plan === 'team'
+        ? (process.env.STRIPE_TEAM_PRICE_ID ?? process.env.STRIPE_PRO_PRICE_ID!)
+        : process.env.STRIPE_PRO_PRICE_ID!;
+
+    if (!priceId) {
+      return NextResponse.json({ error: 'Stripe price not configured' }, { status: 500 });
     }
 
     // Get or create Stripe customer
@@ -33,18 +52,23 @@ export async function POST() {
         .eq('id', user.id);
     }
 
+    const appUrl =
+      process.env.NEXT_PUBLIC_APP_URL ??
+      process.env.NEXT_PUBLIC_SITE_URL ??
+      'https://buildargus.com';
+
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: 'subscription',
       line_items: [
         {
-          price: process.env.STRIPE_PRO_PRICE_ID!,
+          price: priceId,
           quantity: 1,
         },
       ],
-      success_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://argus.vercel.app'}/dashboard?checkout=success`,
-      cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://argus.vercel.app'}/dashboard?checkout=cancelled`,
-      metadata: { supabase_user_id: user.id },
+      success_url: `${appUrl}/account?billing=success`,
+      cancel_url: `${appUrl}/account?billing=cancelled`,
+      metadata: { supabase_user_id: user.id, plan },
     });
 
     return NextResponse.json({ url: session.url });

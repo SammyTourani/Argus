@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Save, LogOut, Key, Bell, CreditCard, User } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/components/ui/Toast';
 
 type Section = 'profile' | 'model' | 'billing' | 'notifications';
 
@@ -27,10 +28,13 @@ const MODELS = [
 
 export default function AccountPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { toast } = useToast();
   const [activeSection, setActiveSection] = useState<Section>('profile');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [upgradingPlan, setUpgradingPlan] = useState<string | null>(null);
 
   // Profile fields
   const [email, setEmail] = useState('');
@@ -66,6 +70,51 @@ export default function AccountPage() {
     };
     load();
   }, [router]);
+
+  // Show billing success/cancel toast based on URL param
+  useEffect(() => {
+    const billing = searchParams?.get('billing');
+    if (billing === 'success') {
+      toast.success('🎉 You\'re now on Pro!');
+      setActiveSection('billing');
+      // Clean up URL without triggering a full navigation
+      const url = new URL(window.location.href);
+      url.searchParams.delete('billing');
+      window.history.replaceState({}, '', url.toString());
+    } else if (billing === 'cancelled') {
+      toast.info('Upgrade cancelled. You can try again any time.');
+      const url = new URL(window.location.href);
+      url.searchParams.delete('billing');
+      window.history.replaceState({}, '', url.toString());
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  const handleUpgrade = async (planName: 'pro' | 'team') => {
+    setUpgradingPlan(planName);
+    try {
+      const res = await fetch('/api/stripe/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: planName }),
+      });
+      if (!res.ok) {
+        const { error } = await res.json();
+        toast.error(error || 'Failed to start checkout. Please try again.');
+        return;
+      }
+      const { url } = await res.json();
+      if (url) {
+        window.location.href = url;
+      } else {
+        toast.error('No checkout URL returned. Please try again.');
+      }
+    } catch {
+      toast.error('Something went wrong. Please try again.');
+    } finally {
+      setUpgradingPlan(null);
+    }
+  };
 
   const handleSaveProfile = async () => {
     setSaving(true);
@@ -265,8 +314,8 @@ export default function AccountPage() {
                 </div>
                 <div className="space-y-3">
                   {[
-                    { name: 'Pro', price: '$19/mo', features: '20 projects · 100 builds · Custom domain', badge: 'Most popular' },
-                    { name: 'Team', price: '$49/mo', features: 'Unlimited · Team collaboration · Priority support', badge: null },
+                    { name: 'Pro', planKey: 'pro' as const, price: '$19/mo', features: '20 projects · 100 builds · Custom domain', badge: 'Most popular' },
+                    { name: 'Team', planKey: 'team' as const, price: '$49/mo', features: 'Unlimited · Team collaboration · Priority support', badge: null },
                   ].map(plan => (
                     <div key={plan.name} className="flex items-center justify-between rounded-lg border border-zinc-200 p-4">
                       <div>
@@ -278,7 +327,13 @@ export default function AccountPage() {
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-bold text-zinc-900">{plan.price}</p>
-                        <button className="mt-1 text-xs font-semibold text-[#FA4500] hover:underline">Upgrade →</button>
+                        <button
+                          onClick={() => handleUpgrade(plan.planKey)}
+                          disabled={upgradingPlan === plan.planKey}
+                          className="mt-1 text-xs font-semibold text-[#FA4500] hover:underline disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                          {upgradingPlan === plan.planKey ? 'Redirecting...' : 'Upgrade →'}
+                        </button>
                       </div>
                     </div>
                   ))}

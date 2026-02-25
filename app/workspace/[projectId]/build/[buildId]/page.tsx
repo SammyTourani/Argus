@@ -168,6 +168,18 @@ export default function BuilderPage() {
     } catch { /* non-blocking */ }
   }, [projectId, buildId]);
 
+  /* ─── Fetch project summary for AI context ─── */
+  const getProjectContext = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/projects/${projectId}/summary`);
+      if (res.ok) {
+        const { summary } = await res.json();
+        return summary?.contextString ?? null;
+      }
+    } catch { /* non-blocking */ }
+    return null;
+  }, [projectId]);
+
   /* ─── Chat send ─── */
   const handleSendMessage = useCallback(
     async (content: string) => {
@@ -181,6 +193,9 @@ export default function BuilderPage() {
       persistMessageToSupabase(userMsg);
       setIsGenerating(true);
 
+      // Get project context for AI (non-blocking, best-effort)
+      const projectContext = await getProjectContext();
+
       try {
         const res = await fetch('/api/generate-ai-code-stream', {
           method: 'POST',
@@ -188,7 +203,11 @@ export default function BuilderPage() {
           body: JSON.stringify({
             prompt: content,
             model: selectedModelId,
-            context: { sandboxId },
+            context: {
+              sandboxId,
+              projectContext: projectContext ?? undefined,
+              conversationLength: messages.length,
+            },
           }),
         });
 
@@ -296,7 +315,7 @@ export default function BuilderPage() {
         setIsGenerating(false);
       }
     },
-    [selectedModelId, sandboxId, persistMessageToSupabase],
+    [selectedModelId, sandboxId, persistMessageToSupabase, getProjectContext, messages.length],
   );
 
   /* ─── Fetch build count for version badge ─── */
