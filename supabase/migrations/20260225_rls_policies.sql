@@ -30,21 +30,25 @@
 
 -- ─── build_messages: Add missing UPDATE + DELETE policies ─────────────────
 
-CREATE POLICY IF NOT EXISTS "build_messages_update_own"
+DROP POLICY IF EXISTS "build_messages_update_own" ON public.build_messages;
+CREATE POLICY "build_messages_update_own"
   ON public.build_messages FOR UPDATE
   USING (auth.uid() = user_id);
 
-CREATE POLICY IF NOT EXISTS "build_messages_delete_own"
+DROP POLICY IF EXISTS "build_messages_delete_own" ON public.build_messages;
+CREATE POLICY "build_messages_delete_own"
   ON public.build_messages FOR DELETE
   USING (auth.uid() = user_id);
 
 -- ─── builds (legacy): Add UPDATE + DELETE policies ────────────────────────
 
-CREATE POLICY IF NOT EXISTS "builds_update_own"
+DROP POLICY IF EXISTS "builds_update_own" ON public.builds;
+CREATE POLICY "builds_update_own"
   ON public.builds FOR UPDATE
   USING (auth.uid() = user_id);
 
-CREATE POLICY IF NOT EXISTS "builds_delete_own"
+DROP POLICY IF EXISTS "builds_delete_own" ON public.builds;
+CREATE POLICY "builds_delete_own"
   ON public.builds FOR DELETE
   USING (auth.uid() = user_id);
 
