@@ -17,6 +17,7 @@ export interface Project {
   status: 'active' | 'building' | 'archived';
   is_starred: boolean;
   created_by: string;
+  github_repo_url?: string | null;
   project_collaborators?: {
     profiles: Collaborator;
   }[];

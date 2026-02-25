@@ -35,6 +35,12 @@ function Nav() {
         {/* Right side */}
         <div className="flex items-center gap-16 lg:gap-24">
           <Link
+            href="/gallery"
+            className="text-label-small text-[var(--landing-text-secondary)] hover:text-[var(--landing-text)] transition-colors hidden sm:block"
+          >
+            Gallery
+          </Link>
+          <Link
             href="#pricing"
             className="text-label-small text-[var(--landing-text-secondary)] hover:text-[var(--landing-text)] transition-colors hidden sm:block"
           >
@@ -47,7 +53,7 @@ function Nav() {
             Sign in
           </Link>
           <Link
-            href="/generation"
+            href="/workspace"
             className="bg-heat-100 text-white px-16 py-8 rounded-8 text-label-small font-mono hover:opacity-90 transition-opacity"
           >
             Get started &rarr;
@@ -98,7 +104,7 @@ function Hero() {
           transition={{ duration: 0.4, delay: 0.1 }}
         >
           <Link
-            href="/generation"
+            href="/workspace"
             className="inline-flex items-center gap-8 border border-[var(--landing-border)] rounded-full px-12 py-6 text-[11px] font-mono text-[var(--landing-text-tertiary)] hover:border-[var(--landing-border-hover)] hover:text-[var(--landing-text-secondary)] transition-colors mb-24"
           >
             <span className="w-6 h-6 rounded-full bg-heat-100 inline-block" />
@@ -241,7 +247,7 @@ function FinalCTA() {
           transition={{ duration: 0.5, delay: 0.2 }}
         >
           <Link
-            href="/generation"
+            href="/workspace"
             className="inline-flex items-center gap-8 bg-heat-100 text-white px-24 py-14 rounded-12 text-label-large font-mono hover:opacity-90 transition-opacity"
           >
             Start building &mdash; it&apos;s free &rarr;

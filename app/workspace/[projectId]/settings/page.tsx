@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Save, Trash2, AlertTriangle } from 'lucide-react';
+import GitHubConnectButton from '@/components/workspace/GitHubConnectButton';
 import Link from 'next/link';
 import * as Dialog from '@radix-ui/react-dialog';
 import { cn } from '@/lib/utils';
@@ -261,6 +262,19 @@ export default function ProjectSettingsPage() {
               {saving ? 'Saving...' : saved ? '✓ Saved' : 'Save defaults'}
             </button>
           </div>
+        </SectionCard>
+
+        {/* GitHub Integration */}
+        <SectionCard title="GitHub Integration">
+          <GitHubConnectButton
+            projectId={projectId}
+            currentRepoUrl={(project as (Project & { github_repo_url?: string | null }))?.github_repo_url ?? null}
+            onSynced={(url) => {
+              setProject((prev) =>
+                prev ? { ...prev, github_repo_url: url } as typeof prev : prev
+              );
+            }}
+          />
         </SectionCard>
 
         {/* Danger zone */}

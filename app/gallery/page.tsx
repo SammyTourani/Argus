@@ -85,6 +85,27 @@ export default function GalleryPage() {
 
       {/* Gallery Grid */}
       <div className="columns-1 gap-4 px-8 pb-12 md:columns-2 lg:columns-3">
+        {filteredGallery.length === 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="col-span-full flex flex-col items-center justify-center py-20 text-center"
+          >
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-zinc-100">
+              <Search size={28} className="text-zinc-400" />
+            </div>
+            <h3 className="mt-4 text-base font-bold text-zinc-900">No apps in this category yet</h3>
+            <p className="mt-1.5 text-sm text-zinc-500">
+              Be the first to build something in <span className="font-medium text-zinc-700">{activeCategory}</span>.
+            </p>
+            <Link
+              href="/workspace"
+              className="mt-5 rounded-lg bg-[#FA4500] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#e03e00] hover:shadow-md active:scale-[0.98]"
+            >
+              Start building →
+            </Link>
+          </motion.div>
+        )}
         {filteredGallery.map((item, i) => (
           <motion.div
             key={item.id}

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Search, Settings } from 'lucide-react';
+import { Menu, Search, Settings } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as Dialog from '@radix-ui/react-dialog';
 import { createClient } from '@/lib/supabase/client';
@@ -70,6 +70,7 @@ export default function WorkspacePage() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [userName, setUserName] = useState<string | null>(null);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   // Fetch projects from Supabase
   const fetchProjects = useCallback(async () => {
@@ -180,17 +181,27 @@ export default function WorkspacePage() {
     <div className="min-h-screen bg-[#FAFAFA]">
       <WorkspaceSidebar
         activeView={activeView}
-        onViewChange={setActiveView}
-        onNewProject={() => setDialogOpen(true)}
+        onViewChange={(v) => { setActiveView(v); setMobileSidebarOpen(false); }}
+        onNewProject={() => { setDialogOpen(true); setMobileSidebarOpen(false); }}
         counts={counts}
         userName={userName}
+        mobileOpen={mobileSidebarOpen}
+        onMobileClose={() => setMobileSidebarOpen(false)}
       />
 
-      {/* Main content (offset by sidebar) */}
-      <main className="pl-[240px]">
+      {/* Main content (offset by sidebar on desktop only) */}
+      <main className="md:pl-[240px]">
         {/* Top nav bar */}
-        <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-zinc-200 bg-white/80 px-6 backdrop-blur-md">
+        <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-zinc-200 bg-white/80 px-4 sm:px-6 backdrop-blur-md">
           <div className="flex items-center gap-3">
+            {/* Hamburger — mobile only */}
+            <button
+              onClick={() => setMobileSidebarOpen(true)}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 md:hidden"
+              aria-label="Open navigation"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
             <h1 className="text-[15px] font-bold tracking-tight text-zinc-900">
               {activeView === 'all' && 'All Projects'}
               {activeView === 'starred' && '⭐ Starred'}

@@ -12,6 +12,8 @@ import DeploySuccessBanner from '@/components/builder/DeploySuccessBanner';
 import { MODELS } from '@/components/builder/ModelSelector';
 import VersionHistoryPanel from '@/components/builder/VersionHistoryPanel';
 import VersionDiffBadge from '@/components/builder/VersionDiffBadge';
+import GitSyncButton from '@/components/builder/GitSyncButton';
+import BuildStatusBar, { type BuildStatus } from '@/components/builder/BuildStatusBar';
 import { nanoid } from 'nanoid';
 import { createClient } from '@/lib/supabase/client';
 import { History } from 'lucide-react';
@@ -75,6 +77,11 @@ export default function BuilderPage() {
   /* ─── Chat ─── */
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [buildStatus, setBuildStatus] = useState<BuildStatus>('idle');
+  const [buildStatusMessage, setBuildStatusMessage] = useState('');
+  const [buildFilesChanged, setBuildFilesChanged] = useState(0);
+  const [buildDuration, setBuildDuration] = useState(0);
+  const buildStartTime = useRef<number>(0);
   const [historyLoaded, setHistoryLoaded] = useState(false);
 
   /* ─── Preview / Sandbox ─── */
@@ -99,17 +106,23 @@ export default function BuilderPage() {
   const [deployUrl, setDeployUrl] = useState<string | null>(null);
   const [showDeployBanner, setShowDeployBanner] = useState(false);
 
+  /* ─── GitHub sync ─── */
+  const [repoUrl, setRepoUrl] = useState<string | null>(null);
+
   /* ─── Load project name + conversation history on mount ─── */
   useEffect(() => {
-    // Load project name
+    // Load project name + github repo url
     const supabase = createClient();
     supabase
       .from('projects')
-      .select('name')
+      .select('name, github_repo_url')
       .eq('id', projectId)
       .single()
       .then(({ data }) => {
         if (data?.name) setProjectName(data.name);
+        if ((data as Record<string, unknown> | null)?.github_repo_url) {
+          setRepoUrl((data as Record<string, unknown>).github_repo_url as string);
+        }
       });
 
     // Load conversation history
@@ -192,6 +205,9 @@ export default function BuilderPage() {
       setMessages((prev) => [...prev, userMsg]);
       persistMessageToSupabase(userMsg);
       setIsGenerating(true);
+      setBuildStatus('generating');
+      setBuildStatusMessage('Generating code...');
+      buildStartTime.current = Date.now();
 
       // Get project context for AI (non-blocking, best-effort)
       const projectContext = await getProjectContext();
@@ -252,7 +268,12 @@ export default function BuilderPage() {
           changedFiles.push(match[1]);
         }
 
-        if (parsedFiles.length > 0) setFiles(parsedFiles);
+        if (parsedFiles.length > 0) {
+          setFiles(parsedFiles);
+          setBuildFilesChanged(parsedFiles.length);
+          setBuildStatus('applying');
+          setBuildStatusMessage(`Applying ${parsedFiles.length} files...`);
+        }
 
         const displayText = explanation || partialText || 'Done!';
         const aiMsg: ChatMessage = {
@@ -313,6 +334,12 @@ export default function BuilderPage() {
         setMessages((prev) => [...prev, errMsg]);
       } finally {
         setIsGenerating(false);
+        const elapsed = Date.now() - buildStartTime.current;
+        setBuildDuration(elapsed);
+        setBuildStatus(prev => prev === 'error' ? 'error' : 'success');
+        setBuildStatusMessage('');
+        // Reset to idle after 4 seconds
+        setTimeout(() => setBuildStatus('idle'), 4000);
       }
     },
     [selectedModelId, sandboxId, persistMessageToSupabase, getProjectContext, messages.length],
@@ -445,6 +472,13 @@ export default function BuilderPage() {
               onToggle={() => setVisualEditorActive((v) => !v)}
               iframeRef={iframeRef}
               onGeneratePrompt={handleVisualEditorPrompt}
+            />
+            <GitSyncButton
+              projectId={projectId}
+              buildId={buildId}
+              files={files}
+              repoUrl={repoUrl}
+              onSynced={(url) => setRepoUrl(url)}
             />
           </>
         }

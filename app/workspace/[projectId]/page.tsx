@@ -199,12 +199,12 @@ export default function ProjectDetailPage() {
             <p className="mt-1.5 max-w-[280px] text-[14px] text-zinc-500">
               Start your first build to generate code with AI.
             </p>
-            <button
-              onClick={() => router.push(`/workspace/${projectId}/build/new`)}
-              className="mt-5 rounded-lg bg-[#FA4500] px-6 py-2.5 text-[14px] font-semibold text-white shadow-sm transition-all hover:bg-[#e03e00] hover:shadow-md active:scale-[0.98]"
+            <Link
+              href={`/workspace/${projectId}/build/new`}
+              className="mt-5 inline-flex items-center gap-2 rounded-lg bg-[#FA4500] px-6 py-2.5 text-[14px] font-semibold text-white shadow-sm transition-all hover:bg-[#e03e00] hover:shadow-md active:scale-[0.98]"
             >
-              Start First Build
-            </button>
+              Start building →
+            </Link>
           </motion.div>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
