@@ -17,7 +17,8 @@ import BuildStatusBar, { type BuildStatus } from '@/components/builder/BuildStat
 import KeyboardShortcuts from '@/components/builder/KeyboardShortcuts';
 import { nanoid } from 'nanoid';
 import { createClient } from '@/lib/supabase/client';
-import { History } from 'lucide-react';
+import { History, MonitorX } from 'lucide-react';
+import Link from 'next/link';
 
 /* ─── Resizable panels ─── */
 const MIN_LEFT = 220;
@@ -456,7 +457,17 @@ export default function BuilderPage() {
   }, []);
 
   return (
-    <div className="h-screen flex flex-col bg-[#080808] overflow-hidden">
+    <>
+      {/* Mobile fallback — builder requires desktop */}
+      <div className="md:hidden flex flex-col items-center justify-center h-screen bg-[#0A0A0A] text-white p-8 text-center">
+        <MonitorX className="w-12 h-12 text-zinc-500 mb-4" />
+        <h2 className="text-xl font-bold mb-2">Desktop Required</h2>
+        <p className="text-zinc-400 text-sm">The Argus builder requires a desktop browser.<br/>Please open this on a larger screen.</p>
+        <Link href="/workspace" className="mt-6 text-[#FA4500] hover:underline text-sm">← Back to workspace</Link>
+      </div>
+
+      {/* Desktop builder */}
+    <div className="hidden md:flex h-screen flex-col bg-[#080808] overflow-hidden">
       <BuilderNav
         projectName={projectName || `Project ${projectId.slice(0, 6)}`}
         projectId={projectId}
@@ -589,5 +600,6 @@ export default function BuilderPage() {
         />
       )}
     </div>
+    </>
   );
 }
