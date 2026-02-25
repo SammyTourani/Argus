@@ -1,46 +1,34 @@
-'use client';
+'use client'
 
-import { useState } from 'react';
-import { UserPlus } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import ShareDialog from './ShareDialog';
+import { useState } from 'react'
+import { UserPlus } from 'lucide-react'
+import ShareDialog from './ShareDialog'
 
 interface InviteButtonProps {
-  projectId: string;
-  projectName: string;
-  variant?: 'default' | 'ghost';
-  className?: string;
+  projectId: string
+  projectName: string
 }
 
-export default function InviteButton({
-  projectId,
-  projectName,
-  variant = 'default',
-  className,
-}: InviteButtonProps) {
-  const [open, setOpen] = useState(false);
+export default function InviteButton({ projectId, projectName }: InviteButtonProps) {
+  const [dialogOpen, setDialogOpen] = useState(false)
 
   return (
     <>
       <button
-        onClick={() => setOpen(true)}
-        className={cn(
-          'inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors',
-          variant === 'default'
-            ? 'border border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50'
-            : 'text-zinc-500 hover:text-zinc-900',
-          className
-        )}
+        onClick={() => setDialogOpen(true)}
+        className="flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 hover:border-zinc-300 transition-colors"
+        aria-label="Invite collaborators"
       >
-        <UserPlus size={14} />
+        <UserPlus size={15} className="text-zinc-500" />
         Invite
       </button>
+
       <ShareDialog
-        open={open}
-        onOpenChange={setOpen}
         projectId={projectId}
         projectName={projectName}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
       />
     </>
-  );
+  )
 }
