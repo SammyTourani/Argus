@@ -89,7 +89,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     const body = await request.json();
 
     // Only allow safe fields to be updated
-    const allowedFields = ['checkpoint_name', 'status', 'preview_url'] as const;
+    const allowedFields = ['title', 'status', 'preview_url'] as const;
     type AllowedField = (typeof allowedFields)[number];
     const patch: Partial<Record<AllowedField, unknown>> = {};
 

@@ -63,11 +63,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json();
-    const { source_url, prompt, model_id, style_preset } = body;
-
-    if (!prompt && !source_url) {
-      return NextResponse.json({ error: 'prompt or source_url is required' }, { status: 400 });
-    }
+    const { title, description, model, style } = body;
 
     // Verify project exists and user has access
     const { data: project } = await supabase
@@ -83,10 +79,10 @@ export async function POST(request: Request, { params }: RouteParams) {
       .insert({
         project_id: projectId,
         created_by: user.id,
-        source_url: source_url ?? null,
-        prompt: prompt ?? null,
-        model_id: model_id ?? (project as { default_model?: string }).default_model ?? 'claude-sonnet-4-6',
-        style_preset: style_preset ?? (project as { default_style?: string }).default_style ?? 'minimal',
+        title: title ?? null,
+        description: description ?? null,
+        model: model ?? (project as { default_model?: string }).default_model ?? 'claude-sonnet-4-6',
+        style: style ?? (project as { default_style?: string }).default_style ?? 'minimal',
         status: 'pending',
       })
       .select()

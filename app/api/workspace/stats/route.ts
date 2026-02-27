@@ -114,7 +114,7 @@ export async function GET() {
       // Recent 10 builds with project names for activity feed
       const { data: recentBuilds } = await supabase
         .from('project_builds')
-        .select('id, project_id, version_number, model_id, preview_url, created_at, status')
+        .select('id, project_id, version_number, model, preview_url, created_at, status')
         .in('project_id', projectIds)
         .order('created_at', { ascending: false })
         .limit(10);
@@ -154,7 +154,7 @@ export async function GET() {
             timestamp: build.created_at,
             meta: {
               versionNumber: build.version_number,
-              modelId: build.model_id,
+              modelId: build.model,
             },
           });
         }

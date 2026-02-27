@@ -42,7 +42,6 @@ export async function GET() {
           profiles ( full_name, avatar_url )
         )
       `)
-      .or(`created_by.eq.${user.id}`)
       .order('updated_at', { ascending: false });
 
     if (error) {
@@ -57,7 +56,7 @@ export async function GET() {
     if (projectIds.length > 0) {
       const { data: allBuilds } = await supabase
         .from('project_builds')
-        .select('id, project_id, status, preview_url, created_at, model_id, version_number')
+        .select('id, project_id, status, preview_url, created_at, model, version_number')
         .in('project_id', projectIds)
         .order('version_number', { ascending: false });
 
@@ -147,10 +146,10 @@ export async function POST(request: Request) {
       await supabase.from('project_builds').insert({
         project_id: project.id,
         created_by: user.id,
-        source_url,
+        title: source_url,
         status: 'pending',
-        model_id: default_model ?? 'claude-sonnet-4-6',
-        style_preset: default_style ?? 'minimal',
+        model: default_model ?? 'claude-sonnet-4-6',
+        style: default_style ?? 'minimal',
       });
     }
 

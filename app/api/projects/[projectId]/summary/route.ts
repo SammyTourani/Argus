@@ -47,7 +47,7 @@ export async function GET(_req: Request, { params }: RouteParams) {
     // Get latest 5 builds
     const { data: builds } = await supabase
       .from('project_builds')
-      .select('id, version_number, status, model_id, style_preset, prompt, created_at, checkpoint_name')
+      .select('id, version_number, status, model, style, title, created_at')
       .eq('project_id', projectId)
       .order('version_number', { ascending: false })
       .limit(5);
@@ -75,10 +75,9 @@ export async function GET(_req: Request, { params }: RouteParams) {
         id: b.id,
         version: b.version_number,
         status: b.status,
-        model: b.model_id,
-        style: b.style_preset,
-        prompt: b.prompt?.slice(0, 200),
-        checkpoint: b.checkpoint_name,
+        model: b.model,
+        style: b.style,
+        title: b.title?.slice(0, 200),
         createdAt: b.created_at,
       })),
       recentPrompts: (messages ?? [])
@@ -99,7 +98,7 @@ export async function GET(_req: Request, { params }: RouteParams) {
 function buildContextString(
   projectName: string,
   description: string | null,
-  builds: Array<{ version_number: number; prompt: string | null; status: string }>,
+  builds: Array<{ version_number: number; title?: string | null; status: string }>,
   messages: Array<{ role: string; content: string }>
 ): string {
   const lines: string[] = [
@@ -111,8 +110,8 @@ function buildContextString(
   if (builds.length > 0) {
     const latest = builds[0];
     lines.push(`Latest build (v${latest.version_number}): ${latest.status}`);
-    if (latest.prompt) {
-      lines.push(`Latest prompt: "${latest.prompt.slice(0, 150)}"`);
+    if (latest.title) {
+      lines.push(`Latest build title: "${latest.title.slice(0, 150)}"`);
     }
   }
 

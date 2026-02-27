@@ -118,14 +118,14 @@ export async function getUserUsage(userId: string): Promise<UsageStats> {
     // 5. Get distinct models used this month
     const { data: buildModels } = await supabase
       .from('project_builds')
-      .select('model_id')
+      .select('model')
       .in('project_id', projectIds)
       .gte('created_at', startOfMonth)
-      .not('model_id', 'is', null);
+      .not('model', 'is', null);
 
     const uniqueModels = new Set<string>();
     for (const b of buildModels ?? []) {
-      if (b.model_id) uniqueModels.add(b.model_id);
+      if (b.model) uniqueModels.add(b.model);
     }
     modelsUsed.push(...Array.from(uniqueModels));
   }

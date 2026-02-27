@@ -32,17 +32,19 @@ export interface ProjectWithCollaborators extends Project {
 export interface ProjectBuild {
   id: string;
   project_id: string;
+  build_id: string | null;
   created_by: string;
   version_number: number;
   status: BuildStatus;
-  source_url: string | null;
-  prompt: string | null;
-  model_id: string | null;
-  style_preset: string | null;
+  title: string | null;
+  description: string | null;
+  model: string | null;
+  style: string | null;
   preview_url: string | null;
-  code_snapshot: Record<string, string> | null;
-  error_message: string | null;
-  build_duration_ms: number | null;
+  thumbnail_url: string | null;
+  sandbox_id: string | null;
+  files_json: Record<string, unknown> | null;
+  published_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -116,10 +118,12 @@ export interface OnboardingState {
 }
 
 export interface UserModelPreference {
-  id: string;
   user_id: string;
-  default_model_id: string;
-  default_style_preset: string;
+  preferred_model: string;
+  preferred_style: string;
+  total_builds: number;
+  last_model_used: string | null;
+  last_used_at: string | null;
   created_at: string;
   updated_at: string;
 }

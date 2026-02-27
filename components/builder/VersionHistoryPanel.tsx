@@ -125,7 +125,7 @@ export default function VersionHistoryPanel({
         {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ checkpoint_name: checkpointName.trim() }),
+          body: JSON.stringify({ title: checkpointName.trim() }),
         }
       );
       if (res.ok) {
@@ -297,9 +297,9 @@ export default function VersionHistoryPanel({
 
                         {/* Row 2: model + time (for current) */}
                         <div className="flex items-center gap-2 mb-1.5">
-                          {build.model_id && (
+                          {build.model && (
                             <span className="text-[10px] font-mono text-zinc-500 bg-zinc-800/60 px-1.5 py-0.5 rounded border border-zinc-700/50">
-                              {build.model_id}
+                              {build.model}
                             </span>
                           )}
                           {isCurrent && (
@@ -309,11 +309,11 @@ export default function VersionHistoryPanel({
                           )}
                         </div>
 
-                        {/* Row 3: prompt preview */}
-                        {build.prompt && (
+                        {/* Row 3: title preview */}
+                        {build.title && (
                           <p className="text-[11px] font-mono text-zinc-400 line-clamp-1 mb-2">
-                            {build.prompt.slice(0, 60)}
-                            {build.prompt.length > 60 ? '…' : ''}
+                            {build.title.slice(0, 60)}
+                            {build.title.length > 60 ? '…' : ''}
                           </p>
                         )}
 

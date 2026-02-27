@@ -68,20 +68,17 @@ export default function ActivityFeed({ projectId, maxItems = 10, compact = false
         // Fetch builds as activity
         const { data: builds } = await supabase
           .from('project_builds')
-          .select('id, version_number, status, prompt, created_at, preview_url, checkpoint_name')
+          .select('id, version_number, status, title, created_at, preview_url')
           .eq('project_id', projectId)
           .order('created_at', { ascending: false })
           .limit(maxItems);
 
         const activity: ActivityItem[] = (builds ?? []).map(b => {
-          const isCheckpoint = !!b.checkpoint_name;
           const isDeployed = !!b.preview_url;
           return {
             id: b.id,
-            type: isCheckpoint ? 'checkpoint' : isDeployed ? 'deploy' : 'build',
-            title: isCheckpoint
-              ? `Checkpoint: ${b.checkpoint_name}`
-              : `v${b.version_number} — ${b.prompt?.slice(0, 60) ?? 'Build'}`,
+            type: isDeployed ? 'deploy' : 'build',
+            title: `v${b.version_number} — ${b.title?.slice(0, 60) ?? 'Build'}`,
             subtitle: isDeployed ? 'Deployed to preview' : `Build ${b.status}`,
             timestamp: b.created_at,
             status: b.status === 'success' ? 'success' : b.status === 'error' ? 'error' : 'pending',
@@ -110,17 +107,14 @@ export default function ActivityFeed({ projectId, maxItems = 10, compact = false
           id: string;
           version_number: number;
           status: string;
-          prompt?: string;
+          title?: string;
           created_at: string;
           preview_url?: string;
-          checkpoint_name?: string;
         };
         const newItem: ActivityItem = {
           id: b.id,
-          type: b.checkpoint_name ? 'checkpoint' : b.preview_url ? 'deploy' : 'build',
-          title: b.checkpoint_name
-            ? `Checkpoint: ${b.checkpoint_name}`
-            : `v${b.version_number} — ${b.prompt?.slice(0, 60) ?? 'Build'}`,
+          type: b.preview_url ? 'deploy' : 'build',
+          title: `v${b.version_number} — ${b.title?.slice(0, 60) ?? 'Build'}`,
           subtitle: `Build ${b.status}`,
           timestamp: b.created_at,
           status: b.status === 'success' ? 'success' : 'pending',
