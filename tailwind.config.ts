@@ -64,6 +64,7 @@ const themeConfig: Config = {
     "./styling-reference/ai-ready-website/app/**/*.{ts,tsx}",
     "./styling-reference/ai-ready-website/components/**/*.{ts,tsx}",
     "./styling-reference/ai-ready-website/components-new/**/*.{ts,tsx}",
+    "./node_modules/streamdown/dist/**/*.js",
   ],
   theme: {
     container: {

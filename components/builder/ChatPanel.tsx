@@ -1,14 +1,14 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { ArrowUp } from 'lucide-react';
+import { Streamdown } from 'streamdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import type { ChatMode } from '@/lib/ai/chat-modes';
 import ChatModeToggle from '@/components/builder/ChatModeToggle';
 import PromptEnhancer from '@/components/builder/PromptEnhancer';
 import BranchPicker from '@/components/builder/BranchPicker';
-import { finalizeMarkdown, extractCodeBlocks } from '@/lib/ai/streaming-markdown';
 
 export interface ChatMessage {
   id: string;
@@ -115,85 +115,39 @@ export default function ChatPanel({
     // No-op — just close the popover, keep original input
   }, []);
 
-  /** Render assistant message content using streaming markdown utilities */
-  const renderContent = useCallback((content: string, isAssistant: boolean) => {
-    // For assistant messages, finalize markdown to close any unclosed blocks
-    const processed = isAssistant ? finalizeMarkdown(content) : content;
-
-    // Extract code blocks for syntax-highlighted rendering
-    const codeBlocks = extractCodeBlocks(processed);
-
-    if (codeBlocks.length === 0) {
-      // No code blocks — render as plain text with basic markdown
-      return <span>{processed}</span>;
-    }
-
-    // Build segments: text before/between/after code blocks + highlighted blocks
-    const segments: React.ReactNode[] = [];
-    let lastEnd = 0;
-
-    codeBlocks.forEach((block, i) => {
-      // Text before this code block
-      if (block.startIndex > lastEnd) {
-        const textBefore = processed.slice(lastEnd, block.startIndex);
-        if (textBefore.trim()) {
-          segments.push(<span key={`text-${i}`}>{textBefore}</span>);
-        }
-      }
-
-      // The code block itself
-      segments.push(
-        <div key={`code-${i}`} className="my-2 rounded-lg overflow-hidden border border-[rgba(255,255,255,0.06)]">
-          <div className="flex items-center justify-between px-3 py-1 bg-[#0E0E0E] border-b border-[rgba(255,255,255,0.04)]">
-            <span className="text-[10px] font-mono text-[#555] uppercase">{block.language}</span>
-          </div>
-          <SyntaxHighlighter
-            language={block.language}
-            style={vscDarkPlus}
-            customStyle={{ margin: 0, padding: '0.75rem', fontSize: '0.75rem', background: '#0E0E0E' }}
-          >
-            {block.code}
-          </SyntaxHighlighter>
-        </div>
-      );
-
-      lastEnd = block.endIndex;
-    });
-
-    // Text after the last code block
-    if (lastEnd < processed.length) {
-      const textAfter = processed.slice(lastEnd);
-      if (textAfter.trim()) {
-        segments.push(<span key="text-end">{textAfter}</span>);
-      }
-    }
-
-    return <>{segments}</>;
-  }, []);
-
-  /** Legacy render for non-assistant messages (user/system) */
-  const renderLegacyContent = useCallback((content: string) => {
-    const parts = content.split(/(```[\s\S]*?```)/g);
-    return parts.map((part, i) => {
-      if (part.startsWith('```')) {
-        const lines = part.slice(3, -3).split('\n');
-        const lang = lines[0]?.trim() || 'text';
-        const code = lines.slice(1).join('\n');
+  /** Custom Streamdown components — code blocks use SyntaxHighlighter */
+  const streamdownComponents = useMemo(() => ({
+    pre: ({ children }: React.ComponentPropsWithoutRef<'pre'>) => (
+      <div className="my-2 rounded-lg overflow-hidden border border-[rgba(255,255,255,0.06)]">
+        {children}
+      </div>
+    ),
+    code: ({ className, children, ...props }: React.ComponentPropsWithoutRef<'code'>) => {
+      const match = /language-(\w+)/.exec(className || '');
+      if (match) {
         return (
-          <div key={i} className="my-2 rounded-lg overflow-hidden border border-[rgba(255,255,255,0.06)]">
+          <>
+            <div className="flex items-center justify-between px-3 py-1 bg-[#0E0E0E] border-b border-[rgba(255,255,255,0.04)]">
+              <span className="text-[10px] font-mono text-[#555] uppercase">{match[1]}</span>
+            </div>
             <SyntaxHighlighter
-              language={lang}
+              language={match[1]}
               style={vscDarkPlus}
               customStyle={{ margin: 0, padding: '0.75rem', fontSize: '0.75rem', background: '#0E0E0E' }}
             >
-              {code}
+              {String(children).replace(/\n$/, '')}
             </SyntaxHighlighter>
-          </div>
+          </>
         );
       }
-      return <span key={i}>{part}</span>;
-    });
-  }, []);
+      // Inline code
+      return (
+        <code className="px-1.5 py-0.5 rounded bg-[rgba(255,255,255,0.08)] text-[0.85em] font-mono" {...props}>
+          {children}
+        </code>
+      );
+    },
+  }), []);
 
   const isEmpty = messages.length === 0;
 
@@ -221,20 +175,27 @@ export default function ChatPanel({
             key={msg.id}
             className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
-            <div className="max-w-[85%]">
+            <div className={`max-w-[85%] ${msg.role === 'assistant' ? 'group/msg' : ''}`}>
               <div
-                className={`rounded-xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
+                className={`rounded-xl px-3.5 py-2.5 text-sm leading-relaxed ${
                   msg.role === 'user'
-                    ? 'bg-[#FA4500] text-white font-mono'
+                    ? 'bg-[#FA4500] text-white font-mono whitespace-pre-wrap'
                     : msg.role === 'system'
-                    ? 'bg-[#1A1A1A] text-[#888] text-xs font-mono border border-[rgba(255,255,255,0.05)]'
+                    ? 'bg-[#1A1A1A] text-[#888] text-xs font-mono whitespace-pre-wrap border border-[rgba(255,255,255,0.05)]'
                     : 'bg-[#F5F5F5] text-[#1A1A1A]'
                 }`}
               >
-                {msg.role === 'assistant'
-                  ? renderContent(msg.content, true)
-                  : renderLegacyContent(msg.content)
-                }
+                {msg.role === 'assistant' ? (
+                  <Streamdown
+                    components={streamdownComponents}
+                    parseIncompleteMarkdown={isGenerating}
+                    className="streamdown-chat"
+                  >
+                    {msg.content}
+                  </Streamdown>
+                ) : (
+                  <span className="whitespace-pre-wrap">{msg.content}</span>
+                )}
 
                 {/* File change indicators for assistant msgs */}
                 {msg.fileChanges && msg.fileChanges.length > 0 && (
@@ -252,7 +213,7 @@ export default function ChatPanel({
                 )}
               </div>
 
-              {/* BranchPicker — shown below assistant messages that have branches */}
+              {/* ActionBar + BranchPicker — shown below assistant messages, autohide on hover */}
               {msg.role === 'assistant' && (
                 <BranchPicker
                   messageId={msg.id}
@@ -261,6 +222,7 @@ export default function ChatPanel({
                   onPrevious={onBranchPrevious ?? (() => {})}
                   onNext={onBranchNext ?? (() => {})}
                   onRegenerate={onRegenerate ?? (() => {})}
+                  content={msg.content}
                 />
               )}
             </div>
