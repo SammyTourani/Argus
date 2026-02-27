@@ -1,21 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { generateText } from 'ai';
+import { getProviderForModel } from '@/lib/ai/provider-manager';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { checkRateLimit } from '@/lib/ratelimit';
 import { sanitizeString, sanitizeOptionalString } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic';
-
-// Check if we're using Vercel AI Gateway
-const isUsingAIGateway = !!process.env.AI_GATEWAY_API_KEY;
-const aiGatewayBaseURL = 'https://ai-gateway.vercel.sh/v1';
-
-const google = createGoogleGenerativeAI({
-  apiKey: process.env.AI_GATEWAY_API_KEY ?? process.env.GEMINI_API_KEY,
-  baseURL: isUsingAIGateway ? aiGatewayBaseURL : undefined,
-});
 
 export async function POST(request: NextRequest) {
   try {
@@ -92,8 +83,9 @@ If the prompt is already specific enough, return it unchanged with an empty chan
 IMPORTANT: Return ONLY valid JSON, no markdown code fences or extra text.`;
 
     // ── Call Gemini Flash ──────────────────────────────────────────────────────
+    const { client: googleProvider, actualModel: geminiModel } = getProviderForModel('google/gemini-2.5-flash');
     const { text } = await generateText({
-      model: google('gemini-2.5-flash'),
+      model: googleProvider(geminiModel),
       prompt: enhancementPrompt,
       maxOutputTokens: 2048,
       temperature: 0.3,

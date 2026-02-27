@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
-import { Copy, Download, ChevronRight, ChevronDown, FileText, Check } from 'lucide-react';
+import { Copy, Download, ChevronRight, ChevronDown, FileText, Check, Lock, LockOpen } from 'lucide-react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
@@ -88,33 +88,52 @@ interface FileTreeItemProps {
   expanded: Set<string>;
   onSelect: (path: string) => void;
   onToggle: (path: string) => void;
+  isLocked?: (filePath: string) => boolean;
+  onToggleLock?: (filePath: string) => void;
 }
 
-function FileTreeItem({ node, depth, selected, expanded, onSelect, onToggle }: FileTreeItemProps) {
+function FileTreeItem({ node, depth, selected, expanded, onSelect, onToggle, isLocked, onToggleLock }: FileTreeItemProps) {
   const isOpen = expanded.has(node.path);
+  const fileLocked = !node.isDir && isLocked?.(node.path);
 
   return (
     <>
-      <button
-        onClick={() => (node.isDir ? onToggle(node.path) : onSelect(node.path))}
-        className={`w-full flex items-center gap-1.5 py-1 text-left text-xs font-mono transition-colors rounded ${
-          selected === node.path
-            ? 'bg-[#FA4500]/15 text-[#FA4500]'
-            : 'text-[#888] hover:text-white hover:bg-[rgba(255,255,255,0.04)]'
-        }`}
-        style={{ paddingLeft: `${depth * 14 + 8}px` }}
-      >
-        {node.isDir ? (
-          isOpen ? (
-            <ChevronDown className="w-3 h-3 flex-shrink-0" />
+      <div className="flex items-center group">
+        <button
+          onClick={() => (node.isDir ? onToggle(node.path) : onSelect(node.path))}
+          className={`flex-1 flex items-center gap-1.5 py-1 text-left text-xs font-mono transition-colors rounded ${
+            selected === node.path
+              ? 'bg-[#FA4500]/15 text-[#FA4500]'
+              : 'text-[#888] hover:text-white hover:bg-[rgba(255,255,255,0.04)]'
+          }`}
+          style={{ paddingLeft: `${depth * 14 + 8}px` }}
+        >
+          {node.isDir ? (
+            isOpen ? (
+              <ChevronDown className="w-3 h-3 flex-shrink-0" />
+            ) : (
+              <ChevronRight className="w-3 h-3 flex-shrink-0" />
+            )
           ) : (
-            <ChevronRight className="w-3 h-3 flex-shrink-0" />
-          )
-        ) : (
-          <FileText className="w-3 h-3 flex-shrink-0 opacity-50" />
+            <FileText className="w-3 h-3 flex-shrink-0 opacity-50" />
+          )}
+          <span className="truncate">{node.name}</span>
+          {fileLocked && <Lock className="w-2.5 h-2.5 flex-shrink-0 text-amber-500" />}
+        </button>
+        {!node.isDir && onToggleLock && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onToggleLock(node.path); }}
+            className="opacity-0 group-hover:opacity-100 p-0.5 mr-1 rounded hover:bg-[rgba(255,255,255,0.08)] transition-all"
+            title={fileLocked ? 'Unlock file' : 'Lock file (AI cannot modify)'}
+          >
+            {fileLocked ? (
+              <LockOpen className="w-3 h-3 text-amber-500" />
+            ) : (
+              <Lock className="w-3 h-3 text-[#555]" />
+            )}
+          </button>
         )}
-        <span className="truncate">{node.name}</span>
-      </button>
+      </div>
       {node.isDir && isOpen && node.children.map((child) => (
         <FileTreeItem
           key={child.path}
@@ -124,6 +143,8 @@ function FileTreeItem({ node, depth, selected, expanded, onSelect, onToggle }: F
           expanded={expanded}
           onSelect={onSelect}
           onToggle={onToggle}
+          isLocked={isLocked}
+          onToggleLock={onToggleLock}
         />
       ))}
     </>
@@ -135,9 +156,15 @@ interface CodePanelProps {
   files: FileEntry[];
   buildLogs?: string[];
   onDownloadZip?: () => void;
+  /** Currently locked file paths */
+  lockedFiles?: string[];
+  /** Check if a specific file is locked */
+  isLocked?: (filePath: string) => boolean;
+  /** Toggle lock state of a file */
+  onToggleLock?: (filePath: string) => void;
 }
 
-export default function CodePanel({ files, buildLogs = [], onDownloadZip }: CodePanelProps) {
+export default function CodePanel({ files, buildLogs = [], onDownloadZip, lockedFiles = [], isLocked, onToggleLock }: CodePanelProps) {
   const [tab, setTab] = useState<'files' | 'console'>('files');
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(() => {
@@ -209,6 +236,8 @@ export default function CodePanel({ files, buildLogs = [], onDownloadZip }: Code
                   expanded={expanded}
                   onSelect={setSelectedFile}
                   onToggle={handleToggle}
+                  isLocked={isLocked}
+                  onToggleLock={onToggleLock}
                 />
               ))
             )}

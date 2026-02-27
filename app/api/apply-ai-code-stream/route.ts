@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getSandbox, setSandbox } from '@/lib/sandbox/registry';
 import { parseGeneratedFiles } from '@/lib/ai/parse-files';
 import { getConversationState } from '@/lib/conversation/per-user-state';
+import { validateBuild, classifyError, extractMissingPackages } from '@/lib/build-validator';
 
 interface ParsedResponse {
   explanation: string;
@@ -698,6 +699,32 @@ export async function POST(request: NextRequest) {
                 error: (error as Error).message
               });
             }
+          }
+        }
+
+        // Validate the build after applying all files
+        const sandboxUrl = providerInstance.getSandboxUrl?.();
+        if (sandboxUrl && results.filesCreated.length > 0) {
+          await sendProgress({ type: 'status', message: 'Validating build...' });
+          try {
+            const validation = await validateBuild(sandboxUrl, sandboxId || 'unknown');
+            if (!validation.success) {
+              const errorType = classifyError({ message: validation.errors.join('; ') });
+              const missingPkgs = validation.errors.flatMap(e => extractMissingPackages({ message: e }));
+              await sendProgress({
+                type: 'build-validation',
+                success: false,
+                errors: validation.errors,
+                errorType,
+                missingPackages: missingPkgs,
+                isRendering: validation.isRendering,
+              });
+            } else {
+              await sendProgress({ type: 'build-validation', success: true, isRendering: true });
+            }
+          } catch (validationError) {
+            console.warn('[apply-ai-code-stream] Build validation failed:', validationError);
+            // Don't block the response if validation itself errors
           }
         }
 

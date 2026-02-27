@@ -26,6 +26,8 @@ import { UpgradePrompt } from '@/components/shared/UpgradePrompt';
 import DeployHistory from '@/components/builder/DeployHistory';
 import DesignSchemePanel from '@/components/builder/DesignSchemePanel';
 import { useDesignScheme } from '@/hooks/use-design-scheme';
+import { useLockedFiles } from '@/hooks/use-locked-files';
+import { useMessageBranching } from '@/hooks/use-message-branching';
 
 /* ─── Resizable panels ─── */
 const MIN_LEFT = 220;
@@ -121,6 +123,8 @@ export default function BuilderPage() {
   /* ─── Design scheme ─── */
   const [designSchemeOpen, setDesignSchemeOpen] = useState(false);
   const designScheme = useDesignScheme(projectId);
+  const { lockedFiles, isLocked, toggleLock, getSystemPromptInjection } = useLockedFiles(projectId, buildId);
+  const branching = useMessageBranching(projectId, buildId);
 
   /* ─── Code files ─── */
   const [files, setFiles] = useState<FileEntry[]>([]);
@@ -237,27 +241,30 @@ export default function BuilderPage() {
   }, []);
 
   const handleBranchPrevious = useCallback((messageId: string) => {
+    branching.switchToPrevious(messageId);
+    // Sync branch info to the flat messages state
+    const info = branching.getBranchInfo(messageId);
     setMessages((prev) =>
       prev.map((m) =>
-        m.id === messageId && m.currentBranch != null && m.currentBranch > 0
-          ? { ...m, currentBranch: m.currentBranch - 1 }
+        m.id === messageId
+          ? { ...m, currentBranch: info.current - 1, totalBranches: info.total }
           : m
       )
     );
-  }, []);
+  }, [branching]);
 
   const handleBranchNext = useCallback((messageId: string) => {
+    branching.switchToNext(messageId);
+    // Sync branch info to the flat messages state
+    const info = branching.getBranchInfo(messageId);
     setMessages((prev) =>
       prev.map((m) =>
-        m.id === messageId &&
-        m.currentBranch != null &&
-        m.totalBranches != null &&
-        m.currentBranch < m.totalBranches - 1
-          ? { ...m, currentBranch: m.currentBranch + 1 }
+        m.id === messageId
+          ? { ...m, currentBranch: info.current - 1, totalBranches: info.total }
           : m
       )
     );
-  }, []);
+  }, [branching]);
 
   /* ─── Prompt enhancement ─── */
   const handleEnhancePrompt = useCallback((enhanced: string) => {
@@ -275,6 +282,10 @@ export default function BuilderPage() {
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, userMsg]);
+      // Mirror to branching tree for branch navigation support
+      try {
+        branching.addMessage('user', content, undefined);
+      } catch { /* noop — branching is additive */ }
       persistMessageToSupabase(userMsg);
       setIsGenerating(true);
       setBuildStatus('generating');
@@ -292,7 +303,7 @@ export default function BuilderPage() {
             prompt: content,
             model: selectedModelId,
             chatMode,
-            lockedFiles: [],
+            lockedFiles,
             designScheme: designScheme.getPromptInjection(),
             context: {
               sandboxId,
@@ -365,6 +376,12 @@ export default function BuilderPage() {
           fileChanges: changedFiles.length > 0 ? changedFiles : undefined,
         };
         setMessages((prev) => [...prev, aiMsg]);
+        // Mirror to branching tree
+        try {
+          branching.addMessage('assistant', displayText, {
+            fileChanges: changedFiles.length > 0 ? changedFiles : undefined,
+          });
+        } catch { /* noop */ }
         persistMessageToSupabase(aiMsg);
 
         // Apply code to sandbox
@@ -428,17 +445,22 @@ export default function BuilderPage() {
 
   /* ─── Branch navigation (stub — wire to your branch state management) ─── */
   const handleRegenerate = useCallback((messageId: string) => {
+    // Create a new branch in the branching tree
+    try {
+      branching.regenerate(messageId);
+    } catch {
+      // Fallback: branching hook may not have this message yet
+    }
     // Find the assistant message and the preceding user message, then resend
     const msgIndex = messages.findIndex((m) => m.id === messageId);
     if (msgIndex < 0) return;
-    // Find the last user message before this assistant message
     for (let i = msgIndex - 1; i >= 0; i--) {
       if (messages[i].role === 'user') {
         handleSendMessage(messages[i].content);
         break;
       }
     }
-  }, [messages, handleSendMessage]);
+  }, [messages, handleSendMessage, branching]);
 
 
   /* ─── Fetch build count for version badge ─── */
@@ -683,6 +705,9 @@ export default function BuilderPage() {
                 files={files}
                 buildLogs={buildLogs}
                 onDownloadZip={handleDownloadZip}
+                lockedFiles={lockedFiles}
+                isLocked={isLocked}
+                onToggleLock={toggleLock}
               />
             </div>
           </>

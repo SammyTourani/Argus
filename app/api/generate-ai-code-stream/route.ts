@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createGroq } from '@ai-sdk/groq';
-import { createAnthropic } from '@ai-sdk/anthropic';
-import { createOpenAI } from '@ai-sdk/openai';
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { streamText } from 'ai';
+import { getProviderForModel } from '@/lib/ai/provider-manager';
+import { streamWithFallback, DEFAULT_FALLBACK_CHAIN } from '@/lib/ai/fallback-chain';
 import type { SandboxState } from '@/types/sandbox';
 import { selectFilesForEdit, getFileContents, formatFilesForAI } from '@/lib/context-selector';
 import { executeSearchPlan, formatSearchResultsForAI, selectTargetFile } from '@/lib/file-search-executor';
@@ -27,35 +25,8 @@ import { getSystemPrompt, type PromptVariant } from '@/lib/ai/prompt-library';
 // Force dynamic route to enable streaming
 export const dynamic = 'force-dynamic';
 
-// Check if we're using Vercel AI Gateway
-const isUsingAIGateway = !!process.env.AI_GATEWAY_API_KEY;
-const aiGatewayBaseURL = 'https://ai-gateway.vercel.sh/v1';
-
-console.log('[generate-ai-code-stream] AI Gateway config:', {
-  isUsingAIGateway,
-  hasGroqKey: !!process.env.GROQ_API_KEY,
-  hasAIGatewayKey: !!process.env.AI_GATEWAY_API_KEY
-});
-
-const groq = createGroq({
-  apiKey: process.env.AI_GATEWAY_API_KEY ?? process.env.GROQ_API_KEY,
-  baseURL: isUsingAIGateway ? aiGatewayBaseURL : undefined,
-});
-
-const anthropic = createAnthropic({
-  apiKey: process.env.AI_GATEWAY_API_KEY ?? process.env.ANTHROPIC_API_KEY,
-  baseURL: isUsingAIGateway ? aiGatewayBaseURL : (process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com/v1'),
-});
-
-const googleGenerativeAI = createGoogleGenerativeAI({
-  apiKey: process.env.AI_GATEWAY_API_KEY ?? process.env.GEMINI_API_KEY,
-  baseURL: isUsingAIGateway ? aiGatewayBaseURL : undefined,
-});
-
-const openai = createOpenAI({
-  apiKey: process.env.AI_GATEWAY_API_KEY ?? process.env.OPENAI_API_KEY,
-  baseURL: isUsingAIGateway ? aiGatewayBaseURL : process.env.OPENAI_BASE_URL,
-});
+// Provider management is centralized in lib/ai/provider-manager.ts
+// It handles AI Gateway, caching, and all 4 providers (OpenAI, Anthropic, Groq, Google)
 
 // Helper function to analyze user preferences from conversation history
 function analyzeUserPreferences(messages: ConversationMessage[]): {
@@ -1317,34 +1288,15 @@ MORPH FAST APPLY MODE (EDIT-ONLY):
         // Track packages that need to be installed
         const packagesToInstall: string[] = [];
         
-        // Determine which provider to use based on model
+        // Resolve provider using centralized provider-manager
+        const { client: modelProvider, actualModel: resolvedModel } = getProviderForModel(model);
+        let actualModel = resolvedModel;
         const isAnthropic = model.startsWith('anthropic/');
         const isGoogle = model.startsWith('google/');
         const isOpenAI = model.startsWith('openai/');
         const isKimiGroq = model === 'moonshotai/kimi-k2-instruct-0905';
-        const modelProvider = isAnthropic ? anthropic : 
-                              (isOpenAI ? openai : 
-                              (isGoogle ? googleGenerativeAI : 
-                              (isKimiGroq ? groq : groq)));
-        
-        // Fix model name transformation for different providers
-        let actualModel: string;
-        if (isAnthropic) {
-          actualModel = model.replace('anthropic/', '');
-        } else if (isOpenAI) {
-          actualModel = model.replace('openai/', '');
-        } else if (isKimiGroq) {
-          // Kimi on Groq - use full model string
-          actualModel = 'moonshotai/kimi-k2-instruct-0905';
-        } else if (isGoogle) {
-          // Google uses specific model names - convert our naming to theirs  
-          actualModel = model.replace('google/', '');
-        } else {
-          actualModel = model;
-        }
 
         console.log(`[generate-ai-code-stream] Using provider: ${isAnthropic ? 'Anthropic' : isGoogle ? 'Google' : isOpenAI ? 'OpenAI' : 'Groq'}, model: ${actualModel}`);
-        console.log(`[generate-ai-code-stream] AI Gateway enabled: ${isUsingAIGateway}`);
         console.log(`[generate-ai-code-stream] Model string: ${model}`);
 
         // Make streaming API call with appropriate provider
@@ -1430,60 +1382,44 @@ It's better to have 3 complete files than 10 incomplete files.`
           };
         }
         
-        let result;
-        let retryCount = 0;
-        const maxRetries = 2;
-        
-        while (retryCount <= maxRetries) {
-          try {
-            result = await streamText(streamOptions);
-            break; // Success, exit retry loop
-          } catch (streamError: any) {
-            console.error(`[generate-ai-code-stream] Error calling streamText (attempt ${retryCount + 1}/${maxRetries + 1}):`, streamError);
-            
-            // Check if this is a Groq service unavailable error
-            const isGroqServiceError = isKimiGroq && streamError.message?.includes('Service unavailable');
-            const isRetryableError = streamError.message?.includes('Service unavailable') || 
-                                    streamError.message?.includes('rate limit') ||
-                                    streamError.message?.includes('timeout');
-            
-            if (retryCount < maxRetries && isRetryableError) {
-              retryCount++;
-              console.log(`[generate-ai-code-stream] Retrying in ${retryCount * 2} seconds...`);
-              
-              // Send progress update about retry
-              await sendProgress({ 
-                type: 'info', 
-                message: `Service temporarily unavailable, retrying (attempt ${retryCount + 1}/${maxRetries + 1})...` 
-              });
-              
-              // Wait before retry with exponential backoff
-              await new Promise(resolve => setTimeout(resolve, retryCount * 2000));
-              
-              // If Groq fails, try switching to a fallback model
-              if (isGroqServiceError && retryCount === maxRetries) {
-                console.log('[generate-ai-code-stream] Groq service unavailable, falling back to GPT-4');
-                streamOptions.model = openai('gpt-4-turbo');
-                actualModel = 'gpt-4-turbo';
+        let result: Awaited<ReturnType<typeof streamText>> | undefined;
+        try {
+          const fallbackResult = await streamWithFallback(
+            {
+              primary: model,
+              fallbacks: DEFAULT_FALLBACK_CHAIN.fallbacks.filter(m => m !== model),
+              maxRetries: 2,
+              retryDelayMs: 1000,
+            },
+            async (fallbackModelId: string) => {
+              // Resolve provider for this fallback model
+              const { client: fbProvider, actualModel: fbModel } = getProviderForModel(fallbackModelId);
+              streamOptions.model = fbProvider(fbModel);
+
+              // Adjust temperature for reasoning models
+              if (fallbackModelId.startsWith('openai/gpt-5')) {
+                delete streamOptions.temperature;
+              } else if (!streamOptions.temperature) {
+                streamOptions.temperature = 0.7;
               }
-            } else {
-              // Final error, send to user
-              await sendProgress({ 
-                type: 'error', 
-                message: `Failed to initialize ${isGoogle ? 'Gemini' : isAnthropic ? 'Claude' : isOpenAI ? 'GPT-5' : isKimiGroq ? 'Kimi (Groq)' : 'Groq'} streaming: ${streamError.message}` 
-              });
-              
-              // If this is a Google model error, provide helpful info
-              if (isGoogle) {
-                await sendProgress({ 
-                  type: 'info', 
-                  message: 'Tip: Make sure your GEMINI_API_KEY is set correctly and has proper permissions.' 
-                });
-              }
-              
-              throw streamError;
+
+              result = await streamText(streamOptions);
+              // Return a stream to satisfy the fallback chain's contract
+              // We use result.textStream separately for parsing, this is just for the chain
+              return result.textStream as unknown as ReadableStream;
+            },
+            (fromModel, toModel, error) => {
+              console.log(`[generate-ai-code-stream] Falling back: ${fromModel} → ${toModel} (${error.message})`);
+              sendProgress({ type: 'info', message: `${fromModel} unavailable, trying ${toModel}...` });
             }
-          }
+          );
+          actualModel = getProviderForModel(fallbackResult.usedModel).actualModel;
+        } catch (finalError: any) {
+          await sendProgress({
+            type: 'error',
+            message: `All models failed. Last error: ${finalError.message}`
+          });
+          throw finalError;
         }
         
         // Stream the response and parse in real-time
@@ -1847,32 +1783,8 @@ Original request: ${prompt}
 Provide the complete file content without any truncation. Include all necessary imports, complete all functions, and close all tags properly.`;
                 
                 // Make a focused API call to complete this specific file
-                // Create a new client for the completion based on the provider
-                let completionClient;
-                if (model.includes('gpt') || model.includes('openai')) {
-                  completionClient = openai;
-                } else if (model.includes('claude')) {
-                  completionClient = anthropic;
-                } else if (model === 'moonshotai/kimi-k2-instruct-0905') {
-                  completionClient = groq;
-                } else {
-                  completionClient = groq;
-                }
-                
-                // Determine the correct model name for the completion
-                let completionModelName: string;
-                if (model === 'moonshotai/kimi-k2-instruct-0905') {
-                  completionModelName = 'moonshotai/kimi-k2-instruct-0905';
-                } else if (model.includes('openai')) {
-                  completionModelName = model.replace('openai/', '');
-                } else if (model.includes('anthropic')) {
-                  completionModelName = model.replace('anthropic/', '');
-                } else if (model.includes('google')) {
-                  completionModelName = model.replace('google/', '');
-                } else {
-                  completionModelName = model;
-                }
-                
+                const { client: completionClient, actualModel: completionModelName } = getProviderForModel(model);
+
                 const completionResult = await streamText({
                   model: completionClient(completionModelName),
                   messages: [
