@@ -63,7 +63,7 @@ export async function GET(_req: Request, { params }: RouteParams) {
 }
 
 // PATCH /api/projects/[projectId]/builds/[buildId] — update build fields
-// Allowed: checkpoint_name, status, preview_url
+// Allowed: title, status, preview_url
 export async function PATCH(request: Request, { params }: RouteParams) {
   try {
     const { projectId, buildId } = await params;

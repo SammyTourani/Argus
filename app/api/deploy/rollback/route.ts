@@ -80,10 +80,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
 
-    // Fetch the build's code snapshot
+    // Fetch the build's files
     const { data: build, error: buildError } = await supabase
       .from('project_builds')
-      .select('id, code_snapshot, version_number, project_id')
+      .select('id, files_json, version_number, project_id')
       .eq('id', buildId)
       .eq('project_id', projectId)
       .single();
@@ -95,17 +95,17 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!build.code_snapshot) {
+    if (!build.files_json) {
       return NextResponse.json(
-        { error: 'No code snapshot available for this build. Cannot rollback.' },
+        { error: 'No files available for this build. Cannot rollback.' },
         { status: 422 }
       );
     }
 
-    // Extract files from code_snapshot
-    // code_snapshot is a JSONB column with the structure: { files: [{ path, content }] }
+    // Extract files from files_json
+    // files_json is a JSONB column with the structure: { files: [{ path, content }] }
     // or it may be an array directly
-    const snapshot = build.code_snapshot as Record<string, unknown>;
+    const snapshot = build.files_json as Record<string, unknown>;
     const files: Array<{ path: string; content: string }> = Array.isArray(snapshot)
       ? snapshot
       : Array.isArray(snapshot.files)

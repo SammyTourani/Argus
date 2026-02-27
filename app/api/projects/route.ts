@@ -38,8 +38,7 @@ export async function GET() {
       .select(`
         *,
         project_collaborators (
-          id, role, status, user_id,
-          profiles ( full_name, avatar_url )
+          id, role, status, user_id
         )
       `)
       .order('updated_at', { ascending: false });

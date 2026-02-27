@@ -36,7 +36,7 @@ export async function GET(_req: Request, { params }: RouteParams) {
 
     const { data: collaborators, error } = await supabase
       .from('project_collaborators')
-      .select('*, profiles(full_name, avatar_url, email)')
+      .select('*')
       .eq('project_id', projectId);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -82,7 +82,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       .from('project_collaborators')
       .select('id, status')
       .eq('project_id', projectId)
-      .eq('email', email)
+      .eq('invite_email', email)
       .single();
 
     if (existing && existing.status === 'accepted') {
@@ -98,12 +98,12 @@ export async function POST(request: Request, { params }: RouteParams) {
         {
           project_id: projectId,
           invited_by: user.id,
-          email,
+          invite_email: email,
           role,
           status: 'pending',
           invite_token: inviteToken,
         },
-        { onConflict: 'project_id,email' }
+        { onConflict: 'project_id,invite_email' }
       )
       .select()
       .single();

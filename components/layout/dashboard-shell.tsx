@@ -1,6 +1,5 @@
 'use client';
 
-import { Suspense } from 'react';
 import { SidebarProvider, SidebarInset } from '@/components/ui/shadcn/sidebar';
 import AppSidebar from '@/components/layout/app-sidebar';
 import AppHeader from '@/components/layout/app-header';
@@ -20,9 +19,7 @@ export default function DashboardShell({
 }: DashboardShellProps) {
   return (
     <SidebarProvider defaultOpen={true}>
-      <Suspense fallback={null}>
-        <AppSidebar counts={counts} onNewProject={onNewProject} />
-      </Suspense>
+      <AppSidebar counts={counts} onNewProject={onNewProject} />
       <SidebarInset>
         <AppHeader />
         {children}

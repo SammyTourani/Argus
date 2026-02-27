@@ -35,8 +35,7 @@ export async function GET(_req: Request, { params }: RouteParams) {
       .select(`
         *,
         project_collaborators (
-          id, role, status, user_id,
-          profiles ( full_name, avatar_url, email )
+          id, role, status, user_id
         )
       `)
       .eq('id', projectId)

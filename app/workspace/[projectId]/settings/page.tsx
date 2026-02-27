@@ -96,7 +96,8 @@ export default function ProjectSettingsPage() {
         ])
 
         if (projRes.ok) {
-          const data: Project = await projRes.json()
+          const json = await projRes.json()
+          const data: Project = json.project ?? json
           setProject(data)
           setProjectName(data.name || '')
           setProjectDescription(data.description || '')
@@ -105,7 +106,8 @@ export default function ProjectSettingsPage() {
         }
 
         if (collabRes.ok) {
-          const data: Collaborator[] = await collabRes.json()
+          const json = await collabRes.json()
+          const data: Collaborator[] = json.collaborators ?? json ?? []
           setCollaborators(data)
           // Detect own role (assume first owner is us if no user context)
           const owner = data.find((c) => c.role === 'owner')
