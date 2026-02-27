@@ -49,7 +49,7 @@ export default function MarketplacePage() {
 
   return (
     <DashboardShell>
-      <div className="pb-24">
+      <div>
         {/* Header */}
         <div className="px-8 pt-8 pb-6">
           <motion.h1
@@ -163,9 +163,9 @@ export default function MarketplacePage() {
           </div>
         </div>
 
-        {/* Sticky apply bar */}
-        <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-zinc-100 bg-white/95 backdrop-blur-sm px-8 py-4">
-          <div className="flex items-center justify-between max-w-6xl mx-auto">
+        {/* Apply bar */}
+        <div className="border-t border-zinc-100 bg-white px-8 py-4">
+          <div className="flex items-center justify-between">
             <div className="text-sm text-zinc-600">
               <span className="font-semibold text-zinc-900">{selectedModelObj?.name}</span>
               <span className="mx-2 text-zinc-300">·</span>
