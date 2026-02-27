@@ -4,9 +4,11 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import BuilderNav from '@/components/builder/BuilderNav';
 import ChatPanel, { type ChatMessage } from '@/components/builder/ChatPanel';
+import type { ChatMode } from '@/lib/ai/chat-modes';
 import PreviewPanel from '@/components/builder/PreviewPanel';
-import CodePanel, { type FileEntry } from '@/components/builder/CodePanel';
-import VisualEditor from '@/components/builder/VisualEditor';
+import LazyCodePanel from '@/components/builder/LazyCodeEditor';
+import LazyVisualEditor from '@/components/builder/LazyVisualEditor';
+import type { FileEntry } from '@/components/builder/CodePanel';
 import PublishButton from '@/components/builder/PublishButton';
 import DeploySuccessBanner from '@/components/builder/DeploySuccessBanner';
 import { MODELS } from '@/components/builder/ModelSelector';
@@ -18,8 +20,12 @@ import KeyboardShortcuts from '@/components/builder/KeyboardShortcuts';
 import { nanoid } from 'nanoid';
 import { createClient } from '@/lib/supabase/client';
 import { parseGeneratedFiles } from '@/lib/ai/parse-files';
-import { History, MonitorX } from 'lucide-react';
+import { History, MonitorX, Palette, Rocket } from 'lucide-react';
 import Link from 'next/link';
+import { UpgradePrompt } from '@/components/shared/UpgradePrompt';
+import DeployHistory from '@/components/builder/DeployHistory';
+import DesignSchemePanel from '@/components/builder/DesignSchemePanel';
+import { useDesignScheme } from '@/hooks/use-design-scheme';
 
 /* ─── Resizable panels ─── */
 const MIN_LEFT = 220;
@@ -82,6 +88,7 @@ export default function BuilderPage() {
   /* ─── Chat ─── */
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [chatMode, setChatMode] = useState<ChatMode>('build');
   const [buildStatus, setBuildStatus] = useState<BuildStatus>('idle');
   const [buildStatusMessage, setBuildStatusMessage] = useState('');
   const [buildFilesChanged, setBuildFilesChanged] = useState(0);
@@ -104,6 +111,16 @@ export default function BuilderPage() {
   const [versionHistoryOpen, setVersionHistoryOpen] = useState(false);
   const [keyboardShortcutsOpen, setKeyboardShortcutsOpen] = useState(false);
   const [buildCount, setBuildCount] = useState(0);
+
+  /* ─── Upgrade prompt ─── */
+  const [showUpgrade, setShowUpgrade] = useState(false);
+
+  /* ─── Deploy history ─── */
+  const [deployHistoryOpen, setDeployHistoryOpen] = useState(false);
+
+  /* ─── Design scheme ─── */
+  const [designSchemeOpen, setDesignSchemeOpen] = useState(false);
+  const designScheme = useDesignScheme(projectId);
 
   /* ─── Code files ─── */
   const [files, setFiles] = useState<FileEntry[]>([]);
@@ -214,6 +231,40 @@ export default function BuilderPage() {
     return null;
   }, [projectId]);
 
+  /* ─── Chat mode change ─── */
+  const handleChatModeChange = useCallback((mode: ChatMode) => {
+    setChatMode(mode);
+  }, []);
+
+  const handleBranchPrevious = useCallback((messageId: string) => {
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === messageId && m.currentBranch != null && m.currentBranch > 0
+          ? { ...m, currentBranch: m.currentBranch - 1 }
+          : m
+      )
+    );
+  }, []);
+
+  const handleBranchNext = useCallback((messageId: string) => {
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === messageId &&
+        m.currentBranch != null &&
+        m.totalBranches != null &&
+        m.currentBranch < m.totalBranches - 1
+          ? { ...m, currentBranch: m.currentBranch + 1 }
+          : m
+      )
+    );
+  }, []);
+
+  /* ─── Prompt enhancement ─── */
+  const handleEnhancePrompt = useCallback((enhanced: string) => {
+    // Enhanced prompt is handled internally by ChatPanel's PromptEnhancer
+    // This callback is for any parent-level side effects
+  }, []);
+
   /* ─── Chat send ─── */
   const handleSendMessage = useCallback(
     async (content: string) => {
@@ -240,6 +291,9 @@ export default function BuilderPage() {
           body: JSON.stringify({
             prompt: content,
             model: selectedModelId,
+            chatMode,
+            lockedFiles: [],
+            designScheme: designScheme.getPromptInjection(),
             context: {
               sandboxId,
               projectContext: projectContext ?? undefined,
@@ -248,6 +302,17 @@ export default function BuilderPage() {
           }),
         });
 
+        if (res.status === 403) {
+          try {
+            const errorData = await res.json();
+            if (errorData.code === 'BUILD_LIMIT_REACHED') {
+              setShowUpgrade(true);
+              setIsGenerating(false);
+              setBuildStatus('idle');
+              return;
+            }
+          } catch { /* fall through to generic error */ }
+        }
         if (!res.ok || !res.body) throw new Error('Generation failed');
 
         const reader = res.body.getReader();
@@ -360,6 +425,21 @@ export default function BuilderPage() {
     },
     [selectedModelId, sandboxId, persistMessageToSupabase, getProjectContext, messages.length],
   );
+
+  /* ─── Branch navigation (stub — wire to your branch state management) ─── */
+  const handleRegenerate = useCallback((messageId: string) => {
+    // Find the assistant message and the preceding user message, then resend
+    const msgIndex = messages.findIndex((m) => m.id === messageId);
+    if (msgIndex < 0) return;
+    // Find the last user message before this assistant message
+    for (let i = msgIndex - 1; i >= 0; i--) {
+      if (messages[i].role === 'user') {
+        handleSendMessage(messages[i].content);
+        break;
+      }
+    }
+  }, [messages, handleSendMessage]);
+
 
   /* ─── Fetch build count for version badge ─── */
   useEffect(() => {
@@ -492,6 +572,24 @@ export default function BuilderPage() {
         onToggleRight={() => setRightVisible((v) => !v)}
         extraActions={
           <>
+            {/* Deploy history button */}
+            <button
+              onClick={() => setDeployHistoryOpen((o) => !o)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-mono text-[#888] hover:text-white border border-[rgba(255,255,255,0.08)] hover:border-[rgba(255,255,255,0.15)] transition-colors"
+              title="Deploy history"
+            >
+              <Rocket className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Deploys</span>
+            </button>
+            {/* Design scheme button */}
+            <button
+              onClick={() => setDesignSchemeOpen((o) => !o)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-mono text-[#888] hover:text-white border border-[rgba(255,255,255,0.08)] hover:border-[rgba(255,255,255,0.15)] transition-colors"
+              title="Design scheme"
+            >
+              <Palette className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Design</span>
+            </button>
             {/* Version history button + badge */}
             <button
               onClick={() => setVersionHistoryOpen((o) => !o)}
@@ -507,7 +605,7 @@ export default function BuilderPage() {
                 onClick={() => setVersionHistoryOpen((o) => !o)}
               />
             )}
-            <VisualEditor
+            <LazyVisualEditor
               isActive={visualEditorActive}
               onToggle={() => setVisualEditorActive((v) => !v)}
               iframeRef={iframeRef}
@@ -546,6 +644,12 @@ export default function BuilderPage() {
                 isGenerating={isGenerating}
                 selectedModelName={selectedModel.name}
                 selectedModelColor={selectedModel.color}
+                chatMode={chatMode}
+                onChatModeChange={handleChatModeChange}
+                onEnhancePrompt={handleEnhancePrompt}
+                onRegenerate={handleRegenerate}
+                onBranchPrevious={handleBranchPrevious}
+                onBranchNext={handleBranchNext}
               />
             </div>
             <div
@@ -575,7 +679,7 @@ export default function BuilderPage() {
               className="w-1 cursor-col-resize hover:bg-[#FA4500]/40 active:bg-[#FA4500]/60 transition-colors flex-shrink-0"
             />
             <div style={{ width: rightWidth, minWidth: MIN_RIGHT, maxWidth: MAX_RIGHT }} className="flex-shrink-0 border-l border-[rgba(255,255,255,0.06)]">
-              <CodePanel
+              <LazyCodePanel
                 files={files}
                 buildLogs={buildLogs}
                 onDownloadZip={handleDownloadZip}
@@ -593,6 +697,25 @@ export default function BuilderPage() {
         isOpen={versionHistoryOpen}
         onClose={() => setVersionHistoryOpen(false)}
       />
+
+      {/* Design Scheme Panel */}
+      {designSchemeOpen && (
+        <div className="fixed inset-0 z-40" onClick={() => setDesignSchemeOpen(false)}>
+          <div className="absolute inset-0 bg-black/40" />
+          <div
+            className="fixed right-0 top-0 h-full w-[340px] bg-[#0A0A0A] border-l border-zinc-800 z-50 flex flex-col shadow-2xl overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
+              <span className="text-sm font-mono text-white">Design Scheme</span>
+              <button onClick={() => setDesignSchemeOpen(false)} className="text-zinc-500 hover:text-white">
+                &times;
+              </button>
+            </div>
+            <DesignSchemePanel projectId={projectId} />
+          </div>
+        </div>
+      )}
 
       {/* Keyboard Shortcuts Modal */}
       <KeyboardShortcuts isOpen={keyboardShortcutsOpen} onClose={() => setKeyboardShortcutsOpen(false)} />
@@ -612,6 +735,23 @@ export default function BuilderPage() {
           onDismiss={() => setShowDeployBanner(false)}
         />
       )}
+
+      {/* Upgrade Prompt Modal */}
+      {showUpgrade && (
+        <UpgradePrompt
+          feature="more builds"
+          currentTier="free"
+          dark
+          onDismiss={() => setShowUpgrade(false)}
+        />
+      )}
+
+      {/* Deploy History Panel */}
+      <DeployHistory
+        projectId={projectId}
+        isOpen={deployHistoryOpen}
+        onClose={() => setDeployHistoryOpen(false)}
+      />
     </div>
     </>
   );

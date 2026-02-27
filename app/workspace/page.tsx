@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Suspense, useEffect, useCallback } from 'react';
+import { useState, useMemo, Suspense, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Menu, Search, Settings } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -10,6 +10,13 @@ import WorkspaceSidebar from '@/components/workspace/WorkspaceSidebar';
 import ProjectCard from '@/components/workspace/ProjectCard';
 import NewProjectCard from '@/components/workspace/NewProjectCard';
 import NewProjectDialog from '@/components/workspace/NewProjectDialog';
+import UsageStatsBar from '@/components/workspace/UsageStatsBar';
+import UsageMeter from '@/components/workspace/UsageMeter';
+import UpgradeBanner from '@/components/workspace/UpgradeBanner';
+import QuickActionsBar from '@/components/workspace/QuickActionsBar';
+import RecentActivity from '@/components/workspace/RecentActivity';
+import ProjectSortDropdown from '@/components/workspace/ProjectSortDropdown';
+import type { SortOption } from '@/components/workspace/ProjectSortDropdown';
 import type { CloneData } from '@/components/workspace/NewProjectDialog';
 import type { Project, WorkspaceView } from '@/types/workspace';
 
@@ -94,6 +101,23 @@ function WorkspacePageInner() {
   const [searchQuery, setSearchQuery] = useState('');
   const [userName, setUserName] = useState<string | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [sortBy, setSortBy] = useState<SortOption>('last-modified');
+
+  // Helpers for opening dialog in specific modes
+  const openDialogBlank = useCallback(() => {
+    setCloneData(null);
+    setDialogOpen(true);
+  }, []);
+
+  const openDialogClone = useCallback(() => {
+    setCloneData({ source_url: '' });
+    setDialogOpen(true);
+  }, []);
+
+  const openDialogTemplate = useCallback(() => {
+    setCloneData(null);
+    setDialogOpen(true);
+  }, []);
 
   // Fetch projects from API (not directly from Supabase)
   const fetchProjects = useCallback(async () => {
@@ -198,7 +222,32 @@ function WorkspacePageInner() {
   });
 
   const starredProjects = projects.filter((p) => p.is_starred);
-  const recentProjects = filteredProjects;
+
+  // Sort filtered projects based on selected sort option
+  const sortedProjects = useMemo(() => {
+    const sorted = [...filteredProjects];
+    switch (sortBy) {
+      case 'name-asc':
+        sorted.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+      case 'name-desc':
+        sorted.sort((a, b) => b.name.localeCompare(a.name));
+        break;
+      case 'created-newest':
+        sorted.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        break;
+      case 'created-oldest':
+        sorted.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        break;
+      case 'last-modified':
+      default:
+        sorted.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+        break;
+    }
+    return sorted;
+  }, [filteredProjects, sortBy]);
+
+  const recentProjects = sortedProjects;
 
   const counts = {
     all: projects.length,
@@ -262,21 +311,57 @@ function WorkspacePageInner() {
         <div className="mx-auto max-w-[1200px] px-6 py-6">
           {loading ? (
             /* Loading skeleton */
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <ProjectCardSkeleton key={i} />
-              ))}
+            <div className="space-y-6">
+              {/* Stats skeleton */}
+              <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3">
+                    <div className="h-9 w-9 animate-pulse rounded-lg bg-zinc-100" />
+                    <div className="space-y-1">
+                      <div className="h-2.5 w-16 animate-pulse rounded bg-zinc-100" />
+                      <div className="h-5 w-10 animate-pulse rounded bg-zinc-100" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {/* Cards skeleton */}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <ProjectCardSkeleton key={i} />
+                ))}
+              </div>
             </div>
           ) : projects.length === 0 ? (
             <EmptyState onCreateProject={() => setDialogOpen(true)} />
           ) : (
-            <div className="space-y-8">
+            <div className="space-y-6">
+              {/* Upgrade Banner (free tier, approaching/at limit) */}
+              <UpgradeBanner />
+
+              {/* Usage Stats Bar */}
+              <UsageStatsBar />
+
+              {/* Usage Meter (builds used / limit) */}
+              <UsageMeter />
+
+              {/* Quick Actions Bar */}
+              <QuickActionsBar
+                onNewProject={openDialogBlank}
+                onCloneUrl={openDialogClone}
+                onImportGithub={openDialogTemplate}
+              />
+
+              {/* Recent Activity (collapsible) */}
+              <RecentActivity />
+
               {/* Starred section (only on 'all' view) */}
               {activeView === 'all' && starredProjects.length > 0 && (
                 <section>
-                  <h2 className="mb-3 flex items-center gap-2 text-[13px] font-semibold uppercase tracking-wider text-zinc-500">
-                    ⭐ Starred
-                  </h2>
+                  <div className="mb-3 flex items-center justify-between">
+                    <h2 className="flex items-center gap-2 text-[13px] font-semibold uppercase tracking-wider text-zinc-500">
+                      Starred ({starredProjects.length})
+                    </h2>
+                  </div>
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {starredProjects.map((project) => (
                       <ProjectCard
@@ -293,9 +378,12 @@ function WorkspacePageInner() {
 
               {/* Recent / Main grid */}
               <section>
-                <h2 className="mb-3 flex items-center gap-2 text-[13px] font-semibold uppercase tracking-wider text-zinc-500">
-                  {activeView === 'all' ? '📅 Recent' : activeView === 'starred' ? '⭐ Starred' : '👥 Shared'}
-                </h2>
+                <div className="mb-3 flex items-center justify-between">
+                  <h2 className="flex items-center gap-2 text-[13px] font-semibold uppercase tracking-wider text-zinc-500">
+                    {activeView === 'all' ? `Recent (${recentProjects.length})` : activeView === 'starred' ? `Starred (${recentProjects.length})` : `Shared (${recentProjects.length})`}
+                  </h2>
+                  <ProjectSortDropdown value={sortBy} onChange={setSortBy} />
+                </div>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   <NewProjectCard onClick={() => setDialogOpen(true)} />
                   <AnimatePresence mode="popLayout">

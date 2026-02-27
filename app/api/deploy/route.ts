@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { checkRateLimit } from '@/lib/ratelimit';
+import { getUserSubscriptionGate } from '@/lib/subscription/gate';
 
 async function createSupabaseServer() {
   const cookieStore = await cookies();
@@ -46,6 +47,15 @@ export async function POST(request: Request) {
 
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Subscription gate: only paid users can deploy
+    const gate = await getUserSubscriptionGate(user.id);
+    if (!gate.canDeploy) {
+      return NextResponse.json(
+        { error: 'Deploy is available on Pro and above. Upgrade to deploy your builds.', code: 'DEPLOY_GATED' },
+        { status: 403 }
+      );
     }
 
     // Rate limit: 3 deploys per hour per user

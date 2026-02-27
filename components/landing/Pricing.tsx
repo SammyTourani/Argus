@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 
@@ -11,8 +12,9 @@ const PLANS = [
     description: "No strings.",
     features: ["3 builds / 30 days", "All 8 style transforms", "Download as ZIP", "Community support"],
     cta: "Start for free",
-    ctaHref: "/generation",
+    ctaHref: "/sign-up",
     highlight: false,
+    planKey: null,
   },
   {
     name: "Pro",
@@ -28,8 +30,9 @@ const PLANS = [
       "Email support",
     ],
     cta: "Go Pro",
-    ctaHref: "/generation",
+    ctaHref: null, // handled by checkout flow
     highlight: true,
+    planKey: "pro" as const,
   },
   {
     name: "Team",
@@ -45,13 +48,51 @@ const PLANS = [
       "Dedicated support",
     ],
     cta: "Join waitlist",
-    ctaHref: "#",
+    ctaHref: null, // handled by waitlist form
     highlight: false,
-    disabled: true,
+    planKey: "team" as const,
+    isWaitlist: true,
   },
 ];
 
 export default function Pricing() {
+  const [upgradingPlan, setUpgradingPlan] = useState<string | null>(null);
+  const [waitlistEmail, setWaitlistEmail] = useState("");
+  const [waitlistSubmitted, setWaitlistSubmitted] = useState(false);
+
+  const handleProCheckout = async () => {
+    setUpgradingPlan("pro");
+    try {
+      const res = await fetch("/api/stripe/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan: "pro" }),
+      });
+      if (res.status === 401) {
+        // Not logged in — redirect to sign up
+        window.location.href = "/sign-up";
+        return;
+      }
+      if (!res.ok) return;
+      const { url } = await res.json();
+      if (url) window.location.href = url;
+    } catch {
+      // Fallback: redirect to sign-up
+      window.location.href = "/sign-up";
+    } finally {
+      setUpgradingPlan(null);
+    }
+  };
+
+  const handleWaitlist = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!waitlistEmail) return;
+    // In a real implementation, this would POST to an API
+    // For now, just show confirmation
+    setWaitlistSubmitted(true);
+    setTimeout(() => setWaitlistSubmitted(false), 3000);
+  };
+
   return (
     <section className="w-full py-48 lg:py-80 relative">
       <div className="max-w-960 mx-auto px-16 lg:px-24">
@@ -97,7 +138,7 @@ export default function Pricing() {
                 plan.highlight
                   ? "border-heat-100/30 bg-[var(--landing-surface)] shadow-[0_0_40px_-10px_rgba(250,93,25,0.12)]"
                   : "border-[var(--landing-border)] bg-[var(--landing-surface)]"
-              } ${plan.disabled ? "opacity-60" : ""}`}
+              } ${"isWaitlist" in plan && plan.isWaitlist ? "opacity-80" : ""}`}
             >
               {plan.highlight && (
                 <span className="absolute -top-12 left-1/2 -translate-x-1/2 bg-heat-100 text-white text-label-x-small px-12 py-4 rounded-full font-mono">
@@ -112,16 +153,54 @@ export default function Pricing() {
               </div>
               <p className="text-body-medium text-[var(--landing-text-secondary)] mb-24">{plan.description}</p>
 
-              <Link
-                href={plan.ctaHref}
-                className={`block w-full text-center py-12 rounded-12 text-label-medium transition-all ${
-                  plan.highlight
-                    ? "bg-heat-100 text-white hover:opacity-90"
-                    : "bg-black/5 text-[var(--landing-text)] hover:bg-black/10 border border-[var(--landing-border)]"
-                } ${plan.disabled ? "pointer-events-none" : ""}`}
-              >
-                {plan.cta}
-              </Link>
+              {/* Free tier — simple link */}
+              {plan.ctaHref && (
+                <Link
+                  href={plan.ctaHref}
+                  className="block w-full text-center py-12 rounded-12 text-label-medium transition-all bg-black/5 text-[var(--landing-text)] hover:bg-black/10 border border-[var(--landing-border)]"
+                >
+                  {plan.cta}
+                </Link>
+              )}
+
+              {/* Pro tier — checkout button */}
+              {plan.planKey === "pro" && !plan.ctaHref && (
+                <button
+                  onClick={handleProCheckout}
+                  disabled={upgradingPlan === "pro"}
+                  className="block w-full text-center py-12 rounded-12 text-label-medium transition-all bg-heat-100 text-white hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {upgradingPlan === "pro" ? "Redirecting..." : plan.cta}
+                </button>
+              )}
+
+              {/* Team tier — waitlist form */}
+              {"isWaitlist" in plan && plan.isWaitlist && (
+                <div>
+                  {waitlistSubmitted ? (
+                    <div className="w-full text-center py-12 rounded-12 text-label-medium bg-green-50 text-green-700 border border-green-200">
+                      You are on the list!
+                    </div>
+                  ) : (
+                    <form onSubmit={handleWaitlist} className="flex gap-8">
+                      <input
+                        type="email"
+                        placeholder="you@email.com"
+                        value={waitlistEmail}
+                        onChange={(e) => setWaitlistEmail(e.target.value)}
+                        required
+                        className="flex-1 min-w-0 rounded-12 border border-[var(--landing-border)] bg-[var(--landing-surface)] px-12 py-10 text-body-small text-[var(--landing-text)] placeholder:text-[var(--landing-text-tertiary)] focus:outline-none focus:border-heat-100/50 transition-colors"
+                      />
+                      <button
+                        type="submit"
+                        className="shrink-0 rounded-12 bg-black/5 px-16 py-10 text-label-medium text-[var(--landing-text)] hover:bg-black/10 border border-[var(--landing-border)] transition-all"
+                      >
+                        {plan.cta}
+                      </button>
+                    </form>
+                  )}
+                </div>
+              )}
 
               <ul className="mt-24 space-y-10">
                 {plan.features.map((f) => (

@@ -4,11 +4,12 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Save, LogOut, Key, Bell, CreditCard, User } from 'lucide-react';
+import { ArrowLeft, Save, LogOut, Key, Bell, CreditCard, User, ExternalLink, Zap } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/components/ui/Toast';
 import { MODELS as SHARED_MODELS } from '@/lib/models';
+import { useSubscription } from '@/hooks/use-subscription';
 
 type Section = 'profile' | 'model' | 'billing' | 'notifications';
 
@@ -30,6 +31,10 @@ function AccountPageInner() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [upgradingPlan, setUpgradingPlan] = useState<string | null>(null);
+  const [managingBilling, setManagingBilling] = useState(false);
+
+  // Subscription state
+  const subscription = useSubscription();
 
   // Profile fields
   const [email, setEmail] = useState('');
@@ -122,6 +127,23 @@ function AccountPageInner() {
       toast.error('Something went wrong. Please try again.');
     } finally {
       setUpgradingPlan(null);
+    }
+  };
+
+  const handleManageBilling = async () => {
+    setManagingBilling(true);
+    try {
+      const res = await fetch('/api/stripe/billing-portal');
+      if (!res.ok) {
+        toast.error('Could not open billing portal.');
+        return;
+      }
+      const { url } = await res.json();
+      if (url) window.location.href = url;
+    } catch {
+      toast.error('Something went wrong.');
+    } finally {
+      setManagingBilling(false);
     }
   };
 
@@ -309,43 +331,151 @@ function AccountPageInner() {
             )}
 
             {activeSection === 'billing' && (
-              <div className="rounded-xl border border-zinc-200 bg-white p-6">
-                <h2 className="text-lg font-bold text-zinc-900 mb-2">Billing</h2>
-                <p className="text-sm text-zinc-500 mb-6">Manage your subscription and payment methods.</p>
-                <div className="rounded-lg bg-zinc-50 border border-zinc-200 p-5 mb-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-semibold text-zinc-900">Free Plan</p>
-                      <p className="text-xs text-zinc-400 mt-0.5">3 projects · 10 builds/month</p>
-                    </div>
-                    <span className="rounded-full bg-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-600">Current</span>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  {[
-                    { name: 'Pro', planKey: 'pro' as const, price: '$19/mo', features: '20 projects · 100 builds · Custom domain', badge: 'Most popular' },
-                    { name: 'Team', planKey: 'team' as const, price: '$49/mo', features: 'Unlimited · Team collaboration · Priority support', badge: null },
-                  ].map(plan => (
-                    <div key={plan.name} className="flex items-center justify-between rounded-lg border border-zinc-200 p-4">
+              <div className="space-y-6">
+                {/* Current Plan */}
+                <div className="rounded-xl border border-zinc-200 bg-white p-6">
+                  <h2 className="text-lg font-bold text-zinc-900 mb-2">Current Plan</h2>
+                  <p className="text-sm text-zinc-500 mb-6">Manage your subscription and payment methods.</p>
+
+                  <div className={cn(
+                    'rounded-lg border p-5 mb-6',
+                    subscription.tier === 'free'
+                      ? 'bg-zinc-50 border-zinc-200'
+                      : 'bg-orange-50 border-[#FA4500]/20'
+                  )}>
+                    <div className="flex items-center justify-between">
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-semibold text-zinc-900">{plan.name}</span>
-                          {plan.badge && <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-semibold text-[#FA4500]">{plan.badge}</span>}
+                          <p className="text-sm font-semibold text-zinc-900 capitalize">{subscription.tier} Plan</p>
+                          {subscription.tier !== 'free' && (
+                            <span className="rounded-full bg-[#FA4500] px-2.5 py-0.5 text-[10px] font-bold text-white uppercase tracking-wider">Active</span>
+                          )}
                         </div>
-                        <p className="text-xs text-zinc-400 mt-0.5">{plan.features}</p>
+                        <p className="text-xs text-zinc-400 mt-1">
+                          {subscription.tier === 'free' && '$0/month'}
+                          {subscription.tier === 'pro' && '$19/month'}
+                          {subscription.tier === 'team' && '$49/month'}
+                          {subscription.tier === 'enterprise' && 'Custom pricing'}
+                        </p>
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm font-bold text-zinc-900">{plan.price}</p>
-                        <button
-                          onClick={() => handleUpgrade(plan.planKey)}
-                          disabled={upgradingPlan === plan.planKey}
-                          className="mt-1 text-xs font-semibold text-[#FA4500] hover:underline disabled:opacity-60 disabled:cursor-not-allowed"
-                        >
-                          {upgradingPlan === plan.planKey ? 'Redirecting...' : 'Upgrade →'}
-                        </button>
-                      </div>
+                      <span className={cn(
+                        'rounded-full px-2.5 py-1 text-xs font-medium',
+                        subscription.tier === 'free'
+                          ? 'bg-zinc-200 text-zinc-600'
+                          : 'bg-[#FA4500]/10 text-[#FA4500]'
+                      )}>
+                        Current
+                      </span>
                     </div>
-                  ))}
+                  </div>
+
+                  {/* Usage bar */}
+                  <div className="rounded-lg border border-zinc-200 p-4 mb-6">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-zinc-700">Builds this month</span>
+                      <span className="text-sm font-semibold text-zinc-900">
+                        {subscription.maxBuilds === null
+                          ? 'Unlimited'
+                          : `${(subscription.maxBuilds ?? 3) - (subscription.buildsRemaining ?? 0)} / ${subscription.maxBuilds}`}
+                      </span>
+                    </div>
+                    {subscription.maxBuilds !== null && (
+                      <div className="h-2 rounded-full bg-zinc-100 overflow-hidden">
+                        <div
+                          className={cn(
+                            'h-full rounded-full transition-all duration-500',
+                            subscription.canBuild ? 'bg-[#FA4500]' : 'bg-red-500'
+                          )}
+                          style={{
+                            width: `${Math.min(100, (((subscription.maxBuilds ?? 3) - (subscription.buildsRemaining ?? 0)) / (subscription.maxBuilds ?? 3)) * 100)}%`,
+                          }}
+                        />
+                      </div>
+                    )}
+                    {subscription.maxBuilds !== null && !subscription.canBuild && (
+                      <p className="text-xs text-red-500 mt-2">
+                        You have used all your builds this month. Upgrade to Pro for unlimited builds.
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Manage / Upgrade buttons */}
+                  <div className="flex items-center gap-3">
+                    {subscription.tier !== 'free' && (
+                      <button
+                        onClick={handleManageBilling}
+                        disabled={managingBilling}
+                        className="flex items-center gap-2 rounded-lg border border-zinc-200 px-4 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-60 transition-colors"
+                      >
+                        <ExternalLink size={14} />
+                        {managingBilling ? 'Opening...' : 'Manage Subscription'}
+                      </button>
+                    )}
+                    {subscription.tier !== 'free' && (
+                      <button
+                        onClick={handleManageBilling}
+                        disabled={managingBilling}
+                        className="flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-700 transition-colors"
+                      >
+                        View invoices
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Upgrade options — only show for free users */}
+                {subscription.tier === 'free' && (
+                  <div className="rounded-xl border border-zinc-200 bg-white p-6">
+                    <h3 className="text-base font-bold text-zinc-900 mb-4 flex items-center gap-2">
+                      <Zap size={16} className="text-[#FA4500]" />
+                      Upgrade your plan
+                    </h3>
+                    <div className="space-y-3">
+                      {[
+                        { name: 'Pro', planKey: 'pro' as const, price: '$19/mo', features: 'Unlimited builds, deploy to Vercel, all AI models, priority queue', badge: 'Most popular' },
+                        { name: 'Team', planKey: 'team' as const, price: '$49/mo', features: 'Everything in Pro + 5 team members, shared library, SSO', badge: null },
+                      ].map(plan => (
+                        <div key={plan.name} className="flex items-center justify-between rounded-lg border border-zinc-200 p-4 hover:border-zinc-300 transition-colors">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-semibold text-zinc-900">{plan.name}</span>
+                              {plan.badge && <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-semibold text-[#FA4500]">{plan.badge}</span>}
+                            </div>
+                            <p className="text-xs text-zinc-400 mt-0.5">{plan.features}</p>
+                          </div>
+                          <div className="text-right shrink-0 ml-4">
+                            <p className="text-sm font-bold text-zinc-900">{plan.price}</p>
+                            <button
+                              onClick={() => handleUpgrade(plan.planKey)}
+                              disabled={upgradingPlan === plan.planKey}
+                              className="mt-1 text-xs font-semibold text-[#FA4500] hover:underline disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+                              {upgradingPlan === plan.planKey ? 'Redirecting...' : 'Upgrade'}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Account info */}
+                <div className="rounded-xl border border-zinc-200 bg-white p-6">
+                  <h3 className="text-base font-bold text-zinc-900 mb-4">Account</h3>
+                  <div className="space-y-3 text-sm">
+                    <div className="flex items-center justify-between py-2 border-b border-zinc-100">
+                      <span className="text-zinc-500">Email</span>
+                      <span className="text-zinc-900 font-medium">{email}</span>
+                    </div>
+                    <div className="flex items-center justify-between py-2 border-b border-zinc-100">
+                      <span className="text-zinc-500">Name</span>
+                      <span className="text-zinc-900 font-medium">{fullName || 'Not set'}</span>
+                    </div>
+                    <div className="flex items-center justify-between py-2">
+                      <span className="text-zinc-500">Plan</span>
+                      <span className="text-zinc-900 font-medium capitalize">{subscription.tier}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

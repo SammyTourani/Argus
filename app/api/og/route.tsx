@@ -1,112 +1,182 @@
 import { ImageResponse } from 'next/og';
+import type { NextRequest } from 'next/server';
 
 export const runtime = 'edge';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const { searchParams } = request.nextUrl;
+  const title = searchParams.get('title') || 'Clone any website. Ship it in seconds.';
+  const description = searchParams.get('description') || '';
+
   return new ImageResponse(
     (
       <div
         style={{
-          background: '#080808',
+          background: '#0A0A0A',
           width: '100%',
           height: '100%',
           display: 'flex',
           flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
+          justifyContent: 'space-between',
           fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
           position: 'relative',
           overflow: 'hidden',
+          padding: '60px 80px',
         }}
       >
         {/* Dot grid background */}
-        <div style={{
-          position: 'absolute',
-          inset: 0,
-          backgroundImage: 'radial-gradient(circle, rgba(250,69,0,0.2) 1.5px, transparent 1.5px)',
-          backgroundSize: '40px 40px',
-          opacity: 0.5,
-          display: 'flex',
-        }} />
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundImage:
+              'radial-gradient(circle, rgba(250,69,0,0.15) 1.5px, transparent 1.5px)',
+            backgroundSize: '40px 40px',
+            opacity: 0.6,
+            display: 'flex',
+          }}
+        />
 
         {/* Radial fade overlay */}
-        <div style={{
-          position: 'absolute',
-          inset: 0,
-          background: 'radial-gradient(ellipse 80% 80% at 50% 50%, transparent 0%, #080808 80%)',
-          display: 'flex',
-        }} />
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background:
+              'radial-gradient(ellipse 70% 70% at 50% 50%, transparent 0%, #0A0A0A 75%)',
+            display: 'flex',
+          }}
+        />
 
-        {/* Content */}
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          position: 'relative',
-          zIndex: 1,
-          padding: '0 80px',
-          textAlign: 'center',
-        }}>
-          {/* Badge */}
-          <div style={{
+        {/* Bottom-right accent glow */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: -120,
+            right: -120,
+            width: 400,
+            height: 400,
+            borderRadius: '50%',
+            background:
+              'radial-gradient(circle, rgba(250,69,0,0.12) 0%, transparent 70%)',
+            display: 'flex',
+          }}
+        />
+
+        {/* Top section: branding */}
+        <div
+          style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 8,
-            background: 'rgba(250,69,0,0.15)',
-            border: '1px solid rgba(250,69,0,0.4)',
-            borderRadius: 100,
-            padding: '6px 16px',
-            marginBottom: 32,
-            fontSize: 13,
-            fontWeight: 700,
-            color: '#FA4500',
-            letterSpacing: 1,
-          }}>
-            🏆 WINNER · GOOGLE × CEREBRAL VALLEY HACKATHON
+            gap: 16,
+            position: 'relative',
+            zIndex: 1,
+          }}
+        >
+          {/* Argus logo mark */}
+          <div
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 12,
+              background: '#FA4500',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 22,
+              fontWeight: 800,
+              color: 'white',
+              letterSpacing: -1,
+            }}
+          >
+            A
           </div>
-
-          {/* Logo */}
-          <div style={{
-            fontSize: 40,
-            color: '#FA4500',
-            fontWeight: 800,
-            letterSpacing: -2,
-            marginBottom: 20,
-          }}>
-            Argus
+          <div
+            style={{
+              fontSize: 28,
+              fontWeight: 800,
+              color: '#FA4500',
+              letterSpacing: -1,
+            }}
+          >
+            ARGUS
           </div>
+        </div>
 
-          {/* Headline */}
-          <div style={{
-            fontSize: 72,
-            color: 'white',
-            fontWeight: 800,
-            lineHeight: 1.05,
-            letterSpacing: -3,
-            marginBottom: 20,
-          }}>
-            Clone any website.<br />
-            <span style={{ color: '#FA4500' }}>Ship it in seconds.</span>
+        {/* Middle section: title + description */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            position: 'relative',
+            zIndex: 1,
+            flex: 1,
+            justifyContent: 'center',
+          }}
+        >
+          <div
+            style={{
+              fontSize: title.length > 60 ? 48 : 64,
+              color: 'white',
+              fontWeight: 800,
+              lineHeight: 1.1,
+              letterSpacing: -3,
+              maxWidth: '90%',
+            }}
+          >
+            {title}
           </div>
+          {description && (
+            <div
+              style={{
+                fontSize: 24,
+                color: 'rgba(255,255,255,0.45)',
+                marginTop: 20,
+                lineHeight: 1.4,
+                maxWidth: '80%',
+              }}
+            >
+              {description}
+            </div>
+          )}
+        </div>
 
-          {/* Subtext */}
-          <div style={{
-            fontSize: 22,
-            color: 'rgba(255,255,255,0.45)',
-            marginBottom: 40,
-          }}>
-            Paste a URL. Argus clones the design in seconds.
+        {/* Bottom section: domain */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            position: 'relative',
+            zIndex: 1,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 18,
+              color: 'rgba(255,255,255,0.3)',
+              fontWeight: 600,
+              letterSpacing: 1,
+            }}
+          >
+            buildargus.dev
           </div>
-
-          {/* Domain */}
-          <div style={{
-            fontSize: 18,
-            color: 'rgba(255,255,255,0.3)',
-            fontWeight: 600,
-            letterSpacing: 1,
-          }}>
-            buildargus.com
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              background: 'rgba(250,69,0,0.15)',
+              border: '1px solid rgba(250,69,0,0.3)',
+              borderRadius: 100,
+              padding: '6px 16px',
+              fontSize: 13,
+              fontWeight: 700,
+              color: '#FA4500',
+              letterSpacing: 0.5,
+            }}
+          >
+            AI Website Cloner
           </div>
         </div>
       </div>

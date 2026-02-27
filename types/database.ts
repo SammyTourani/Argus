@@ -103,12 +103,13 @@ export interface MarketplaceListing {
   updated_at: string;
 }
 
+export type OnboardingStep = 'welcome' | 'what_to_build' | 'choose_model' | 'first_build' | 'completed';
+
 export interface OnboardingState {
-  id: string;
   user_id: string;
-  current_step: number;
-  completed: boolean;
-  step_data: Record<string, unknown>;
+  current_step: OnboardingStep;
+  what_to_build: string | null;
+  chosen_model: string | null;
   completed_at: string | null;
   created_at: string;
   updated_at: string;

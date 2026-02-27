@@ -354,6 +354,14 @@ DROP POLICY IF EXISTS "team_members_insert" ON public.team_members;
 CREATE POLICY "team_members_insert"
   ON public.team_members FOR INSERT
   WITH CHECK (
+    -- Allow team creator to insert themselves as the first (owner) member
+    EXISTS (
+      SELECT 1 FROM public.teams t
+      WHERE t.id = team_members.team_id
+        AND t.created_by = auth.uid()
+    )
+    OR
+    -- Allow existing owner/admin to add new members
     EXISTS (
       SELECT 1 FROM public.team_members tm
       WHERE tm.team_id = team_members.team_id
@@ -634,10 +642,12 @@ END $$;
 -- PHASE 6: CUSTOM FUNCTIONS & TRIGGERS
 -- ============================================================
 
--- Auto-increment version_number within a project
+-- Auto-increment version_number within a project (with advisory lock to prevent races)
 CREATE OR REPLACE FUNCTION public.set_build_version_number()
 RETURNS TRIGGER AS $$
 BEGIN
+  -- Advisory lock keyed on project_id to prevent concurrent inserts getting same version
+  PERFORM pg_advisory_xact_lock(hashtext(NEW.project_id::text));
   SELECT COALESCE(MAX(version_number), 0) + 1
     INTO NEW.version_number
   FROM public.project_builds
@@ -899,6 +909,7 @@ GRANT ALL ON public.project_builds TO authenticated;
 GRANT ALL ON public.marketplace_listings TO authenticated;
 GRANT ALL ON public.onboarding_state TO authenticated;
 GRANT ALL ON public.user_model_preferences TO authenticated;
+GRANT ALL ON public.build_messages TO authenticated;
 
 GRANT EXECUTE ON FUNCTION public.accept_project_invite TO authenticated;
 

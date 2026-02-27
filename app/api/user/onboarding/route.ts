@@ -62,7 +62,7 @@ export async function GET() {
   }
 }
 
-// POST /api/user/onboarding — advance to next step
+// POST /api/user/onboarding — advance to next step + persist step data
 export async function POST(request: Request) {
   try {
     const supabase = await createSupabaseServer();
@@ -92,13 +92,16 @@ export async function POST(request: Request) {
       current_step: nextStep,
     };
 
-    // Store step-specific data in the correct columns
-    if (step === 'what_to_build' && stepData?.what_to_build) {
-      upsertData.what_to_build = stepData.what_to_build;
+    // Store step data cumulatively — the client sends all collected data each time
+    // what_to_build: project description from step 2
+    if (stepData?.what_to_build) {
+      upsertData.what_to_build = String(stepData.what_to_build).slice(0, 500);
     }
-    if (step === 'choose_model' && stepData?.chosen_model) {
-      upsertData.chosen_model = stepData.chosen_model;
+    // chosen_model: model ID from step 3
+    if (stepData?.chosen_model) {
+      upsertData.chosen_model = String(stepData.chosen_model);
     }
+
     if (nextStep === 'completed') {
       upsertData.completed_at = new Date().toISOString();
     }
@@ -110,6 +113,19 @@ export async function POST(request: Request) {
       .single();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    // If a model was chosen, also upsert user_model_preferences so it persists server-side
+    if (stepData?.chosen_model) {
+      await supabase
+        .from('user_model_preferences')
+        .upsert(
+          {
+            user_id: user.id,
+            preferred_model: String(stepData.chosen_model),
+          },
+          { onConflict: 'user_id' }
+        );
+    }
 
     return NextResponse.json({
       current_step: state.current_step,
@@ -123,12 +139,19 @@ export async function POST(request: Request) {
   }
 }
 
-// PUT /api/user/onboarding — force-complete (skip)
+// PUT /api/user/onboarding — mark complete + finalize preferences
 export async function PUT() {
   try {
     const supabase = await createSupabaseServer();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    // Read existing onboarding data before completing, so we can finalize preferences
+    const { data: existing } = await supabase
+      .from('onboarding_state')
+      .select('chosen_model')
+      .eq('user_id', user.id)
+      .single();
 
     const { error } = await supabase
       .from('onboarding_state')
@@ -142,6 +165,19 @@ export async function PUT() {
       );
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    // Ensure user_model_preferences reflects the chosen model from onboarding
+    if (existing?.chosen_model) {
+      await supabase
+        .from('user_model_preferences')
+        .upsert(
+          {
+            user_id: user.id,
+            preferred_model: existing.chosen_model,
+          },
+          { onConflict: 'user_id' }
+        );
+    }
 
     return NextResponse.json({ current_step: 'completed', completed_at: new Date().toISOString() });
   } catch (err) {

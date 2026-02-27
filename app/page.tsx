@@ -1,30 +1,44 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense, lazy } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 
+// ─── Eagerly loaded (above-fold / critical) ──────────────────────────
 import AsciiCanvas from "@/components/landing/AsciiCanvas";
 import GradientOrbs from "@/components/landing/GradientOrbs";
 import IntroLoader from "@/components/landing/IntroLoader";
 import TextScramble from "@/components/landing/TextScramble";
 import LandingHeroInput from "@/components/LandingHeroInput";
-import LogoMarquee from "@/components/landing/LogoMarquee";
-import TerminalDemo from "@/components/landing/TerminalDemo";
-import ArgusAppMockup from "@/components/landing/ArgusAppMockup";
-import GridShowcase from "@/components/landing/GridShowcase";
-import AsciiDivider from "@/components/landing/AsciiDivider";
-import ComparisonTable from "@/components/landing/ComparisonTable";
-import StatsBand from "@/components/landing/StatsBand";
-import HowItWorks from "@/components/landing/HowItWorks";
-import Pricing from "@/components/landing/Pricing";
-import Footer from "@/components/landing/Footer";
+import StructuredData from "@/components/landing/StructuredData";
+
+// ─── Lazy-loaded (below-fold) ────────────────────────────────────────
+const LogoMarquee = lazy(() => import("@/components/landing/LogoMarquee"));
+const AsciiDivider = lazy(() => import("@/components/landing/AsciiDivider"));
+const ArgusAppMockup = lazy(() => import("@/components/landing/ArgusAppMockup"));
+const GridShowcase = lazy(() => import("@/components/landing/GridShowcase"));
+const TerminalDemo = lazy(() => import("@/components/landing/TerminalDemo"));
+const HowItWorks = lazy(() => import("@/components/landing/HowItWorks"));
+const ComparisonTable = lazy(() => import("@/components/landing/ComparisonTable"));
+const StatsBand = lazy(() => import("@/components/landing/StatsBand"));
+const Testimonials = lazy(() => import("@/components/landing/Testimonials"));
+const Pricing = lazy(() => import("@/components/landing/Pricing"));
+const NewsletterCTA = lazy(() => import("@/components/landing/NewsletterCTA"));
+const Footer = lazy(() => import("@/components/landing/Footer"));
+
+// ─── Suspense fallback ───────────────────────────────────────────────
+function SectionFallback() {
+  return <div className="min-h-[200px]" />;
+}
 
 // ─── Nav ──────────────────────────────────────────────────────────────
 function Nav() {
   return (
     <header className="sticky top-0 z-50 bg-[var(--landing-bg)]/80 backdrop-blur-12">
-      <nav className="max-w-960 mx-auto flex items-center justify-between px-16 lg:px-24 h-56">
+      <nav
+        className="max-w-960 mx-auto flex items-center justify-between px-16 lg:px-24 h-56"
+        aria-label="Main navigation"
+      >
         {/* Logo */}
         <Link href="/" className="flex items-center group">
           <span className="text-[20px] font-mono font-bold tracking-[0.15em] uppercase text-[var(--landing-text)] group-hover:text-heat-100 transition-colors">
@@ -67,7 +81,10 @@ function Nav() {
 // ─── Hero ─────────────────────────────────────────────────────────────
 function Hero() {
   return (
-    <section className="relative overflow-hidden min-h-[calc(100vh-56px)] flex flex-col items-center justify-center">
+    <section
+      className="relative overflow-hidden min-h-[calc(100vh-56px)] flex flex-col items-center justify-center"
+      aria-label="Hero"
+    >
       {/* ASCII fluid motion background — subtle atmosphere */}
       <AsciiCanvas density={18} opacity={0.30} interactive />
 
@@ -187,7 +204,10 @@ function Hero() {
 // ─── Final CTA ────────────────────────────────────────────────────────
 function FinalCTA() {
   return (
-    <section className="relative w-full py-96 lg:py-128 overflow-hidden">
+    <section
+      className="relative w-full py-96 lg:py-128 overflow-hidden"
+      aria-label="Get started call to action"
+    >
       {/* Eye video background */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <video
@@ -264,30 +284,82 @@ export default function Home() {
 
   return (
     <>
+      {/* Structured data for SEO */}
+      <StructuredData />
+
       {/* Intro loader — ASCII matrix converges into ARGUS */}
       <IntroLoader onComplete={() => setIntroComplete(true)} />
 
       <main
         className="min-h-screen text-[var(--landing-text)]"
         style={{ backgroundColor: "var(--landing-bg)" }}
+        role="main"
       >
         <Nav />
         <Hero />
-        <LogoMarquee />
-        <AsciiDivider />
-        <ArgusAppMockup />
-        <AsciiDivider />
-        <GridShowcase />
-        <TerminalDemo />
-        <AsciiDivider />
-        <HowItWorks />
-        <ComparisonTable />
-        <StatsBand />
+
+        {/* Below-fold sections — lazy loaded for performance */}
+        <Suspense fallback={<SectionFallback />}>
+          <LogoMarquee />
+        </Suspense>
+
+        <Suspense fallback={<SectionFallback />}>
+          <AsciiDivider />
+        </Suspense>
+
+        <Suspense fallback={<SectionFallback />}>
+          <ArgusAppMockup />
+        </Suspense>
+
+        <Suspense fallback={<SectionFallback />}>
+          <AsciiDivider />
+        </Suspense>
+
+        <Suspense fallback={<SectionFallback />}>
+          <GridShowcase />
+        </Suspense>
+
+        <Suspense fallback={<SectionFallback />}>
+          <TerminalDemo />
+        </Suspense>
+
+        <Suspense fallback={<SectionFallback />}>
+          <AsciiDivider />
+        </Suspense>
+
+        <Suspense fallback={<SectionFallback />}>
+          <HowItWorks />
+        </Suspense>
+
+        <Suspense fallback={<SectionFallback />}>
+          <ComparisonTable />
+        </Suspense>
+
+        <Suspense fallback={<SectionFallback />}>
+          <StatsBand />
+        </Suspense>
+
+        {/* Social proof — between StatsBand and Pricing */}
+        <Suspense fallback={<SectionFallback />}>
+          <Testimonials />
+        </Suspense>
+
         <div id="pricing">
-          <Pricing />
+          <Suspense fallback={<SectionFallback />}>
+            <Pricing />
+          </Suspense>
         </div>
+
         <FinalCTA />
-        <Footer />
+
+        {/* Newsletter / waitlist CTA */}
+        <Suspense fallback={<SectionFallback />}>
+          <NewsletterCTA />
+        </Suspense>
+
+        <Suspense fallback={<SectionFallback />}>
+          <Footer />
+        </Suspense>
       </main>
     </>
   );

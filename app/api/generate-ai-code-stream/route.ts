@@ -13,9 +13,16 @@ import { appConfig } from '@/config/app.config';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { checkRateLimit, getClientIp } from '@/lib/ratelimit';
+import { checkTieredRateLimit, type RateLimitTier } from '@/lib/ratelimit-tiered';
 import { validatePrompt, validateModel } from '@/lib/validation';
+import { getUserSubscriptionGate, incrementBuildCount } from '@/lib/subscription/gate';
 import { getSandbox } from '@/lib/sandbox/registry';
 import { getConversationState } from '@/lib/conversation/per-user-state';
+import { StreamRecoveryManager } from '@/lib/ai/stream-recovery';
+import { detectTruncation, buildContinuationPrompt, extractFileOperations } from '@/lib/ai/stream-utils';
+import { summarizeConversation } from '@/lib/ai/chat-summarizer';
+import { getChatModePrompt, type ChatMode } from '@/lib/ai/chat-modes';
+import { getSystemPrompt, type PromptVariant } from '@/lib/ai/prompt-library';
 
 // Force dynamic route to enable streaming
 export const dynamic = 'force-dynamic';
@@ -114,9 +121,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // ── Subscription Gate ─────────────────────────────────────────────────────
+    const gate = await getUserSubscriptionGate(user.id);
+    if (!gate.canBuild) {
+      return new Response(
+        JSON.stringify({ error: 'Build limit reached. Upgrade to Pro for unlimited builds.', code: 'BUILD_LIMIT_REACHED' }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    // Increment build counter (fire-and-forget — don't block the stream)
+    incrementBuildCount(user.id).catch((err) => console.error('[generate] Failed to increment build count:', err));
+
     // ── Rate Limiting ─────────────────────────────────────────────────────────
     const rateLimitKey = `user:${user.id}`;
-    const rateLimit = await checkRateLimit(rateLimitKey, 'aiGenerate');
+    // Map subscription tier to rate-limit tier (enterprise -> team for rate limiting purposes)
+    const rlTier: RateLimitTier = gate.tier === 'enterprise' ? 'team' : (gate.tier as RateLimitTier);
+    const rateLimit = await checkTieredRateLimit(rateLimitKey, rlTier, 'aiGenerate');
     if (!rateLimit.allowed) {
       const resetIn = Math.ceil((rateLimit.resetAt - Date.now()) / 1000);
       return NextResponse.json(
@@ -145,7 +165,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    const { context, isEdit = false } = rawBody;
+    const { context, isEdit = false, lockedFiles = [], chatMode = 'build', promptVariant, designScheme } = rawBody;
 
     console.log('[generate-ai-code-stream] Received request (user:', user.id, '):');
     console.log('[generate-ai-code-stream] - prompt length:', prompt.length);
@@ -154,6 +174,8 @@ export async function POST(request: NextRequest) {
     console.log('[generate-ai-code-stream] - context.sandboxId:', context?.sandboxId);
     console.log('[generate-ai-code-stream] - context.currentFiles:', context?.currentFiles ? Object.keys(context.currentFiles) : 'none');
     console.log('[generate-ai-code-stream] - currentFiles count:', context?.currentFiles ? Object.keys(context.currentFiles).length : 0);
+    console.log('[generate-ai-code-stream] - lockedFiles:', lockedFiles.length > 0 ? lockedFiles : 'none');
+    console.log('[generate-ai-code-stream] - chatMode:', chatMode);
     
     // Get per-user conversation state (thread-safe, auto-evicts stale)
     const conversationState = getConversationState(user.id);
@@ -179,6 +201,41 @@ export async function POST(request: NextRequest) {
       conversationState.context.messages = conversationState.context.messages.slice(-15);
       console.log('[generate-ai-code-stream] Trimmed conversation history to prevent context overflow');
     }
+
+    // ── Conversation Summarization ──────────────────────────────────────────────
+    // If conversation history is long, summarize older messages to save tokens
+    let conversationSummary: string | null = null;
+    try {
+      const historyForSummary = conversationState.context.messages.map(m => ({
+        role: m.role,
+        content: m.content
+      }));
+      const summarized = await summarizeConversation(historyForSummary, {
+        maxHistoryTokens: 10000,
+        keepRecentMessages: 6,
+        summaryMaxTokens: 500
+      });
+      if (summarized.wasSummarized && summarized.summary) {
+        conversationSummary = summarized.summary;
+        console.log('[generate-ai-code-stream] Conversation summarized, saved ~' +
+          (summarized.totalTokens - 500) + ' tokens');
+      }
+    } catch (summaryError) {
+      console.warn('[generate-ai-code-stream] Conversation summarization failed, using full history:', summaryError);
+    }
+
+    // ── Locked Files Prompt Injection ───────────────────────────────────────────
+    let lockedFilesPrompt = '';
+    if (Array.isArray(lockedFiles) && lockedFiles.length > 0) {
+      lockedFilesPrompt = `\n\nLOCKED FILES - DO NOT MODIFY:\nThe following files have been locked by the user. You MUST NOT modify, overwrite, or delete these files under any circumstances. If the user asks you to modify a locked file, inform them that the file is locked and suggest they unlock it first.\n\nLocked files:\n${lockedFiles.map((f: string) => `- ${f}`).join('\n')}\n`;
+      console.log('[generate-ai-code-stream] Injected locked files prompt for', lockedFiles.length, 'files');
+    }
+
+    // ── Chat Mode Prompt ──────────────────────────────────────────────────────
+    const chatModePrompt = getChatModePrompt((chatMode as ChatMode) || 'build');
+
+    // ── Initialize Stream Recovery ──────────────────────────────────────────────
+    const streamRecovery = new StreamRecoveryManager();
 
     // Clean up old edits
     if (conversationState.context.edits.length > 10) {
@@ -618,8 +675,13 @@ Remember: You are a SURGEON making a precise incision, not an artist repainting 
         }
         
         // Build system prompt with conversation awareness
-        let systemPrompt = `You are an expert React developer with perfect memory of the conversation. You maintain context across messages and remember scraped websites, generated components, and applied code. Generate clean, modern React code for Vite applications.
-${conversationContext}
+        // Use prompt library for the base system prompt (supports A/B variants: default, concise, design-focused)
+        const basePrompt = getSystemPrompt((promptVariant as PromptVariant) || 'default', isEdit);
+        // Inject design scheme if provided
+        const designSchemePrompt = typeof designScheme === 'string' && designScheme.trim() ? `\nDESIGN SCHEME:\n${designScheme}\n` : '';
+
+        let systemPrompt = `${basePrompt}
+${conversationSummary ? `\nCONVERSATION SUMMARY (older messages):\n${conversationSummary}\n` : ''}${conversationContext}${lockedFilesPrompt}${chatModePrompt ? `\n${chatModePrompt}\n` : ''}${designSchemePrompt}
 
 🚨 CRITICAL RULES - YOUR MOST IMPORTANT INSTRUCTIONS:
 1. **DO EXACTLY WHAT IS ASKED - NOTHING MORE, NOTHING LESS**
@@ -1432,15 +1494,21 @@ It's better to have 3 complete files than 10 incomplete files.`
         let isInFile = false;
         let isInTag = false;
         let conversationalBuffer = '';
-        
+
         // Buffer for incomplete tags
         let tagBuffer = '';
-        
+
+        // Reset stream recovery for this generation
+        streamRecovery.reset();
+
         // Stream the response and parse for packages in real-time
         for await (const textPart of result?.textStream || []) {
           const text = textPart || '';
           generatedCode += text;
           currentFile += text;
+
+          // Feed to stream recovery manager for truncation detection
+          streamRecovery.onChunk(text);
           
           // Combine with buffer for tag detection
           const searchText = tagBuffer + text;
@@ -1698,6 +1766,17 @@ It's better to have 3 complete files than 10 incomplete files.`
           }
         }
         
+        // ── Enhanced Truncation Detection (Stream Recovery) ────────────────────
+        // Use the stream recovery manager for more accurate truncation detection
+        streamRecovery.markStreamEnded();
+        const streamTruncationInfo = streamRecovery.getTruncationInfo();
+        if (streamTruncationInfo.isTruncated) {
+          console.warn('[generate-ai-code-stream] Stream recovery detected truncation:', streamTruncationInfo);
+          if (!truncationWarnings.some(w => w.includes('stream recovery'))) {
+            truncationWarnings.push(`Stream recovery: ${streamTruncationInfo.reasons.join(', ')}`);
+          }
+        }
+
         // Handle truncation with automatic retry (if enabled in config)
         if (truncationWarnings.length > 0 && appConfig.codeApplication.enableTruncationRecovery) {
           console.warn('[generate-ai-code-stream] Truncation detected, attempting to fix:', truncationWarnings);
