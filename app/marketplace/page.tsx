@@ -111,13 +111,13 @@ export default function MarketplacePage() {
 
                 {/* Badge */}
                 {model.badge && (
-                  <span className={cn('absolute left-3 top-3 rounded-full px-2 py-0.5 text-[10px] font-semibold text-white', model.badgeColor ?? 'bg-zinc-500')}>
+                  <span className={cn('inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold text-white mb-2', model.badgeColor ?? 'bg-zinc-500')}>
                     {model.badge}
                   </span>
                 )}
 
                 {/* Provider dot + name */}
-                <div className={cn('flex items-center gap-2', model.badge ? 'mt-6' : 'mt-0')}>
+                <div className="flex items-center gap-2">
                   <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: model.dotColor }} />
                   <span className="text-xs text-zinc-400">{model.provider}</span>
                 </div>

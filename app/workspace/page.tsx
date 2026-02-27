@@ -2,6 +2,7 @@
 
 import { useState, useMemo, Suspense, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { Menu, Search, Settings } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as Dialog from '@radix-ui/react-dialog';
@@ -49,30 +50,65 @@ function ProjectCardSkeleton() {
   );
 }
 
-// Empty state component
+// Empty state component — branded, dramatic
 function EmptyState({ onCreateProject }: { onCreateProject: () => void }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex flex-col items-center justify-center py-24 text-center"
+      className="flex flex-col items-center justify-center py-16 text-center"
     >
-      <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-zinc-100">
-        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect x="4" y="8" width="32" height="24" rx="4" stroke="#d4d4d8" strokeWidth="2" />
-          <path d="M16 20H24M20 16V24" stroke="#a1a1aa" strokeWidth="2" strokeLinecap="round" />
-        </svg>
+      {/* ASCII branding */}
+      <div className="relative mb-8">
+        <pre className="text-[#FA4500] text-[9px] font-mono opacity-30 leading-tight select-none">
+{`    _    ____   ____ _   _ ____
+   / \\  |  _ \\ / ___| | | / ___|
+  / _ \\ | |_) | |  _| | | \\___ \\
+ / ___ \\|  _ <| |_| | |_| |___) |
+/_/   \\_\\_| \\_\\\\____|\\___/|____/`}
+        </pre>
+        <div className="absolute inset-0 bg-gradient-to-t from-[#FAFAFA] via-transparent to-transparent" />
       </div>
-      <h3 className="mt-5 text-lg font-bold text-zinc-900">No projects yet</h3>
-      <p className="mt-1.5 max-w-[300px] text-[14px] text-zinc-500">
-        Create your first project to start building with AI. Clone a website or start from scratch.
+
+      {/* Illustration: stylized browser window */}
+      <div className="w-[280px] mb-8 rounded-xl border border-zinc-200 bg-white shadow-lg overflow-hidden">
+        <div className="flex items-center gap-1.5 px-3 py-2 border-b border-zinc-100 bg-zinc-50/50">
+          <div className="w-2 h-2 rounded-full bg-zinc-300" />
+          <div className="w-2 h-2 rounded-full bg-zinc-300" />
+          <div className="w-2 h-2 rounded-full bg-zinc-300" />
+          <div className="flex-1 mx-2 h-4 rounded bg-zinc-100" />
+        </div>
+        <div className="p-4 space-y-2">
+          <div className="h-3 w-3/4 rounded bg-[#FA4500]/10" />
+          <div className="h-3 w-1/2 rounded bg-zinc-100" />
+          <div className="h-8 w-full rounded bg-zinc-50 border border-dashed border-zinc-200 flex items-center justify-center">
+            <span className="text-[10px] text-zinc-400 font-mono">your-site.com</span>
+          </div>
+          <div className="flex gap-1.5 pt-1">
+            <div className="h-2 w-2 rounded-full bg-[#FA4500]/30" />
+            <div className="h-2 flex-1 rounded bg-zinc-100" />
+          </div>
+          <div className="flex gap-1.5">
+            <div className="h-2 w-2 rounded-full bg-emerald-400/30" />
+            <div className="h-2 w-2/3 rounded bg-zinc-100" />
+          </div>
+        </div>
+      </div>
+
+      <h3 className="text-xl font-bold text-zinc-900 tracking-tight">No projects yet</h3>
+      <p className="mt-2 max-w-[340px] text-[14px] text-zinc-500 leading-relaxed">
+        Clone any website with AI or start from a blank canvas. Argus handles the rest.
       </p>
-      <button
-        onClick={onCreateProject}
-        className="mt-6 rounded-lg bg-[#FA4500] px-6 py-2.5 text-[14px] font-semibold text-white shadow-sm transition-all hover:bg-[#e03e00] hover:shadow-md active:scale-[0.98]"
-      >
-        Create your first project
-      </button>
+
+      <div className="mt-8 flex flex-col sm:flex-row items-center gap-3">
+        <button
+          onClick={onCreateProject}
+          className="rounded-xl bg-[#FA4500] px-7 py-3 text-[14px] font-semibold text-white shadow-md shadow-[#FA4500]/20 transition-all hover:bg-[#e03e00] hover:shadow-lg hover:shadow-[#FA4500]/30 active:scale-[0.97]"
+        >
+          Create your first project
+        </button>
+        <span className="text-[12px] text-zinc-400 font-mono">or press N</span>
+      </div>
     </motion.div>
   );
 }
@@ -161,6 +197,14 @@ function WorkspacePageInner() {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
         setSearchOpen(true);
+      }
+      // 'N' key opens new project dialog (only when not in an input)
+      if (e.key === 'n' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        const tag = (e.target as HTMLElement)?.tagName;
+        if (tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT') {
+          e.preventDefault();
+          setDialogOpen(true);
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -270,7 +314,7 @@ function WorkspacePageInner() {
       {/* Main content (offset by sidebar on desktop only) */}
       <main className="md:pl-[240px]">
         {/* Top nav bar */}
-        <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-zinc-200 bg-white/80 px-4 sm:px-6 backdrop-blur-md">
+        <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-zinc-200/80 bg-white/90 px-4 sm:px-6 backdrop-blur-xl">
           <div className="flex items-center gap-3">
             {/* Hamburger — mobile only */}
             <button
@@ -282,7 +326,7 @@ function WorkspacePageInner() {
             </button>
             <h1 className="text-[15px] font-bold tracking-tight text-zinc-900">
               {activeView === 'all' && 'All Projects'}
-              {activeView === 'starred' && '⭐ Starred'}
+              {activeView === 'starred' && 'Starred'}
               {activeView === 'shared' && 'Shared with me'}
             </h1>
           </div>
@@ -290,18 +334,25 @@ function WorkspacePageInner() {
           {/* Search */}
           <button
             onClick={() => setSearchOpen(true)}
-            className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-[13px] text-zinc-500 transition-colors hover:border-zinc-300 hover:bg-white"
+            className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50/80 px-3 py-1.5 text-[13px] text-zinc-400 transition-all hover:border-zinc-300 hover:bg-white hover:text-zinc-600 hover:shadow-sm"
           >
             <Search className="h-3.5 w-3.5" />
-            <span>Search projects...</span>
+            <span className="hidden sm:inline">Search projects...</span>
             <kbd className="ml-4 hidden rounded border border-zinc-200 bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-400 sm:block">
               ⌘K
             </kbd>
           </button>
 
-          {/* User avatar */}
+          {/* User avatar + settings */}
           <div className="flex items-center gap-2">
-            <button className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-200 text-[12px] font-bold text-zinc-600 transition-colors hover:bg-zinc-300">
+            <Link
+              href="/account"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600"
+              aria-label="Account settings"
+            >
+              <Settings className="h-4 w-4" />
+            </Link>
+            <button className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#FA4500] to-[#e03e00] text-[12px] font-bold text-white shadow-sm transition-transform hover:scale-105">
               {(userName || 'U')[0].toUpperCase()}
             </button>
           </div>

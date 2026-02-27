@@ -208,10 +208,10 @@ function AccountPageInner() {
         </div>
       </div>
 
-      <div className="max-w-3xl mx-auto px-6 py-8 flex gap-8">
-        {/* Sidebar */}
-        <aside className="w-48 shrink-0">
-          <nav className="space-y-1 sticky top-20">
+      <div className="max-w-4xl mx-auto px-6 py-8 flex flex-col md:flex-row gap-8">
+        {/* Sidebar — horizontal tabs on mobile, vertical nav on desktop */}
+        <aside className="md:w-48 shrink-0">
+          <nav className="flex md:flex-col gap-1 md:gap-1 overflow-x-auto md:overflow-visible md:sticky md:top-20 pb-2 md:pb-0 border-b md:border-b-0 border-zinc-200">
             {SECTIONS.map(s => {
               const Icon = s.icon;
               return (
@@ -219,7 +219,7 @@ function AccountPageInner() {
                   key={s.id}
                   onClick={() => setActiveSection(s.id)}
                   className={cn(
-                    'flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                    'flex items-center gap-2 md:gap-2.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors shrink-0',
                     activeSection === s.id
                       ? 'bg-orange-50 text-[#FA4500]'
                       : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'
