@@ -14,6 +14,17 @@
   --landing-text-faint: rgba(26, 26, 26, 0.20);
   --landing-glow-orange: rgba(250, 93, 25, 0.08);
   --landing-glow-purple: rgba(144, 97, 255, 0.06);
+
+  /* ─── Workspace Tokens ─── */
+  --ws-bg: #FAFAFA;
+  --ws-surface: #FFFFFF;
+  --ws-text: #1A1A1A;
+  --ws-text-secondary: rgba(26, 26, 26, 0.55);
+  --ws-text-faint: rgba(26, 26, 26, 0.25);
+  --ws-border: rgba(0, 0, 0, 0.06);
+  --ws-accent: #FA4500;
+  --ws-accent-hover: #E03A00;
+  --ws-glow: rgba(250, 69, 0, 0.06);
 }
 
 /* ─── Landing Page Animations ─────────────────────────────────────── */
@@ -36,6 +47,23 @@
 @keyframes cursor-blink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0; }
+}
+
+/* ─── Onboarding animations ─── */
+@keyframes typing-cursor {
+  0%, 100% { border-color: #FA5D19; }
+  50% { border-color: transparent; }
+}
+
+.animate-typing-cursor {
+  border-right: 2px solid #FA5D19;
+  animation: typing-cursor 0.8s step-end infinite;
+}
+
+@keyframes terminal-flash {
+  0% { opacity: 0; }
+  10% { opacity: 0.08; }
+  100% { opacity: 0; }
 }
 
 @keyframes orb-drift-1 {
