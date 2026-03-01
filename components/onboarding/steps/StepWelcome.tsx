@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import TextScramble from '@/components/landing/TextScramble';
-import { EYE_FRAMES, SPINNER, STATUS_MESSAGES } from '../constants';
 import { useKeyboardNav } from '../shared/useKeyboardNav';
 
 const WELCOME_PHRASES = ['WELCOME TO ARGUS'] as const;
@@ -13,24 +12,13 @@ interface StepWelcomeProps {
 }
 
 export default function StepWelcome({ onNext }: StepWelcomeProps) {
-  const [frameIndex, setFrameIndex] = useState(0);
   const [subtitle, setSubtitle] = useState('');
-  const [spinnerIdx, setSpinnerIdx] = useState(0);
-  const [statusIdx, setStatusIdx] = useState(0);
   const [showCta, setShowCta] = useState(false);
   const subtitleRef = useRef(false);
 
   const fullSubtitle = 'The AI that sees any website and rebuilds it.';
 
   useKeyboardNav({ onEnter: showCta ? onNext : undefined });
-
-  // ASCII eye animation
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setFrameIndex((prev) => (prev + 1) % EYE_FRAMES.length);
-    }, 400);
-    return () => clearInterval(interval);
-  }, []);
 
   // Typewriter subtitle
   useEffect(() => {
@@ -51,22 +39,6 @@ export default function StepWelcome({ onNext }: StepWelcomeProps) {
     return () => clearTimeout(delay);
   }, []);
 
-  // Braille spinner
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setSpinnerIdx((prev) => (prev + 1) % SPINNER.length);
-    }, 80);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Status message cycling
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setStatusIdx((prev) => (prev + 1) % STATUS_MESSAGES.length);
-    }, 1200);
-    return () => clearInterval(interval);
-  }, []);
-
   // Show CTA after delay
   useEffect(() => {
     const timeout = setTimeout(() => setShowCta(true), 2200);
@@ -75,33 +47,55 @@ export default function StepWelcome({ onNext }: StepWelcomeProps) {
 
   return (
     <div className="flex flex-col items-center text-center">
-      {/* ASCII Eye */}
-      <motion.pre
+      {/* Animated SVG Eye */}
+      <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.6, delay: 0.1 }}
-        className="text-base leading-tight mb-12 hidden sm:block"
-        style={{
-          color: '#FA5D19',
-          fontFamily: '"JetBrains Mono", "Roboto Mono", monospace',
-        }}
+        className="mb-10"
       >
-        {EYE_FRAMES[frameIndex]}
-      </motion.pre>
-
-      {/* Mobile: smaller eye */}
-      <motion.pre
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.6, delay: 0.1 }}
-        className="text-[10px] leading-tight mb-6 sm:hidden"
-        style={{
-          color: '#FA5D19',
-          fontFamily: '"JetBrains Mono", "Roboto Mono", monospace',
-        }}
-      >
-        {EYE_FRAMES[frameIndex]}
-      </motion.pre>
+        <svg
+          width="120"
+          height="70"
+          viewBox="0 0 120 70"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          {/* Eye outer shape */}
+          <path
+            d="M10 35 Q60 0 110 35 Q60 70 10 35Z"
+            stroke="white"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            fill="none"
+          />
+          {/* Iris circle */}
+          <circle
+            cx="60"
+            cy="35"
+            r="16"
+            stroke="white"
+            strokeWidth="2"
+            fill="none"
+          />
+          {/* Pupil with scanning animation */}
+          <motion.circle
+            cx="60"
+            cy="35"
+            r="7"
+            fill="white"
+            animate={{ cx: [57, 63, 57] }}
+            transition={{
+              duration: 3,
+              repeat: Infinity,
+              ease: 'easeInOut',
+            }}
+          />
+          {/* Light reflection */}
+          <circle cx="66" cy="30" r="3" fill="white" opacity="0.4" />
+        </svg>
+      </motion.div>
 
       {/* TextScramble headline */}
       <motion.h1
@@ -122,8 +116,8 @@ export default function StepWelcome({ onNext }: StepWelcomeProps) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.3, delay: 0.8 }}
-        className="text-sm sm:text-base max-w-md mb-8 font-body"
-        style={{ color: 'rgba(255,255,255,0.5)' }}
+        className="text-sm sm:text-base max-w-md mb-10 font-body"
+        style={{ color: 'rgba(255,255,255,0.8)' }}
       >
         {subtitle}
         {subtitle.length < fullSubtitle.length && (
@@ -131,36 +125,19 @@ export default function StepWelcome({ onNext }: StepWelcomeProps) {
         )}
       </motion.p>
 
-      {/* Status bar with spinner */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.3, delay: 1.2 }}
-        className="flex items-center gap-12 mb-10"
-      >
-        <span
-          className="font-mono text-[12px]"
-          style={{ color: '#FA5D19' }}
-        >
-          {SPINNER[spinnerIdx]}
-        </span>
-        <span
-          className="font-mono text-[12px] tracking-[0.1em] uppercase"
-          style={{ color: 'rgba(250, 93, 25, 0.6)' }}
-        >
-          {STATUS_MESSAGES[statusIdx]}
-        </span>
-      </motion.div>
-
-      {/* CTA Button */}
+      {/* CTA Button — white on orange */}
       {showCta && (
         <motion.button
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
           onClick={onNext}
-          className="px-24 py-14 rounded-12 font-mono text-label-large text-white transition-all hover:opacity-90 active:scale-[0.98] heat-glow"
-          style={{ background: '#FA5D19' }}
+          className="px-28 py-16 rounded-16 font-mono text-base font-semibold transition-all hover:bg-white/90 active:scale-[0.98]"
+          style={{
+            background: '#FFFFFF',
+            color: '#EA580C',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
+          }}
         >
           Initialize &rarr;
         </motion.button>
@@ -173,7 +150,7 @@ export default function StepWelcome({ onNext }: StepWelcomeProps) {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.6 }}
           className="mt-6 font-mono text-[11px] tracking-[0.1em] uppercase"
-          style={{ color: 'rgba(255,255,255,0.25)' }}
+          style={{ color: 'rgba(255,255,255,0.5)' }}
         >
           press enter
         </motion.span>

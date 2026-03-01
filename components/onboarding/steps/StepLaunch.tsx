@@ -217,11 +217,10 @@ export default function StepLaunch({ data, onFinish }: StepLaunchProps) {
             }
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.4 }}
-            className="w-full max-w-xl rounded-12 overflow-hidden"
+            className="w-full max-w-xl rounded-20 overflow-hidden"
             style={{
-              border: '1px solid rgba(255,255,255,0.1)',
-              boxShadow:
-                '0 25px 80px -12px rgba(0,0,0,0.5), 0 0 60px -20px rgba(250,93,25,0.06)',
+              border: '1px solid rgba(255,255,255,0.15)',
+              boxShadow: '0 25px 80px -12px rgba(0,0,0,0.4)',
             }}
           >
             {/* macOS title bar */}
@@ -301,7 +300,7 @@ export default function StepLaunch({ data, onFinish }: StepLaunchProps) {
                   cy="40"
                   r="36"
                   fill="none"
-                  stroke="#FA5D19"
+                  stroke="#FFFFFF"
                   strokeWidth="3"
                   opacity="0.2"
                 />
@@ -310,7 +309,7 @@ export default function StepLaunch({ data, onFinish }: StepLaunchProps) {
                   cy="40"
                   r="36"
                   fill="none"
-                  stroke="#FA5D19"
+                  stroke="#FFFFFF"
                   strokeWidth="3"
                   strokeLinecap="round"
                   initial={{ pathLength: 0 }}
@@ -321,7 +320,7 @@ export default function StepLaunch({ data, onFinish }: StepLaunchProps) {
                 <motion.path
                   d="M24 42 L35 53 L56 28"
                   fill="none"
-                  stroke="#FA5D19"
+                  stroke="#FFFFFF"
                   strokeWidth="3.5"
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -345,7 +344,7 @@ export default function StepLaunch({ data, onFinish }: StepLaunchProps) {
             </p>
             <p
               className="text-lg font-bold font-mono mb-8 max-w-sm truncate"
-              style={{ color: '#FA5D19' }}
+              style={{ color: '#FFFFFF' }}
             >
               {projectName}
             </p>
@@ -356,8 +355,12 @@ export default function StepLaunch({ data, onFinish }: StepLaunchProps) {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4 }}
                 onClick={() => onFinish(projectId)}
-                className="px-24 py-14 rounded-12 font-mono text-label-large text-white transition-all hover:opacity-90 active:scale-[0.98] heat-glow"
-                style={{ background: '#FA5D19' }}
+                className="px-28 py-16 rounded-16 font-mono text-base font-semibold transition-all hover:bg-white/90 active:scale-[0.98]"
+                style={{
+                  background: '#FFFFFF',
+                  color: '#EA580C',
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
+                }}
               >
                 Start Building &rarr;
               </motion.button>
@@ -369,7 +372,7 @@ export default function StepLaunch({ data, onFinish }: StepLaunchProps) {
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.4 }}
                 className="mt-4 font-mono text-[11px] tracking-[0.1em] uppercase"
-                style={{ color: 'rgba(255,255,255,0.12)' }}
+                style={{ color: 'rgba(255,255,255,0.5)' }}
               >
                 press enter
               </motion.span>
@@ -386,13 +389,13 @@ export default function StepLaunch({ data, onFinish }: StepLaunchProps) {
           transition={{ delay: 0.5 }}
           className="mt-12 font-mono text-[12px] flex items-center gap-8"
         >
-          <span style={{ color: 'rgba(250, 93, 25, 0.5)' }}>{progressBar}</span>
-          <span style={{ color: 'rgba(250, 93, 25, 0.4)' }}>
+          <span style={{ color: 'rgba(255, 255, 255, 0.6)' }}>{progressBar}</span>
+          <span style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
             {progress}%
           </span>
           <span
             className="tracking-[0.1em] uppercase"
-            style={{ color: 'rgba(250, 93, 25, 0.35)' }}
+            style={{ color: 'rgba(255, 255, 255, 0.45)' }}
           >
             {progressLabel}
           </span>
@@ -416,18 +419,19 @@ export default function StepLaunch({ data, onFinish }: StepLaunchProps) {
           <div className="flex gap-12">
             <button
               onClick={handleRetry}
-              className="px-20 py-12 rounded-12 font-mono text-sm text-white transition-all hover:opacity-90 active:scale-[0.98]"
-              style={{ background: '#FA5D19' }}
+              className="px-20 py-12 rounded-12 font-mono text-sm font-semibold transition-all hover:bg-white/90 active:scale-[0.98]"
+              style={{ background: '#FFFFFF', color: '#EA580C' }}
             >
               Try again
             </button>
             <button
               onClick={() => onFinish('')}
-              className="px-20 py-12 rounded-12 font-mono text-sm transition-all hover:opacity-80"
+              className="px-20 py-12 rounded-12 font-mono text-sm transition-all hover:bg-white/20"
               style={{
-                color: 'rgba(255,255,255,0.5)',
-                background: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.08)',
+                color: 'rgba(255,255,255,0.8)',
+                background: 'rgba(255,255,255,0.1)',
+                backdropFilter: 'blur(8px)',
+                border: '1px solid rgba(255,255,255,0.2)',
               }}
             >
               Skip to workspace

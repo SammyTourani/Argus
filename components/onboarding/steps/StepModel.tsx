@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Image from 'next/image';
 import { MODELS } from '../constants';
 import { staggerContainer, staggerItem } from '../animations';
 import { useKeyboardNav } from '../shared/useKeyboardNav';
@@ -55,7 +56,7 @@ export default function StepModel({ data, onUpdate, onNext, onSkip }: StepProps)
         animate={{ opacity: 1 }}
         transition={{ delay: 0.05 }}
         className="font-mono text-[12px] tracking-[0.2em] uppercase mb-6"
-        style={{ color: 'rgba(255,255,255,0.45)' }}
+        style={{ color: 'rgba(255,255,255,0.6)' }}
       >
         [ 03 ] SELECT MODEL
       </motion.span>
@@ -67,7 +68,7 @@ export default function StepModel({ data, onUpdate, onNext, onSkip }: StepProps)
         transition={{ duration: 0.5, delay: 0.1 }}
         className="text-2xl sm:text-3xl font-bold font-mono text-white mb-2"
       >
-        Pick your default model
+        Pick your AI engine
       </motion.h1>
 
       <motion.p
@@ -75,14 +76,14 @@ export default function StepModel({ data, onUpdate, onNext, onSkip }: StepProps)
         animate={{ opacity: 1 }}
         transition={{ delay: 0.2 }}
         className="text-sm font-mono mb-10 max-w-sm"
-        style={{ color: 'rgba(255,255,255,0.4)' }}
+        style={{ color: 'rgba(255,255,255,0.7)' }}
       >
-        You can always switch later. Choose the AI engine for your builds.
+        You can always switch later.
       </motion.p>
 
-      {/* Model cards - vertical stack */}
+      {/* Provider cards — horizontal row on desktop, vertical on mobile */}
       <motion.div
-        className="flex flex-col gap-12 w-full max-w-xl mb-10"
+        className="grid grid-cols-1 sm:grid-cols-3 gap-12 w-full max-w-2xl mb-10"
         variants={staggerContainer}
         initial="hidden"
         animate="visible"
@@ -100,127 +101,80 @@ export default function StepModel({ data, onUpdate, onNext, onSkip }: StepProps)
                 selectModel(model.id);
                 setFocusedIndex(i);
               }}
-              whileTap={{ scale: 0.98 }}
-              animate={isSelected ? { scale: 1.01 } : { scale: 1 }}
+              whileTap={{ scale: 0.97 }}
+              animate={isSelected ? { scale: 1.03 } : { scale: 1 }}
               className={`
-                group relative flex items-center gap-16 p-16 sm:p-20 rounded-12 text-left transition-all duration-300
-                focus:outline-none focus:ring-2 focus:ring-heat-100/30
-                ${isFocused && !isSelected ? 'ring-1 ring-white/10' : ''}
+                relative flex flex-col items-center gap-12 p-20 sm:p-24 rounded-20 text-center transition-all duration-300
+                focus:outline-none
+                ${isFocused && !isSelected ? 'ring-1 ring-white/20' : ''}
               `}
               style={{
                 background: isSelected
-                  ? 'rgba(250, 93, 25, 0.08)'
-                  : 'rgba(255, 255, 255, 0.03)',
+                  ? 'rgba(255, 255, 255, 0.95)'
+                  : 'rgba(255, 255, 255, 0.12)',
+                backdropFilter: isSelected ? 'none' : 'blur(12px)',
+                WebkitBackdropFilter: isSelected ? 'none' : 'blur(12px)',
                 border: isSelected
-                  ? '1px solid #FA5D19'
-                  : '1px solid rgba(255, 255, 255, 0.06)',
+                  ? '2px solid rgba(255, 255, 255, 1)'
+                  : '1px solid rgba(255, 255, 255, 0.2)',
                 boxShadow: isSelected
-                  ? '0 0 20px rgba(250, 93, 25, 0.15)'
+                  ? '0 8px 32px rgba(0, 0, 0, 0.2)'
                   : 'none',
               }}
             >
-              {/* Corner brackets */}
-              <div
-                className="absolute top-0 left-0 border-t border-l transition-all duration-300"
-                style={{
-                  width: isSelected ? '20px' : '12px',
-                  height: isSelected ? '20px' : '12px',
-                  borderColor: isSelected
-                    ? '#FA5D19'
-                    : 'rgba(255,255,255,0.1)',
-                  opacity: isSelected ? 1 : 0.4,
-                }}
-              />
-              <div
-                className="absolute bottom-0 right-0 border-b border-r transition-all duration-300"
-                style={{
-                  width: isSelected ? '20px' : '12px',
-                  height: isSelected ? '20px' : '12px',
-                  borderColor: isSelected
-                    ? '#FA5D19'
-                    : 'rgba(255,255,255,0.1)',
-                  opacity: isSelected ? 1 : 0.4,
-                }}
-              />
-
-              {/* Provider circle */}
-              <div
-                className="w-40 h-40 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0"
-                style={{ background: model.color }}
-              >
-                {'initial' in model ? (model as { initial: string }).initial : model.name[0]}
-              </div>
-
-              {/* Model info */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-8 mb-2">
-                  <span className="font-mono text-sm font-medium text-white">
-                    {model.name}
-                  </span>
-                  {'recommended' in model && model.recommended && (
-                    <span
-                      className="font-mono text-[11px] font-medium tracking-[0.05em] px-8 py-3 rounded-full"
-                      style={{
-                        background: 'rgba(250, 93, 25, 0.1)',
-                        color: '#FA5D19',
-                        border: '1px solid rgba(250, 93, 25, 0.3)',
-                      }}
-                    >
-                      RECOMMENDED
-                    </span>
-                  )}
-                </div>
+              {/* Recommended badge */}
+              {'recommended' in model && model.recommended && (
                 <span
-                  className="block font-mono text-[11px] mb-4"
-                  style={{ color: 'rgba(255,255,255,0.45)' }}
+                  className="absolute -top-8 left-1/2 -translate-x-1/2 font-mono text-[10px] font-semibold tracking-[0.05em] px-10 py-3 rounded-full whitespace-nowrap"
+                  style={{
+                    background: isSelected ? '#FFF7ED' : 'rgba(255,255,255,0.2)',
+                    color: isSelected ? '#EA580C' : '#FFFFFF',
+                    border: isSelected
+                      ? '1px solid #FDBA74'
+                      : '1px solid rgba(255,255,255,0.3)',
+                  }}
                 >
-                  {model.provider}
+                  RECOMMENDED
                 </span>
-                <p
-                  className="font-mono text-[12px] mb-8 hidden sm:block"
-                  style={{ color: 'rgba(255,255,255,0.3)' }}
-                >
-                  {model.description}
-                </p>
+              )}
 
-                {/* Capability bars */}
-                <div className="flex gap-12 sm:gap-16">
-                  {[
-                    { label: 'SPD', value: model.speed },
-                    { label: 'QLT', value: model.quality },
-                    { label: 'CAP', value: model.capability },
-                  ].map((bar) => (
-                    <div key={bar.label} className="flex-1">
-                      <div className="flex items-center justify-between mb-2">
-                        <span
-                          className="font-mono text-[9px] tracking-[0.1em]"
-                          style={{ color: 'rgba(255,255,255,0.25)' }}
-                        >
-                          {bar.label}
-                        </span>
-                        <span
-                          className="font-mono text-[9px]"
-                          style={{ color: 'rgba(255,255,255,0.2)' }}
-                        >
-                          {bar.value}
-                        </span>
-                      </div>
-                      <div
-                        className="h-4 rounded-full overflow-hidden"
-                        style={{ background: 'rgba(255,255,255,0.06)' }}
-                      >
-                        <motion.div
-                          className="h-full rounded-full"
-                          style={{ background: isSelected ? '#FA5D19' : 'rgba(255,255,255,0.2)' }}
-                          initial={{ width: '0%' }}
-                          animate={{ width: `${bar.value}%` }}
-                          transition={{ duration: 0.7, delay: i * 0.1 + 0.3, ease: 'easeOut' }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
+              {/* Provider logo */}
+              <div className="w-48 h-32 flex items-center justify-center">
+                <Image
+                  src={model.logo}
+                  alt={model.name}
+                  width={100}
+                  height={32}
+                  className="max-h-28 w-auto object-contain transition-all duration-300"
+                  style={{
+                    filter: isSelected
+                      ? 'brightness(0)'
+                      : 'brightness(0) invert(1)',
+                  }}
+                />
               </div>
+
+              {/* Provider name */}
+              <span
+                className="font-mono text-lg font-bold transition-colors duration-300"
+                style={{
+                  color: isSelected ? '#1A1A1A' : '#FFFFFF',
+                }}
+              >
+                {model.name}
+              </span>
+
+              {/* Description */}
+              <span
+                className="font-mono text-[11px] leading-relaxed transition-colors duration-300"
+                style={{
+                  color: isSelected
+                    ? 'rgba(26, 26, 26, 0.6)'
+                    : 'rgba(255, 255, 255, 0.6)',
+                }}
+              >
+                {model.description}
+              </span>
             </motion.button>
           );
         })}
@@ -235,8 +189,12 @@ export default function StepModel({ data, onUpdate, onNext, onSkip }: StepProps)
             exit={{ opacity: 0, y: 8 }}
             transition={{ duration: 0.3 }}
             onClick={handleConfirm}
-            className="px-24 py-14 rounded-12 font-mono text-label-large text-white transition-all hover:opacity-90 active:scale-[0.98] heat-glow"
-            style={{ background: '#FA5D19' }}
+            className="px-28 py-16 rounded-16 font-mono text-base font-semibold transition-all hover:bg-white/90 active:scale-[0.98]"
+            style={{
+              background: '#FFFFFF',
+              color: '#EA580C',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
+            }}
           >
             Set default &rarr;
           </motion.button>
@@ -249,9 +207,9 @@ export default function StepModel({ data, onUpdate, onNext, onSkip }: StepProps)
         animate={{ opacity: 1 }}
         transition={{ delay: 0.8 }}
         className="mt-4 font-mono text-[11px] tracking-[0.1em] uppercase"
-        style={{ color: 'rgba(255,255,255,0.25)' }}
+        style={{ color: 'rgba(255,255,255,0.5)' }}
       >
-        ↑↓ navigate &middot; enter confirm
+        &uarr;&darr; navigate &middot; enter confirm
       </motion.span>
     </div>
   );

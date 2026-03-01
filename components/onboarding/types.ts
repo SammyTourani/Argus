@@ -1,5 +1,5 @@
 export type OnboardingStep = 'welcome' | 'what_to_build' | 'choose_model' | 'first_build';
-export type SubStep = 'role' | 'usecase' | 'url' | 'details';
+export type SubStep = 'role' | 'usecase' | 'url';
 
 export interface OnboardingData {
   role: string;

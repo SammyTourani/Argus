@@ -16,25 +16,25 @@ export const ROLES = [
   {
     id: 'developer',
     label: 'Developer',
-    ascii: '{ } => {\n  code()\n}',
+    ascii: '┌─────────┐\n│ { } =>  │\n│  fn()   │\n│ </>     │\n└─────────┘',
     description: 'I write code and ship products',
   },
   {
     id: 'designer',
     label: 'Designer',
-    ascii: '+--+--+\n|  #  |\n+--+--+',
+    ascii: '╭─────────╮\n│ ◇  ◈  ◇│\n│─────────│\n│ ▣  ◈  ▣│\n╰─────────╯',
     description: 'I craft interfaces and experiences',
   },
   {
     id: 'founder',
     label: 'Founder',
-    ascii: '$ npm init\n> name: _\n> v: 0.1',
+    ascii: '    ▲    \n   ╱ ╲   \n  ╱ $ ╲  \n ╱─────╲ \n ▔▔▔▔▔▔▔ ',
     description: 'I build companies and MVPs',
   },
   {
     id: 'student',
     label: 'Student',
-    ascii: '> help()\n  [...]\n> _',
+    ascii: '┌─────────┐\n│  ?   ?  │\n│ ─ ─ ─ ─│\n│ > _ <   │\n└─────────┘',
     description: 'I explore and experiment',
   },
 ] as const;
@@ -71,146 +71,41 @@ export const CATEGORIES = [
   'Blog',
   'Social',
   'Mobile App',
+  'Landing Page',
+  'Marketplace',
+  'AI / ML',
+  'Developer Tool',
+  'Education',
+  'Healthcare',
+  'Finance',
   'Other',
 ] as const;
 
 export const MODELS = [
   {
     id: 'gpt-4o',
-    name: 'GPT-4o',
-    provider: 'OpenAI',
-    color: '#10A37F',
-    description: 'Fast and versatile, great for rapid iteration',
-    speed: 90,
-    quality: 75,
-    capability: 80,
+    name: 'OpenAI',
+    logo: '/argus-assets/logos/openai.svg',
+    description: 'GPT-4o — fast and versatile, great for rapid iteration',
   },
   {
     id: 'claude-sonnet-4-6',
-    name: 'Claude Sonnet 4.6',
-    provider: 'Anthropic',
-    color: '#D97757',
-    description: 'Best code quality with deep React understanding',
-    speed: 75,
-    quality: 95,
-    capability: 90,
+    name: 'Anthropic',
+    logo: '/argus-assets/logos/anthropic.svg',
+    description: 'Claude — best code quality with deep understanding',
     recommended: true,
   },
   {
-    id: 'gemini-2.5-flash',
-    name: 'Gemini 2.5 Flash',
-    provider: 'Google',
-    color: '#5BA8F5',
-    initial: 'F',
-    description: 'Lightning fast with free tier available',
-    speed: 95,
-    quality: 70,
-    capability: 72,
-  },
-  {
     id: 'gemini-2.5-pro',
-    name: 'Gemini 2.5 Pro',
-    provider: 'Google',
-    color: '#3367D6',
-    initial: 'P',
-    description: 'Most capable with massive context window',
-    speed: 65,
-    quality: 88,
-    capability: 95,
+    name: 'Google',
+    logo: '/argus-assets/logos/google.svg',
+    description: 'Gemini — lightning fast with massive context',
   },
 ] as const;
 
-export const EYE_FRAMES = [
-  `
-  ╔══════════════════════╗
-  ║    .-"""""""""""-.   ║
-  ║   /               \\  ║
-  ║  |   .---------.  |  ║
-  ║  |  |   (◉)     | |  ║
-  ║  |   '---------'  |  ║
-  ║   \\               /  ║
-  ║    '-...........-'   ║
-  ╚══════════════════════╝`,
-  `
-  ╔══════════════════════╗
-  ║    .-"""""""""""-.   ║
-  ║   /               \\  ║
-  ║  |   .---------.  |  ║
-  ║  |  |    (◉)    | |  ║
-  ║  |   '---------'  |  ║
-  ║   \\               /  ║
-  ║    '-...........-'   ║
-  ╚══════════════════════╝`,
-  `
-  ╔══════════════════════╗
-  ║    .-"""""""""""-.   ║
-  ║   /               \\  ║
-  ║  |   .---------.  |  ║
-  ║  |  |     (◉)   | |  ║
-  ║  |   '---------'  |  ║
-  ║   \\               /  ║
-  ║    '-...........-'   ║
-  ╚══════════════════════╝`,
-  `
-  ╔══════════════════════╗
-  ║    .-"""""""""""-.   ║
-  ║   /               \\  ║
-  ║  |   .---------.  |  ║
-  ║  |  |      (◉)  | |  ║
-  ║  |   '---------'  |  ║
-  ║   \\               /  ║
-  ║    '-...........-'   ║
-  ╚══════════════════════╝`,
-  `
-  ╔══════════════════════╗
-  ║    .-"""""""""""-.   ║
-  ║   /               \\  ║
-  ║  |   .---------.  |  ║
-  ║  |  |     (◉)   | |  ║
-  ║  |   '---------'  |  ║
-  ║   \\               /  ║
-  ║    '-...........-'   ║
-  ╚══════════════════════╝`,
-  `
-  ╔══════════════════════╗
-  ║    .-"""""""""""-.   ║
-  ║   /               \\  ║
-  ║  |   .---------.  |  ║
-  ║  |  |    (◉)    | |  ║
-  ║  |   '---------'  |  ║
-  ║   \\               /  ║
-  ║    '-...........-'   ║
-  ╚══════════════════════╝`,
-  `
-  ╔══════════════════════╗
-  ║    .-"""""""""""-.   ║
-  ║   /               \\  ║
-  ║  |   .---------.  |  ║
-  ║  |  |   (◉)     | |  ║
-  ║  |   '---------'  |  ║
-  ║   \\               /  ║
-  ║    '-...........-'   ║
-  ╚══════════════════════╝`,
-  `
-  ╔══════════════════════╗
-  ║    .-"""""""""""-.   ║
-  ║   /               \\  ║
-  ║  |   .---------.  |  ║
-  ║  |  |  (◉)      | |  ║
-  ║  |   '---------'  |  ║
-  ║   \\               /  ║
-  ║    '-...........-'   ║
-  ╚══════════════════════╝`,
-] as const;
-
+// Braille spinner for terminal animation in StepLaunch
 export const SPINNER = [
   '\u280B', '\u2819', '\u2839', '\u2838',
   '\u283C', '\u2834', '\u2826', '\u2827',
   '\u2807', '\u280F',
-] as const;
-
-export const STATUS_MESSAGES = [
-  'Scanning capabilities...',
-  'Loading AI models...',
-  'Preparing workspace...',
 ] as const;

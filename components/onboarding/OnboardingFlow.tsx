@@ -125,7 +125,7 @@ export default function OnboardingFlow() {
   return (
     <div
       className="fixed inset-0 z-50 font-mono overflow-hidden"
-      style={{ background: '#080808' }}
+      style={{ background: 'transparent' }}
     >
       {/* Persistent background */}
       <OnboardingBackground />
@@ -143,7 +143,7 @@ export default function OnboardingFlow() {
             initial="enter"
             animate="center"
             exit="exit"
-            className="w-full max-w-xl"
+            className="w-full max-w-2xl"
           >
             {step === 0 && <StepWelcome onNext={nextStep} />}
             {step === 1 && (
@@ -171,8 +171,8 @@ export default function OnboardingFlow() {
       {(step === 1 || step === 2) && (
         <button
           onClick={() => handleSkip(step)}
-          className="fixed bottom-20 right-20 font-mono text-[12px] tracking-[0.1em] uppercase transition-colors z-20 hover:text-heat-100"
-          style={{ color: 'rgba(255,255,255,0.2)' }}
+          className="fixed bottom-20 right-20 font-mono text-[12px] tracking-[0.1em] uppercase transition-all z-20 px-12 py-6 rounded-full hover:bg-white/20"
+          style={{ color: 'rgba(255,255,255,0.5)', background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(8px)' }}
         >
           [ SKIP ]
         </button>

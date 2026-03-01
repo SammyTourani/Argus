@@ -29,10 +29,10 @@ export default function OnboardingProgress({
                   className="block font-mono text-[11px] tracking-[0.2em] uppercase mb-6 transition-colors duration-300"
                   style={{
                     color: isActive
-                      ? '#FA5D19'
+                      ? '#FFFFFF'
                       : isCompleted
-                        ? 'rgba(255,255,255,0.5)'
-                        : 'rgba(255,255,255,0.25)',
+                        ? 'rgba(255,255,255,0.7)'
+                        : 'rgba(255,255,255,0.35)',
                   }}
                 >
                   {step.num} {step.label}
@@ -41,12 +41,12 @@ export default function OnboardingProgress({
                 {/* Bar */}
                 <div
                   className="h-6 rounded-full overflow-hidden"
-                  style={{ background: 'rgba(255,255,255,0.06)' }}
+                  style={{ background: 'rgba(255,255,255,0.2)' }}
                 >
                   <motion.div
                     className="h-full rounded-full"
                     style={{
-                      background: isFuture ? 'transparent' : '#FA5D19',
+                      background: isFuture ? 'transparent' : '#FFFFFF',
                     }}
                     initial={{ width: '0%' }}
                     animate={{
@@ -74,11 +74,11 @@ export default function OnboardingProgress({
               <div
                 key={step.num}
                 className="flex-1 h-2 rounded-full overflow-hidden"
-                style={{ background: 'rgba(255,255,255,0.06)' }}
+                style={{ background: 'rgba(255,255,255,0.2)' }}
               >
                 <motion.div
                   className="h-full rounded-full"
-                  style={{ background: '#FA5D19' }}
+                  style={{ background: '#FFFFFF' }}
                   initial={{ width: '0%' }}
                   animate={{
                     width: isCompleted
