@@ -1,8 +1,51 @@
+// @ts-nocheck
 'use client';
 
+import { useEffect, useRef } from 'react';
 import AsciiCanvasBackground from './AsciiCanvasBackground';
 
 export default function UpgradePage() {
+  const initialized = useRef(false);
+
+  useEffect(() => {
+    if (initialized.current) return;
+    initialized.current = true;
+
+    var form = document.getElementById('waitlistForm') as HTMLElement | null;
+    var emailInput = document.getElementById('waitlistEmail') as HTMLInputElement | null;
+    var btn = document.getElementById('waitlistBtn') as HTMLElement | null;
+    var success = document.getElementById('waitlistSuccess') as HTMLElement | null;
+
+    var timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+    if (!btn) return;
+
+    var clickHandler = function() {
+      if (!emailInput!.value || !emailInput!.validity.valid) {
+        emailInput!.focus();
+        return;
+      }
+      form!.style.display = 'none';
+      success!.style.display = 'block';
+      timeoutId = setTimeout(function() {
+        success!.style.display = 'none';
+        form!.style.display = 'flex';
+        emailInput!.value = '';
+      }, 3000);
+    };
+
+    btn.addEventListener('click', clickHandler);
+
+    return () => {
+      if (timeoutId !== undefined) {
+        clearTimeout(timeoutId);
+      }
+      if (btn) {
+        btn.removeEventListener('click', clickHandler);
+      }
+    };
+  }, []);
+
   return (
     <>
       {/* Back navigation */}

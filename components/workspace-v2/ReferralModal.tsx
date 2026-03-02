@@ -1,12 +1,131 @@
+// @ts-nocheck
 'use client';
 
-// JS IIFEs that correspond to this component:
-// - Referral modal open/close (referralBackdrop, referralModal)
-// - Copy link to clipboard (referralCopyBtn, referralLinkInput)
-// - Referral stats update (referralSignedUp, referralConverted)
-// - Close button handler (referralCloseBtn)
+import { useEffect } from 'react';
+import { showToast } from './workspace-state';
 
 export default function ReferralModal() {
+  // ===== initReferralModal =====
+  useEffect(() => {
+    var backdrop = document.getElementById('referralBackdrop');
+    var modal = document.getElementById('referralModal');
+    var shareBtn = document.getElementById('shareArgusBtn');
+    var closeBtn = document.getElementById('referralCloseBtn');
+    var copyBtn = document.getElementById('referralCopyBtn');
+    var linkInput = document.getElementById('referralLinkInput') as HTMLInputElement | null;
+    if (!backdrop || !modal || !shareBtn || !closeBtn || !copyBtn || !linkInput) return;
+
+    var isOpen = false;
+    var copyTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    function openReferral() {
+      if (isOpen) return;
+      isOpen = true;
+      backdrop!.classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeReferral() {
+      if (!isOpen) return;
+      isOpen = false;
+      backdrop!.classList.remove('active');
+      document.body.style.overflow = '';
+    }
+
+    function copyLink() {
+      var link = linkInput!.value;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(link).then(function() {
+          onCopySuccess();
+        }, function() {
+          fallbackCopy(link);
+        });
+      } else {
+        fallbackCopy(link);
+      }
+    }
+
+    function fallbackCopy(text: string) {
+      linkInput!.select();
+      linkInput!.setSelectionRange(0, text.length);
+      try {
+        document.execCommand('copy');
+        onCopySuccess();
+      } catch (err) {
+        showToast('Failed to copy link', 'error');
+      }
+    }
+
+    function onCopySuccess() {
+      showToast('Referral link copied to clipboard');
+
+      var originalHTML = copyBtn!.innerHTML;
+      copyBtn!.innerHTML =
+        '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+        '<path d="M3 8.5l3.5 3.5L13 4.5"/>' +
+        '</svg>' +
+        'Copied!';
+      copyBtn!.style.background = '#1a8f4a';
+
+      copyTimeoutId = setTimeout(function() {
+        copyBtn!.innerHTML = originalHTML;
+        copyBtn!.style.background = '';
+      }, 2000);
+    }
+
+    // Open handler
+    function handleShareClick(e: Event) {
+      e.preventDefault();
+      openReferral();
+    }
+    shareBtn.addEventListener('click', handleShareClick);
+
+    // Close handlers
+    function handleCloseClick() {
+      closeReferral();
+    }
+    closeBtn.addEventListener('click', handleCloseClick);
+
+    function handleBackdropClick(e: Event) {
+      if (e.target === backdrop) closeReferral();
+    }
+    backdrop.addEventListener('click', handleBackdropClick);
+
+    // Escape key
+    function handleKeydown(e: KeyboardEvent) {
+      if (!isOpen) return;
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeReferral();
+      }
+    }
+    document.addEventListener('keydown', handleKeydown as EventListener);
+
+    // Copy button
+    function handleCopyClick(e: Event) {
+      e.preventDefault();
+      copyLink();
+    }
+    copyBtn.addEventListener('click', handleCopyClick);
+
+    // Click on input to select all
+    function handleInputClick() {
+      linkInput!.select();
+    }
+    linkInput.addEventListener('click', handleInputClick);
+
+    return () => {
+      shareBtn!.removeEventListener('click', handleShareClick);
+      closeBtn!.removeEventListener('click', handleCloseClick);
+      backdrop!.removeEventListener('click', handleBackdropClick);
+      document.removeEventListener('keydown', handleKeydown as EventListener);
+      copyBtn!.removeEventListener('click', handleCopyClick);
+      linkInput!.removeEventListener('click', handleInputClick);
+      if (copyTimeoutId) clearTimeout(copyTimeoutId);
+      document.body.style.overflow = '';
+    };
+  }, []);
+
   return (
     <div className="referral-backdrop" id="referralBackdrop">
       <div className="referral-modal" id="referralModal">

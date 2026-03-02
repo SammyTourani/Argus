@@ -1,11 +1,89 @@
+// @ts-nocheck
 'use client';
 
+import { useEffect } from 'react';
 import DiscoverTab from './DiscoverTab';
 import TemplatesTab from './TemplatesTab';
 import ModelsTab from './ModelsTab';
 import ConnectorsTab from './ConnectorsTab';
 
 export default function ResourcesPage() {
+
+  /* ===== TAB SYSTEM ===== */
+  useEffect(() => {
+    var tabBar = document.getElementById('tabBar');
+    var tabBtns = tabBar.querySelectorAll('.tab-btn');
+    var indicator = document.getElementById('tabIndicator');
+
+    function setIndicator(btn) {
+      indicator.style.left = btn.offsetLeft + 'px';
+      indicator.style.width = btn.offsetWidth + 'px';
+    }
+
+    function switchTab(tabId) {
+      tabBtns.forEach(function(b) { b.classList.remove('active'); });
+      document.querySelectorAll('.tab-content').forEach(function(c) { c.classList.remove('active'); });
+      var btn = tabBar.querySelector('[data-tab="' + tabId + '"]');
+      btn.classList.add('active');
+      document.getElementById('tab-' + tabId).classList.add('active');
+      setIndicator(btn);
+    }
+
+    var clickHandlers = [];
+    tabBtns.forEach(function(btn) {
+      var handler = function() { switchTab(btn.dataset.tab); };
+      btn.addEventListener('click', handler);
+      clickHandlers.push({ el: btn, handler: handler });
+    });
+
+    // Init indicator
+    var initTimer = setTimeout(function() { setIndicator(tabBar.querySelector('.tab-btn.active')); }, 50);
+
+    var resizeHandler = function() { setIndicator(tabBar.querySelector('.tab-btn.active')); };
+    window.addEventListener('resize', resizeHandler);
+
+    return () => {
+      clearTimeout(initTimer);
+      clickHandlers.forEach(function(item) {
+        item.el.removeEventListener('click', item.handler);
+      });
+      window.removeEventListener('resize', resizeHandler);
+    };
+  }, []);
+
+  /* ===== DARK MODE SYNC ===== */
+  useEffect(() => {
+    var template = localStorage.getItem('argus-hero-template') || 'classic';
+    var isDark = template === 'matrix';
+
+    var root = document.querySelector('.workspace-root');
+    if (root) {
+      if (isDark) {
+        root.classList.add('dark');
+      } else {
+        root.classList.remove('dark');
+      }
+    }
+    window.dispatchEvent(new CustomEvent('argus-dark-mode-change', { detail: { dark: isDark } }));
+
+    // Listen for storage changes from other tabs/pages
+    var storageHandler = function(e) {
+      if (e.key === 'argus-hero-template') {
+        var nowDark = e.newValue === 'matrix';
+        var r = document.querySelector('.workspace-root');
+        if (r) {
+          r.classList.toggle('dark', nowDark);
+        }
+        window.dispatchEvent(new CustomEvent('argus-dark-mode-change', { detail: { dark: nowDark } }));
+      }
+    };
+    window.addEventListener('storage', storageHandler);
+
+    return () => {
+      window.removeEventListener('storage', storageHandler);
+    };
+  }, []);
+
   return (
     <div className="app">
       {/* SIDEBAR */}

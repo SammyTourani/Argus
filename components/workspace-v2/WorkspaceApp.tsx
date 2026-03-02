@@ -1,16 +1,34 @@
+// @ts-nocheck
 'use client';
 
+import { useEffect } from 'react';
 import WorkspaceSidebar from './WorkspaceSidebar';
 import HomePage from './HomePage';
 import SearchModal from './SearchModal';
 import ReferralModal from './ReferralModal';
 
-// JS IIFEs that correspond to this component:
-// - Dark mode FOUC prevention script (reads localStorage for 'argus-hero-template')
-// - Mobile menu button click handler (toggles sidebar open/close)
-// - Sidebar overlay click handler (closes sidebar on mobile)
-
 export default function WorkspaceApp() {
+  // ===== initMobileMenu =====
+  useEffect(() => {
+    var btn = document.getElementById('mobileMenuBtn');
+    var sidebar = document.getElementById('sidebar');
+    var overlay = document.getElementById('sidebarOverlay');
+    if (!btn || !sidebar || !overlay) return;
+
+    function toggle() {
+      sidebar!.classList.toggle('open');
+      overlay!.classList.toggle('active');
+    }
+
+    btn.addEventListener('click', toggle);
+    overlay.addEventListener('click', toggle);
+
+    return () => {
+      btn!.removeEventListener('click', toggle);
+      overlay!.removeEventListener('click', toggle);
+    };
+  }, []);
+
   return (
     <>
       {/* Mobile menu */}

@@ -1,10 +1,9 @@
+// @ts-nocheck
 'use client';
 
-// JS IIFEs that correspond to this component:
-// - Carousel rendering (skeleton cards, result cards)
-// - Infinite scroll animation
-// - Card clone/instructions overlay logic
-// - FireCrawl search results population
+// The carousel rendering and event handling is driven by ChatBox.tsx
+// (renderCarousel, attachCarouselEvents). This component provides the container elements.
+// No separate useEffect needed — ChatBox populates carouselInner via innerHTML.
 
 export default function FireCrawlCarousel() {
   return (

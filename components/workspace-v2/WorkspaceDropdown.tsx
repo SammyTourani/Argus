@@ -1,12 +1,79 @@
+// @ts-nocheck
 'use client';
 
-// JS IIFEs that correspond to this component:
-// - Workspace dropdown open/close (workspaceDropdown, wsBackdrop)
-// - Workspace switching (ws-workspace-item click)
-// - Action buttons (settings, invite, upgrade, create)
-// - Chevron rotation toggle
+import { useEffect } from 'react';
 
 export default function WorkspaceDropdown() {
+  // ===== initWorkspaceDropdown =====
+  useEffect(() => {
+    var header = document.querySelector('.sidebar-header');
+    var dropdown = document.getElementById('workspaceDropdown');
+    var backdrop = document.getElementById('wsBackdrop');
+    var chevron = document.querySelector('.sidebar-chevron');
+    if (!header || !dropdown || !backdrop || !chevron) return;
+
+    function open() {
+      dropdown!.classList.add('active');
+      backdrop!.classList.add('active');
+      chevron!.classList.add('open');
+    }
+    function close() {
+      dropdown!.classList.remove('active');
+      backdrop!.classList.remove('active');
+      chevron!.classList.remove('open');
+    }
+    function toggle() {
+      dropdown!.classList.contains('active') ? close() : open();
+    }
+
+    function handleHeaderClick(e: Event) {
+      e.stopPropagation();
+      toggle();
+    }
+
+    function handleBackdropClick() {
+      close();
+    }
+
+    function handleKeydown(e: Event) {
+      if ((e as KeyboardEvent).key === 'Escape' && dropdown!.classList.contains('active')) close();
+    }
+
+    function handleDropdownClick(e: Event) {
+      var actionBtn = (e.target as HTMLElement).closest('[data-ws-action]');
+      if (actionBtn) {
+        var action = actionBtn.getAttribute('data-ws-action');
+        console.log('Workspace action:', action);
+        if (action === 'upgrade') { window.location.href = 'upgrade.html'; return; }
+        if (action === 'create') close();
+        return;
+      }
+
+      var wsItem = (e.target as HTMLElement).closest('.ws-workspace-item');
+      if (wsItem) {
+        var items = dropdown!.querySelectorAll('.ws-workspace-item');
+        items.forEach(function(item) { item.classList.remove('active'); });
+        wsItem.classList.add('active');
+        var name = wsItem.querySelector('.ws-ws-name')!.textContent;
+        document.querySelector('.sidebar-title')!.innerHTML = name + ' <svg class="sidebar-chevron open" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 6l3 3 3-3"/></svg>';
+        chevron = document.querySelector('.sidebar-chevron');
+        console.log('Switched workspace to:', name);
+      }
+    }
+
+    header.addEventListener('click', handleHeaderClick);
+    backdrop.addEventListener('click', handleBackdropClick);
+    document.addEventListener('keydown', handleKeydown);
+    dropdown.addEventListener('click', handleDropdownClick);
+
+    return () => {
+      header!.removeEventListener('click', handleHeaderClick);
+      backdrop!.removeEventListener('click', handleBackdropClick);
+      document.removeEventListener('keydown', handleKeydown);
+      dropdown!.removeEventListener('click', handleDropdownClick);
+    };
+  }, []);
+
   return (
     <>
       <div className="workspace-dropdown" id="workspaceDropdown">

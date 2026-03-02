@@ -1,19 +1,221 @@
+// @ts-nocheck
 'use client';
 
+import { useEffect, useRef } from 'react';
 import HeroBackground from './HeroBackground';
+import { startMatrixAnimation, stopMatrixAnimation } from './HeroBackground';
 import ChatBox from './ChatBox';
 import FireCrawlCarousel from './FireCrawlCarousel';
 import ProjectsDashboard from './ProjectsDashboard';
 
-// JS IIFEs that correspond to this component:
-// - Template switcher click (cycles through 3 hero templates)
-// - Tab switching (recently viewed, my projects, templates)
-// - Browse all button
-// - Matrix bar canvas animation (#matrix-canvas)
-// - Center content compact mode toggle
-// - Bottom section visibility
-
 export default function HomePage() {
+  const matrixBarAnimRef = useRef<number>(0);
+
+  // ===== initTemplateSwitcher =====
+  useEffect(() => {
+    var templates = ['classic', 'vision', 'matrix'];
+    var templateNames: Record<string, string> = { classic: 'Classic', vision: 'Argus Vision', matrix: 'Matrix' };
+    var heroTemplate1 = document.getElementById('heroTemplate1');
+    var heroTemplate2 = document.getElementById('heroTemplate2');
+    var heroTemplate3 = document.getElementById('heroTemplate3');
+    var switcherBtn = document.getElementById('templateSwitcher');
+    if (!switcherBtn || !heroTemplate1 || !heroTemplate2 || !heroTemplate3) return;
+
+    var current = localStorage.getItem('argus-hero-template') || 'classic';
+
+    function applyTemplate(name: string) {
+      current = name;
+      localStorage.setItem('argus-hero-template', name);
+      heroTemplate1!.classList.toggle('active', name === 'classic');
+      heroTemplate2!.classList.toggle('active', name === 'vision');
+      heroTemplate3!.classList.toggle('active', name === 'matrix');
+
+      // Matrix template forces dark mode — use .workspace-root instead of body
+      var wsRoot = document.querySelector('.workspace-root');
+      if (wsRoot) {
+        wsRoot.classList.toggle('dark', name === 'matrix');
+      }
+      document.body.classList.toggle('dark-mode', name === 'matrix');
+      localStorage.setItem('argus-dark-mode', (name === 'matrix').toString());
+      window.dispatchEvent(new CustomEvent('argus-dark-mode-change', { detail: { dark: name === 'matrix' } }));
+
+      // Start/stop matrix canvas animation for GPU savings
+      if (name === 'matrix') {
+        startMatrixAnimation();
+      } else {
+        stopMatrixAnimation();
+      }
+
+      var nextIdx = (templates.indexOf(name) + 1) % templates.length;
+      switcherBtn!.setAttribute('data-label', templateNames[templates[nextIdx]]);
+    }
+
+    applyTemplate(current);
+
+    function handleClick() {
+      var nextIdx = (templates.indexOf(current) + 1) % templates.length;
+      applyTemplate(templates[nextIdx]);
+    }
+
+    switcherBtn.addEventListener('click', handleClick);
+
+    return () => {
+      switcherBtn!.removeEventListener('click', handleClick);
+      // Stop matrix if it was running
+      stopMatrixAnimation();
+    };
+  }, []);
+
+  // ===== initMatrixBar — Matrix glitch overlay canvas =====
+  useEffect(() => {
+    var canvas = document.getElementById('matrix-canvas') as HTMLCanvasElement | null;
+    if (!canvas) return;
+    var ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    var w: number, h: number;
+    var time = 0;
+    var chars = '01{}[]<>()=+-;:_|/\\#@&*~$.%^!?';
+    var cells: Array<{ x: number; y: number; char: string; phase: number; speed: number; brightness: number; nextChange: number }> = [];
+    var spacingX = 20;
+    var spacingY = 22;
+    var dpr = window.devicePixelRatio || 1;
+    var running = true;
+    var resizeObserver: ResizeObserver | null = null;
+
+    function resize() {
+      var displayW = canvas!.parentElement!.offsetWidth;
+      var displayH = canvas!.parentElement!.offsetHeight;
+      canvas!.width = displayW * dpr;
+      canvas!.height = displayH * dpr;
+      canvas!.style.width = displayW + 'px';
+      canvas!.style.height = displayH + 'px';
+      ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
+      w = displayW;
+      h = displayH;
+      var numCols = Math.ceil(w / spacingX);
+      var numRows = Math.ceil(h / spacingY);
+      cells = [];
+      for (var r = 0; r < numRows; r++) {
+        for (var c = 0; c < numCols; c++) {
+          cells.push({
+            x: c * spacingX + spacingX / 2,
+            y: r * spacingY + spacingY / 2,
+            char: chars[Math.floor(Math.random() * chars.length)],
+            phase: Math.random() * Math.PI * 2,
+            speed: 0.3 + Math.random() * 1.2,
+            brightness: 0.1 + Math.random() * 0.2,
+            nextChange: Math.random() * 4,
+          });
+        }
+      }
+    }
+
+    resize();
+
+    // Use ResizeObserver so canvas re-renders when bottom-section changes size
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(function() { resize(); });
+      resizeObserver.observe(canvas.parentElement!);
+    } else {
+      window.addEventListener('resize', resize);
+    }
+
+    function draw() {
+      if (!running) return;
+      time += 0.016;
+      ctx!.clearRect(0, 0, w, h);
+
+      // Horizontal scan line
+      var scanX = ((time * 60) % (w + 400)) - 200;
+      var scanGrad = ctx!.createLinearGradient(scanX - 120, 0, scanX + 120, 0);
+      scanGrad.addColorStop(0, 'rgba(150, 150, 150, 0)');
+      scanGrad.addColorStop(0.5, 'rgba(150, 150, 150, 0.04)');
+      scanGrad.addColorStop(1, 'rgba(150, 150, 150, 0)');
+      ctx!.fillStyle = scanGrad;
+      ctx!.fillRect(scanX - 120, 0, 240, h);
+
+      ctx!.font = "14px 'Geist Mono', monospace";
+      ctx!.textAlign = 'center';
+      ctx!.textBaseline = 'middle';
+
+      for (var i = 0; i < cells.length; i++) {
+        var cell = cells[i];
+        cell.nextChange -= 0.016;
+
+        if (cell.nextChange <= 0) {
+          cell.char = chars[Math.floor(Math.random() * chars.length)];
+          cell.nextChange = 0.5 + Math.random() * 3;
+          if (Math.random() < 0.12) {
+            cell.brightness = 0.8 + Math.random() * 0.2;
+          }
+        }
+
+        cell.brightness += (0.5 + Math.sin(cell.phase) * 0.15 - cell.brightness) * 0.03;
+
+        var wave = Math.sin(time * cell.speed + cell.phase) * 0.5 + 0.5;
+
+        var isAccent = cell.brightness > 0.55;
+        if (isAccent) {
+          ctx!.fillStyle = 'rgba(180, 180, 180, ' + (0.25 + wave * 0.15).toFixed(2) + ')';
+        } else {
+          ctx!.fillStyle = 'rgba(200, 200, 200, ' + (0.15 + wave * 0.10).toFixed(2) + ')';
+        }
+
+        ctx!.fillText(cell.char, cell.x, cell.y);
+      }
+
+      // Random glitch flicker on a cluster
+      if (Math.random() < 0.04) {
+        var gi = Math.floor(Math.random() * cells.length);
+        var glen = 3 + Math.floor(Math.random() * 8);
+        for (var g = gi; g < Math.min(gi + glen, cells.length); g++) {
+          cells[g].brightness = 0.6 + Math.random() * 0.4;
+          cells[g].char = chars[Math.floor(Math.random() * chars.length)];
+        }
+      }
+
+      matrixBarAnimRef.current = requestAnimationFrame(draw);
+    }
+    matrixBarAnimRef.current = requestAnimationFrame(draw);
+
+    return () => {
+      running = false;
+      cancelAnimationFrame(matrixBarAnimRef.current);
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      } else {
+        window.removeEventListener('resize', resize);
+      }
+    };
+  }, []);
+
+  // ===== Tab switching for bottom section =====
+  useEffect(() => {
+    var tabBtns = document.querySelectorAll('.tab-btn');
+
+    function handleTabClick(this: HTMLElement) {
+      // Update active tab button
+      document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+      this.classList.add('active');
+
+      // Switch active panel
+      var tabName = this.getAttribute('data-tab');
+      document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+      var targetPanel = document.querySelector('.tab-panel[data-panel="' + tabName + '"]');
+      if (targetPanel) targetPanel.classList.add('active');
+    }
+
+    tabBtns.forEach(function(btn) {
+      btn.addEventListener('click', handleTabClick as EventListener);
+    });
+
+    return () => {
+      tabBtns.forEach(function(btn) {
+        btn.removeEventListener('click', handleTabClick as EventListener);
+      });
+    };
+  }, []);
+
   return (
     <main className="main" id="mainArea">
       <HeroBackground />

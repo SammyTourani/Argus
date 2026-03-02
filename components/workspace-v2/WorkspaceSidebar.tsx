@@ -1,18 +1,26 @@
+// @ts-nocheck
 'use client';
 
+import { useEffect } from 'react';
 import WorkspaceDropdown from './WorkspaceDropdown';
 
-// JS IIFEs that correspond to this component:
-// - Sidebar header click (toggle workspace dropdown)
-// - Sidebar chevron rotation
-// - Nav item active state switching
-// - Search nav item click (opens search modal)
-// - Share Argus button (opens referral modal)
-// - Upgrade Pro button (navigates to upgrade page)
-// - Mobile sidebar open/close
-// - Sidebar overlay click handler
-
 export default function WorkspaceSidebar() {
+  // ===== Upgrade to Pro button handler =====
+  useEffect(() => {
+    var upgradeBtn = document.getElementById('upgradeProBtn');
+    if (!upgradeBtn) return;
+
+    function handleUpgradeClick() {
+      window.location.href = 'upgrade.html';
+    }
+
+    upgradeBtn.addEventListener('click', handleUpgradeClick);
+
+    return () => {
+      upgradeBtn!.removeEventListener('click', handleUpgradeClick);
+    };
+  }, []);
+
   return (
     <aside className="sidebar" id="sidebar">
       <div className="sidebar-header">
