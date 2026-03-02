@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Argus — Upgrade</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/geist@1.3.1/dist/fonts/geist-sans/style.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/geist@1.3.1/dist/fonts/geist-mono/style.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
+  <style>
+    /* ===== CSS VARIABLES ===== */
+    :root {
+      --accent-100: #ff4801;
+      --accent-200: #ff7038;
+      --accent-300: #ff9a6c;
+      --accent-glow: rgba(255, 72, 1, 0.3);
+      --bg-100: #fffdfb;
+      --bg-200: #fffbf5;
+      --bg-300: #fff5eb;
+      --fg-100: #521000;
+      --fg-200: #7a3a1a;
+      --fg-300: #a06040;
+      --fg-muted: #b08060;
+      --border-100: #ebd5c1;
+      --border-200: #d4b89e;
+      --radius-sm: 0.25rem;
+      --radius-md: 0.5rem;
+      --radius-lg: 0.75rem;
+      --radius-xl: 1rem;
+      --radius-2xl: 1.25rem;
+      --font-sans: 'Geist Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'Geist Mono', 'JetBrains Mono', 'SF Mono', monospace;
+    }
+
+    /* ===== RESET ===== */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      height: 100%;
+      font-family: var(--font-sans);
+      color: var(--fg-100);
+      background: var(--bg-100);
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* ===== ASCII BACKGROUND ===== */
+    .ascii-bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+    }
+    .ascii-bg canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* ===== BACK BUTTON ===== */
+    .back-btn {
+      position: fixed;
+      top: 24px;
+      left: 24px;
+      z-index: 100;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 18px 9px 14px;
+      background: rgba(255, 253, 251, 0.94);
+      border: 1px solid var(--border-100);
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--fg-200);
+      text-decoration: none;
+      font-family: var(--font-sans);
+      transition: all 0.2s;
+      cursor: pointer;
+      animation: fadeIn 0.4s ease 0.3s both;
+    }
+    .back-btn:hover {
+      background: rgba(255, 253, 251, 0.98);
+      color: var(--fg-100);
+      border-color: var(--border-200);
+      box-shadow: 0 2px 12px rgba(82, 16, 0, 0.06);
+    }
+    .back-btn svg { width: 16px; height: 16px; }
+
+    /* ===== PRICING OVERLAY ===== */
+    .pricing-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 24px;
+    }
+
+    .pricing-panel {
+      background: rgba(255, 253, 251, 0.92);
+      border: 1px solid rgba(235, 213, 193, 0.5);
+      border-radius: var(--radius-2xl);
+      padding: 56px 56px 48px;
+      max-width: 1280px;
+      width: 100%;
+      box-shadow:
+        0 8px 60px rgba(82, 16, 0, 0.06),
+        0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+      animation: panelEnter 0.5s cubic-bezier(0.4, 0, 0.2, 1) 0.1s both;
+    }
+
+    /* ===== HEADER ===== */
+    .pricing-header {
+      text-align: center;
+      margin-bottom: 44px;
+    }
+    .pricing-label {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--fg-muted);
+      margin-bottom: 12px;
+    }
+    .pricing-title {
+      font-size: 34px;
+      font-weight: 800;
+      color: var(--fg-100);
+      letter-spacing: -0.03em;
+      margin-bottom: 10px;
+      font-family: var(--font-sans);
+    }
+    .pricing-subtitle {
+      font-size: 16px;
+      color: var(--fg-300);
+      font-family: var(--font-mono);
+      letter-spacing: -0.01em;
+    }
+
+    /* ===== PRICING GRID ===== */
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+
+    /* ===== PRICING CARD ===== */
+    .pricing-card {
+      background: white;
+      border: 1.5px solid var(--border-100);
+      border-radius: var(--radius-xl);
+      padding: 34px;
+      position: relative;
+      transition: box-shadow 0.3s, border-color 0.3s, transform 0.3s;
+      will-change: transform;
+      display: flex;
+      flex-direction: column;
+    }
+    .pricing-card:hover {
+      box-shadow: 0 4px 24px rgba(82, 16, 0, 0.06);
+      transform: translateY(-1px);
+    }
+
+    /* Pro card highlight */
+    .pricing-card.highlight {
+      border-color: rgba(255, 72, 1, 0.3);
+      box-shadow: 0 0 40px -10px rgba(250, 93, 25, 0.12);
+    }
+    .pricing-card.highlight:hover {
+      box-shadow: 0 0 40px -10px rgba(250, 93, 25, 0.18), 0 4px 24px rgba(82, 16, 0, 0.06);
+    }
+
+    /* Team card dimmed */
+    .pricing-card.waitlist { opacity: 0.82; }
+
+    /* Most popular badge */
+    .popular-badge {
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--accent-100);
+      color: white;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 5px 18px;
+      border-radius: 999px;
+      white-space: nowrap;
+      box-shadow: 0 2px 8px rgba(255, 72, 1, 0.3);
+    }
+
+    /* Plan name */
+    .plan-name {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--fg-100);
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+    }
+
+    /* Price */
+    .plan-price {
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+      margin-bottom: 4px;
+    }
+    .plan-price .amount {
+      font-size: 50px;
+      font-weight: 800;
+      color: var(--fg-100);
+      letter-spacing: -0.03em;
+      line-height: 1;
+    }
+    .plan-price .period {
+      font-size: 16px;
+      color: var(--fg-muted);
+      font-weight: 400;
+    }
+
+    /* Tagline */
+    .plan-desc {
+      font-size: 15px;
+      color: var(--fg-300);
+      margin-bottom: 24px;
+      font-family: var(--font-mono);
+      letter-spacing: -0.01em;
+    }
+
+    /* CTA Buttons */
+    .plan-cta {
+      display: block;
+      width: 100%;
+      text-align: center;
+      padding: 14px 0;
+      border-radius: var(--radius-lg);
+      font-size: 15px;
+      font-weight: 700;
+      font-family: var(--font-sans);
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+    }
+    .plan-cta:active { transform: scale(0.98); }
+
+    .plan-cta.outline {
+      background: rgba(0, 0, 0, 0.03);
+      color: var(--fg-100);
+      border: 1.5px solid var(--border-100);
+    }
+    .plan-cta.outline:hover {
+      background: rgba(0, 0, 0, 0.06);
+      border-color: var(--border-200);
+    }
+
+    .plan-cta.primary {
+      background: var(--accent-100);
+      color: white;
+    }
+    .plan-cta.primary:hover {
+      background: var(--accent-200);
+      box-shadow: 0 4px 16px rgba(255, 72, 1, 0.25);
+    }
+
+    /* Waitlist form */
+    .waitlist-form {
+      display: flex;
+      gap: 8px;
+    }
+    .waitlist-form input {
+      flex: 1;
+      min-width: 0;
+      border-radius: var(--radius-lg);
+      border: 1.5px solid var(--border-100);
+      background: white;
+      padding: 12px 16px;
+      font-size: 14px;
+      font-family: var(--font-sans);
+      color: var(--fg-100);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .waitlist-form input::placeholder { color: var(--fg-muted); }
+    .waitlist-form input:focus { border-color: rgba(255, 72, 1, 0.4); }
+    .waitlist-form button {
+      flex-shrink: 0;
+      padding: 12px 18px;
+      border-radius: var(--radius-lg);
+      border: 1.5px solid var(--fg-100);
+      background: white;
+      font-size: 14px;
+      font-weight: 700;
+      font-family: var(--font-sans);
+      color: var(--fg-100);
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .waitlist-form button:hover {
+      background: var(--fg-100);
+      color: white;
+    }
+
+    /* Waitlist success */
+    .waitlist-success {
+      display: none;
+      text-align: center;
+      padding: 12px 0;
+      border-radius: var(--radius-lg);
+      background: #f0fdf4;
+      color: #15803d;
+      border: 1px solid #bbf7d0;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: var(--font-sans);
+    }
+
+    /* Feature list */
+    .feature-list {
+      list-style: none;
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid var(--bg-300);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex: 1;
+    }
+    .feature-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 14.5px;
+      color: var(--fg-200);
+      line-height: 1.4;
+    }
+    .feature-list li svg {
+      flex-shrink: 0;
+      width: 18px;
+      height: 18px;
+      margin-top: 2px;
+    }
+
+    /* ===== ANIMATIONS ===== */
+    @keyframes panelEnter {
+      from { opacity: 0; transform: translateY(20px) scale(0.98); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 900px) {
+      .pricing-grid {
+        grid-template-columns: 1fr;
+        max-width: 400px;
+        margin: 0 auto;
+      }
+      .pricing-panel {
+        padding: 32px 20px 28px;
+        overflow-y: auto;
+        max-height: calc(100vh - 80px);
+      }
+      .pricing-overlay {
+        align-items: flex-start;
+        padding-top: 72px;
+      }
+      body { overflow: auto; }
+      .pricing-header { margin-bottom: 28px; }
+      .pricing-title { font-size: 28px; }
+      .plan-price .amount { font-size: 44px; }
+    }
+
+    @media (max-width: 500px) {
+      .back-btn { top: 16px; left: 16px; font-size: 12px; padding: 7px 14px 7px 10px; }
+      .pricing-panel { padding: 24px 16px 20px; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Back navigation -->
+  <a href="index.html" class="back-btn">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10 3L5 8l5 5"/>
+    </svg>
+    Back to workspace
+  </a>
+
+  <!-- ASCII animated background -->
+  <div class="ascii-bg" id="asciiBg">
+    <canvas id="asciiCanvas"></canvas>
+  </div>
+
+  <!-- Pricing content overlay -->
+  <div class="pricing-overlay">
+    <div class="pricing-panel">
+      <div class="pricing-header">
+        <div class="pricing-label">[ upgrade ]</div>
+        <h1 class="pricing-title">Choose your plan</h1>
+        <p class="pricing-subtitle">Start building for free. Upgrade when you need more.</p>
+      </div>
+
+      <div class="pricing-grid">
+        <!-- FREE -->
+        <div class="pricing-card">
+          <div class="plan-name">Free</div>
+          <div class="plan-price">
+            <span class="amount">$0</span>
+            <span class="period">forever</span>
+          </div>
+          <p class="plan-desc">No strings.</p>
+          <button class="plan-cta outline">Start for free</button>
+          <ul class="feature-list">
+            <li><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4" stroke="rgba(82,16,0,0.3)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> 3 builds / 30 days</li>
+            <li><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4" stroke="rgba(82,16,0,0.3)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> All 8 style transforms</li>
+            <li><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4" stroke="rgba(82,16,0,0.3)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Download as ZIP</li>
+            <li><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4" stroke="rgba(82,16,0,0.3)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Community support</li>
+          </ul>
+        </div>
+
+        <!-- PRO (highlighted) -->
+        <div class="pricing-card highlight">
+          <span class="popular-badge">Most popular</span>
+          <div class="plan-name">Pro</div>
+          <div class="plan-price">
+            <span class="amount">$19</span>
+            <span class="period">/month</span>
+          </div>
+          <p class="plan-desc">For power builders.</p>
+          <button class="plan-cta primary">Go Pro</button>
+          <ul class="feature-list">
+            <li><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4" stroke="#ff4801" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Unlimited builds</li>
+            <li><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4" stroke="#ff4801" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> All AI models (GPT-4o, Claude, Gemini, Kimi)</li>
+            <li><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4" stroke="#ff4801" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Priority generation queue</li>
+            <li><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4" stroke="#ff4801" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Push to Vercel in 1 click</li>
+            <li><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4" stroke="#ff4801" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Brand extraction mode</li>
+            <li><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4" stroke="#ff4801" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Email support</li>
+          </ul>
+        </div>
+
+        <!-- TEAM (waitlist) -->
+        <div class="pricing-card waitlist">
+          <div class="plan-name">Team</div>
+          <div class="plan-price">
+            <span class="amount">$49</span>
+            <span class="period">/month</span>
+          </div>
+          <p class="plan-desc">Coming soon.</p>
+          <div class="waitlist-form" id="waitlistForm">
+            <input type="email" placeholder="you@email.com" id="waitlistEmail">
+            <button type="button" id="waitlistBtn">Join waitlist</button>
+          </div>
+          <div class="waitlist-success" id="waitlistSuccess">You're on the list!</div>
+          <ul class="feature-list">
+            <li><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4" stroke="rgba(82,16,0,0.3)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Everything in Pro</li>
+            <li><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4" stroke="rgba(82,16,0,0.3)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> 5 team members</li>
+            <li><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4" stroke="rgba(82,16,0,0.3)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Shared project library</li>
+            <li><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4" stroke="rgba(82,16,0,0.3)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Custom AI model config</li>
+            <li><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4" stroke="rgba(82,16,0,0.3)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> SSO & audit logs</li>
+            <li><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4" stroke="rgba(82,16,0,0.3)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Dedicated support</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ===== ASCII CANVAS ANIMATION ===== */
+    /* Ported from AsciiCanvas.tsx — sprite-based, 1x resolution, native 60fps */
+    (function initAsciiCanvas() {
+      var canvas = document.getElementById('asciiCanvas');
+      var parent = document.getElementById('asciiBg');
+      if (!canvas || !parent) return;
+      var ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      var CODE_CHARS = '{}()<>/;:=01[]&|!?#@$%_+-*~^';
+      var DENSITY = 18;
+      var OPACITY = 0.30;
+      var scrollY = 0;
+      var grid = [];
+      var animId;
+
+      var vw = 0, vh = 0, centerX = 0, centerY = 0;
+      var fontSize = Math.max(DENSITY - 4, 10);
+      var fontStr = fontSize + 'px "Geist Mono", "Roboto Mono", "JetBrains Mono", monospace';
+      var halfD = DENSITY / 2;
+
+      // Pre-render each character to a tiny offscreen canvas (sprite).
+      // drawImage (GPU blit) is ~3-5x faster than fillText (CPU rasterize).
+      var charSprites = {};
+      for (var c = 0; c < CODE_CHARS.length; c++) {
+        var ch = CODE_CHARS[c];
+        var off = document.createElement('canvas');
+        off.width = DENSITY;
+        off.height = DENSITY;
+        var oc = off.getContext('2d');
+        oc.font = fontStr;
+        oc.textBaseline = 'middle';
+        oc.fillStyle = 'rgb(82,16,0)';
+        oc.fillText(ch, 0, halfD);
+        charSprites[ch] = off;
+      }
+
+      // Panel culling — skip cells behind the opaque panel
+      var panelEl = document.querySelector('.pricing-panel');
+      var cullEnabled = false;
+      var CULL_PAD = 20;
+      var pL = 0, pR = 0, pT = 0, pB = 0;
+
+      function updatePanelBounds() {
+        if (!panelEl) return;
+        var pr = panelEl.getBoundingClientRect();
+        pL = pr.left + CULL_PAD;
+        pR = pr.right - CULL_PAD;
+        pT = pr.top + CULL_PAD;
+        pB = pr.bottom - CULL_PAD;
+      }
+
+      setTimeout(function() {
+        cullEnabled = true;
+        updatePanelBounds();
+      }, 700);
+
+      function initGrid(width, height) {
+        var g = [];
+        var now = performance.now();
+        for (var x = 0; x < width; x += DENSITY) {
+          for (var y = 0; y < height; y += DENSITY) {
+            g.push({
+              x: x,
+              y: y,
+              char: CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)],
+              changeAt: now + 500 + Math.random() * 1500,
+              seed: Math.random() * Math.PI * 2
+            });
+          }
+        }
+        return g;
+      }
+
+      function resize() {
+        vw = window.innerWidth;
+        vh = window.innerHeight;
+        centerX = vw / 2;
+        centerY = vh / 2;
+        // 1x resolution — CSS scales canvas to fill viewport.
+        // Decorative BG doesn't need Retina; saves 75% pixel work on 2x displays.
+        canvas.width = vw;
+        canvas.height = vh;
+        grid = initGrid(vw, vh);
+        if (cullEnabled) updatePanelBounds();
+      }
+
+      resize();
+      window.addEventListener('resize', resize);
+
+      window.addEventListener('scroll', function() {
+        scrollY = window.scrollY;
+      }, { passive: true });
+
+      function draw(time) {
+        animId = requestAnimationFrame(draw);
+
+        ctx.clearRect(0, 0, vw, vh);
+
+        var sc = scrollY;
+        var cull = cullEnabled;
+        var len = grid.length;
+
+        for (var i = 0; i < len; i++) {
+          var cell = grid[i];
+
+          if (cull && cell.x > pL && cell.x < pR && cell.y > pT && cell.y < pB) continue;
+
+          // Character cycling
+          if (time > cell.changeAt) {
+            cell.char = CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
+            cell.changeAt = time + 500 + Math.random() * 1500;
+          }
+
+          // Scroll-linked wave distortion
+          var scrollWave = Math.sin(cell.x * 0.01 + cell.y * 0.006 + sc * 0.004 + cell.seed);
+          var timeWave = Math.sin(cell.x * 0.016 + time * 0.0012 + cell.seed)
+                       * Math.cos(cell.y * 0.012 + time * 0.0008);
+
+          var drawX = cell.x + scrollWave * 6 + timeWave * 5;
+          var drawY = cell.y + timeWave * 4 + Math.sin(cell.x * 0.02 + sc * 0.002) * 3;
+
+          // Radial opacity falloff from center
+          var nxC = (drawX - centerX) / (centerX || 1);
+          var nyC = (drawY - centerY) / (centerY || 1);
+          var distFromCenter = Math.sqrt(nxC * nxC + nyC * nyC);
+          var radialFade = distFromCenter * 0.8;
+          if (radialFade > 1) radialFade = 1;
+          var waveBrightness = 0.6 + scrollWave * 0.2 + timeWave * 0.2;
+          var alpha = OPACITY * radialFade * waveBrightness * 0.8;
+
+          if (alpha < 0.01) continue;
+
+          // Sprite blit — orders of magnitude faster than fillText
+          ctx.globalAlpha = alpha;
+          ctx.drawImage(charSprites[cell.char], drawX, drawY - halfD);
+        }
+
+        ctx.globalAlpha = 1;
+      }
+
+      animId = requestAnimationFrame(draw);
+
+      // Pause when tab hidden
+      document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+          cancelAnimationFrame(animId);
+        } else {
+          animId = requestAnimationFrame(draw);
+        }
+      });
+    })();
+
+    /* ===== WAITLIST FORM ===== */
+    (function initWaitlist() {
+      var form = document.getElementById('waitlistForm');
+      var emailInput = document.getElementById('waitlistEmail');
+      var btn = document.getElementById('waitlistBtn');
+      var success = document.getElementById('waitlistSuccess');
+
+      if (!btn) return;
+      btn.addEventListener('click', function() {
+        if (!emailInput.value || !emailInput.validity.valid) {
+          emailInput.focus();
+          return;
+        }
+        form.style.display = 'none';
+        success.style.display = 'block';
+        setTimeout(function() {
+          success.style.display = 'none';
+          form.style.display = 'flex';
+          emailInput.value = '';
+        }, 3000);
+      });
+    })();
+  </script>
+</body>
+</html>
