@@ -85,7 +85,7 @@ export default function ResourcesPage() {
   }, []);
 
   return (
-    <div className="app">
+    <div className="app page-resources">
       {/* SIDEBAR */}
       <aside className="sidebar">
         <div className="sidebar-header">

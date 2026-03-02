@@ -878,6 +878,7 @@
     }
 
     .sidebar-footer-item .desc { font-size: 11px; color: var(--fg-muted); }
+    .sidebar-footer-item svg { width: 18px; height: 18px; opacity: 0.6; flex-shrink: 0; }
 
     /* ===== MAIN ===== */
     .main {
@@ -2919,8 +2920,8 @@
     /* ===== RESOURCES PAGE: Main Content ======================== */
     /* ============================================================ */
 
-    /* ===== MAIN CONTENT ===== */
-    .main {
+    /* ===== MAIN CONTENT (resources page) ===== */
+    .page-resources .main {
       flex: 1;
       overflow-y: auto;
       background: var(--bg-100);
@@ -2952,7 +2953,7 @@
       margin-bottom: 32px;
       position: relative;
     }
-    .tab-btn {
+    .page-resources .tab-btn {
       position: relative; z-index: 1;
       display: flex; align-items: center; gap: 7px;
       padding: 9px 18px;
@@ -2963,9 +2964,9 @@
       border-radius: calc(var(--radius-xl) - 4px);
       white-space: nowrap;
     }
-    .tab-btn:hover { color: var(--fg-200); }
-    .tab-btn.active { color: var(--accent-100); font-weight: 600; }
-    .tab-btn svg { width: 16px; height: 16px; }
+    .page-resources .tab-btn:hover { color: var(--fg-200); }
+    .page-resources .tab-btn.active { color: var(--accent-100); font-weight: 600; }
+    .page-resources .tab-btn svg { width: 16px; height: 16px; }
     .tab-indicator {
       position: absolute;
       top: 4px; bottom: 4px;
@@ -3765,7 +3766,7 @@
       font-family: var(--font-sans);
       transition: all 0.2s;
       cursor: pointer;
-      animation: fadeIn 0.4s ease 0.3s both;
+      animation: fadeInSimple 0.4s ease 0.3s both;
     }
     .back-btn:hover {
       background: rgba(255, 253, 251, 0.98);
@@ -4037,7 +4038,7 @@
       from { opacity: 0; transform: translateY(20px) scale(0.98); }
       to { opacity: 1; transform: translateY(0) scale(1); }
     }
-    @keyframes fadeIn {
+    @keyframes fadeInSimple {
       from { opacity: 0; }
       to { opacity: 1; }
     }
