@@ -247,7 +247,7 @@ export default function HeroBackground() {
 
     // --- Video + offscreen canvas for pixel processing ---
     var eyeVideo = document.createElement('video');
-    eyeVideo.src = 'assets/final-eye-animation.mp4';
+    eyeVideo.src = '/argus-assets/final-eye-animation.mp4';
     eyeVideo.loop = true;
     eyeVideo.muted = true;
     eyeVideo.playsInline = true;

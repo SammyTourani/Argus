@@ -81,7 +81,7 @@ export default function ProjectsDashboard() {
 
     function renderFirstTimeHero() {
       var html = '<div class="pd-empty-hero">';
-      html += '<video class="pd-empty-hero-video" autoplay loop muted playsinline><source src="animation-empty-state.mp4" type="video/mp4"></video>';
+      html += '<video class="pd-empty-hero-video" autoplay loop muted playsinline><source src="/argus-assets/animation-empty-state.mp4" type="video/mp4"></video>';
       html += '<button class="pd-empty-hero-cta" data-action="empty-cta">';
       html += '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 3v10M3 8h10"/></svg>';
       html += 'Start Building</button></div>';
