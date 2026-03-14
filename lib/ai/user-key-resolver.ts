@@ -9,13 +9,16 @@
 import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { decrypt } from '@/lib/crypto';
 
-type ProviderName = 'openai' | 'anthropic' | 'groq' | 'google';
+type ProviderName = 'openai' | 'anthropic' | 'groq' | 'google' | 'xai' | 'deepseek' | 'mistral';
 
 /** Map model ID prefixes to the provider name stored in user_api_keys */
 function resolveProvider(modelId: string): ProviderName {
   if (modelId.startsWith('anthropic/')) return 'anthropic';
   if (modelId.startsWith('openai/')) return 'openai';
   if (modelId.startsWith('google/')) return 'google';
+  if (modelId.startsWith('xai/')) return 'xai';
+  if (modelId.startsWith('deepseek/')) return 'deepseek';
+  if (modelId.startsWith('mistral/')) return 'mistral';
   return 'groq';
 }
 

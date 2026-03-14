@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate slug from name, ensure min 2 chars
-    let slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').substring(0, 50);
+    let slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').substring(0, 44);
     if (slug.length < 2) {
       slug = slug + '-team';
     }
