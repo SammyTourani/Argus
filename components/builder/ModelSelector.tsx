@@ -43,7 +43,7 @@ export default function ModelSelector({ projectId, selectedModelId, onModelChang
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className={`flex items-center gap-2 rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#161616] hover:bg-[#1A1A1A] transition-colors ${
+        className={`flex items-center gap-2 rounded-lg border border-[var(--editor-border)] bg-[var(--editor-bg-elevated)] hover:bg-[var(--editor-bg-card)] transition-colors ${
           compact ? 'px-2.5 py-1.5 text-xs' : 'px-3 py-2 text-sm'
         }`}
       >
@@ -51,15 +51,15 @@ export default function ModelSelector({ projectId, selectedModelId, onModelChang
           className="w-2.5 h-2.5 rounded-full flex-shrink-0"
           style={{ backgroundColor: selected.color }}
         />
-        <span className="text-white font-mono truncate max-w-[140px]">
+        <span className="text-white font-sans truncate max-w-[140px]">
           {selected.name}
         </span>
-        <ChevronDown className={`w-3.5 h-3.5 text-[#666] transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-3.5 h-3.5 text-[var(--editor-fg-tertiary)] transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (
-        <div className="absolute top-full mt-1 left-0 z-50 w-[320px] rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#161616] shadow-2xl shadow-black/50 overflow-hidden">
-          <div className="px-3 py-2 text-[11px] font-mono uppercase tracking-wider text-[#666] border-b border-[rgba(255,255,255,0.06)]">
+        <div className="absolute top-full mt-1 left-0 z-50 w-[320px] rounded-xl border border-[var(--editor-border)] bg-[var(--editor-bg-elevated)] shadow-2xl shadow-black/50 overflow-hidden">
+          <div className="px-3 py-2 text-[11px] font-sans uppercase tracking-wider text-[var(--editor-fg-tertiary)] border-b border-[var(--editor-border-faint)]">
             Choose AI Model
           </div>
           {MODELS.map((model) => {
@@ -68,8 +68,8 @@ export default function ModelSelector({ projectId, selectedModelId, onModelChang
               <button
                 key={model.id}
                 onClick={() => handleSelect(model)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-[#202020] ${
-                  isSelected ? 'bg-[rgba(250,69,0,0.08)]' : ''
+                className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-[var(--editor-bg-hover)] ${
+                  isSelected ? 'bg-[var(--editor-accent-8)]' : ''
                 }`}
               >
                 <span
@@ -78,21 +78,21 @@ export default function ModelSelector({ projectId, selectedModelId, onModelChang
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-mono text-white">{model.name}</span>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#2A2A2A] text-[#888] font-mono">
+                    <span className="text-sm font-sans text-white">{model.name}</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--editor-bg-hover)] text-[var(--editor-fg-muted)] font-mono">
                       {model.provider}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[11px] text-[#666]">{model.tags[0]}</span>
-                    <span className="text-[11px] text-[#555]">·</span>
-                    <span className="text-[11px] text-[#555] font-mono">
+                    <span className="text-[11px] text-[var(--editor-fg-tertiary)] font-sans">{model.tags[0]}</span>
+                    <span className="text-[11px] text-[var(--editor-fg-dim)]">·</span>
+                    <span className="text-[11px] text-[var(--editor-fg-dim)] font-mono">
                       {model.costPer1k === 0 ? 'Free' : `$${model.costPer1k}/1k tokens`}
                     </span>
                   </div>
                 </div>
                 {isSelected && (
-                  <Check className="w-4 h-4 text-[#FA4500] flex-shrink-0" />
+                  <Check className="w-4 h-4 text-[var(--editor-accent)] flex-shrink-0" />
                 )}
               </button>
             );

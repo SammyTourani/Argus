@@ -3,6 +3,7 @@
 
 import { useEffect, useRef } from 'react';
 import AsciiCanvasBackground from './AsciiCanvasBackground';
+import { createCheckoutSession } from './workspace-api';
 
 export default function UpgradePage() {
   const initialized = useRef(false);
@@ -36,6 +37,20 @@ export default function UpgradePage() {
 
     btn.addEventListener('click', clickHandler);
 
+    // Wire "Go Pro" CTA
+    var goProBtn = document.querySelector('.pricing-card.highlight .plan-cta.primary');
+    function handleGoPro() {
+      createCheckoutSession('pro').then(function(url) {
+        if (url) window.location.href = url;
+      }).catch(function() {});
+    }
+    if (goProBtn) goProBtn.addEventListener('click', handleGoPro);
+
+    // Wire "Start for free" CTA
+    var freeBtn = document.querySelector('.pricing-card:not(.highlight):not(.waitlist) .plan-cta.outline');
+    function handleFree() { window.location.href = '/workspace'; }
+    if (freeBtn) freeBtn.addEventListener('click', handleFree);
+
     return () => {
       if (timeoutId !== undefined) {
         clearTimeout(timeoutId);
@@ -43,13 +58,15 @@ export default function UpgradePage() {
       if (btn) {
         btn.removeEventListener('click', clickHandler);
       }
+      if (goProBtn) goProBtn.removeEventListener('click', handleGoPro);
+      if (freeBtn) freeBtn.removeEventListener('click', handleFree);
     };
   }, []);
 
   return (
     <>
       {/* Back navigation */}
-      <a href="index.html" className="back-btn">
+      <a href="/workspace" className="back-btn">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M10 3L5 8l5 5" />
         </svg>

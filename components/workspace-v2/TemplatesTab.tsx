@@ -2,20 +2,22 @@
 'use client';
 
 import { useEffect } from 'react';
+import { fetchTemplates, generateGradient, escapeHtml } from './workspace-api';
 
-const TEMPLATES = [
-  { id:'t1', name:'SaaS Starter Kit', desc:'Full SaaS boilerplate with auth, billing, and dashboard', category:'SaaS', gradient:'linear-gradient(135deg,#ff4801,#ef4444)', tech:['Next.js','Tailwind','Stripe','Supabase'], diff:'intermediate', uses:4523, isNew:true },
-  { id:'t2', name:'Portfolio Starter', desc:'Minimal animated portfolio with project showcase', category:'Portfolio', gradient:'linear-gradient(135deg,#7c3aed,#a78bfa)', tech:['React','Framer Motion','Tailwind'], diff:'beginner', uses:3891, isNew:false },
-  { id:'t3', name:'E-commerce Pro', desc:'Full-stack store with cart, checkout, and inventory', category:'E-commerce', gradient:'linear-gradient(135deg,#059669,#34d399)', tech:['Next.js','Stripe','Prisma','PostgreSQL'], diff:'advanced', uses:2847, isNew:false },
-  { id:'t4', name:'AI Chat Interface', desc:'Full-stack conversational AI with streaming responses', category:'AI/ML', gradient:'linear-gradient(135deg,#0ea5e9,#6366f1)', tech:['React','OpenAI','Tailwind','WebSocket'], diff:'intermediate', uses:2654, isNew:true },
-  { id:'t5', name:'Blog Platform', desc:'Modern blog with MDX, syntax highlighting, and RSS', category:'Blog', gradient:'linear-gradient(135deg,#f59e0b,#ef4444)', tech:['Next.js','MDX','Tailwind'], diff:'beginner', uses:2341, isNew:false },
-  { id:'t6', name:'Dashboard Pro', desc:'Analytics dashboard with charts, tables, and real-time data', category:'Dashboard', gradient:'linear-gradient(135deg,#8b5cf6,#ec4899)', tech:['React','Recharts','Tailwind','WebSocket'], diff:'advanced', uses:2198, isNew:false },
-  { id:'t7', name:'Landing Page Kit', desc:'Conversion-optimized landing page with A/B testing', category:'Landing Pages', gradient:'linear-gradient(135deg,#10b981,#0ea5e9)', tech:['Next.js','Tailwind','Framer Motion'], diff:'beginner', uses:3102, isNew:false },
-  { id:'t8', name:'Mobile App Shell', desc:'React Native starter with navigation and auth', category:'Mobile', gradient:'linear-gradient(135deg,#e11d48,#f43f5e)', tech:['React Native','Expo','NativeWind'], diff:'intermediate', uses:1876, isNew:true },
-  { id:'t9', name:'API Starter', desc:'REST API boilerplate with auth, rate limiting, and docs', category:'SaaS', gradient:'linear-gradient(135deg,#1e40af,#3b82f6)', tech:['Node.js','Express','Swagger','JWT'], diff:'intermediate', uses:1654, isNew:false },
-  { id:'t10', name:'ML Pipeline', desc:'End-to-end ML pipeline with model training and deployment', category:'AI/ML', gradient:'linear-gradient(135deg,#7c3aed,#2563eb)', tech:['Python','FastAPI','TensorFlow','Docker'], diff:'advanced', uses:1432, isNew:false },
-  { id:'t11', name:'Admin Panel', desc:'Full-featured admin panel with RBAC and audit logs', category:'Dashboard', gradient:'linear-gradient(135deg,#475569,#1e293b)', tech:['React','Tailwind','Prisma','PostgreSQL'], diff:'advanced', uses:1987, isNew:false },
-  { id:'t12', name:'Newsletter App', desc:'Newsletter platform with subscriber management', category:'SaaS', gradient:'linear-gradient(135deg,#ea580c,#f59e0b)', tech:['Next.js','Resend','Tailwind'], diff:'beginner', uses:1123, isNew:false },
+// Built-in templates used when the marketplace API returns empty
+var FALLBACK_TEMPLATES = [
+  { id: 'saas-landing', name: 'SaaS Landing Page', desc: 'Hero, features, pricing, testimonials, CTA', category: 'Marketing', gradient: 'linear-gradient(135deg, #f97316, #dc2626)', tech: ['React', 'Tailwind'], diff: 'beginner', uses: 2480, isNew: false },
+  { id: 'dashboard', name: 'Analytics Dashboard', desc: 'Stats, charts, data tables, sidebar nav', category: 'Application', gradient: 'linear-gradient(135deg, #3b82f6, #7c3aed)', tech: ['React', 'Charts'], diff: 'intermediate', uses: 1820, isNew: false },
+  { id: 'ecommerce', name: 'E-Commerce Store', desc: 'Product grid, cart, checkout flow', category: 'E-commerce', gradient: 'linear-gradient(135deg, #34d399, #0d9488)', tech: ['React', 'Commerce'], diff: 'intermediate', uses: 1540, isNew: false },
+  { id: 'portfolio', name: 'Developer Portfolio', desc: 'About, projects, skills, contact form', category: 'Personal', gradient: 'linear-gradient(135deg, #8b5cf6, #7e22ce)', tech: ['React', 'Tailwind'], diff: 'beginner', uses: 1920, isNew: false },
+  { id: 'blog', name: 'Blog Platform', desc: 'Post list, article view, categories', category: 'Content', gradient: 'linear-gradient(135deg, #f59e0b, #f97316)', tech: ['React', 'MDX'], diff: 'beginner', uses: 1260, isNew: false },
+  { id: 'kanban', name: 'Task Manager', desc: 'Kanban board, drag-and-drop columns', category: 'Application', gradient: 'linear-gradient(135deg, #38bdf8, #2563eb)', tech: ['React', 'DnD'], diff: 'intermediate', uses: 980, isNew: false },
+  { id: 'chat-ui', name: 'AI Chat Interface', desc: 'Chat bubbles, streaming responses, sidebar', category: 'Application', gradient: 'linear-gradient(135deg, #ec4899, #e11d48)', tech: ['React', 'AI'], diff: 'intermediate', uses: 1640, isNew: true },
+  { id: 'auth-screens', name: 'Auth Screens', desc: 'Sign in, sign up, forgot password', category: 'Developer', gradient: 'linear-gradient(135deg, #52525b, #18181b)', tech: ['React', 'Auth'], diff: 'beginner', uses: 1100, isNew: false },
+  { id: 'waitlist', name: 'Waitlist Page', desc: 'Email capture, social proof, countdown', category: 'Marketing', gradient: 'linear-gradient(135deg, #facc15, #f97316)', tech: ['React', 'Tailwind'], diff: 'beginner', uses: 870, isNew: false },
+  { id: 'pricing', name: 'Pricing Page', desc: 'Comparison table, toggle monthly/yearly', category: 'Marketing', gradient: 'linear-gradient(135deg, #818cf8, #2563eb)', tech: ['React', 'Tailwind'], diff: 'beginner', uses: 760, isNew: false },
+  { id: 'restaurant', name: 'Restaurant Website', desc: 'Menu, reservations, gallery, reviews', category: 'Food & Drink', gradient: 'linear-gradient(135deg, #ef4444, #991b1b)', tech: ['React', 'Tailwind'], diff: 'beginner', uses: 640, isNew: true },
+  { id: 'fitness', name: 'Fitness Tracker', desc: 'Workout log, progress charts, goals', category: 'Health', gradient: 'linear-gradient(135deg, #22c55e, #15803d)', tech: ['React', 'Charts'], diff: 'intermediate', uses: 520, isNew: true },
 ];
 
 export default function TemplatesTab() {
@@ -25,47 +27,91 @@ export default function TemplatesTab() {
     var chips = document.getElementById('templateFilters');
     var searchInput = document.getElementById('templateSearch') as HTMLInputElement;
     var activeCategory = 'All';
+    var templates = [];
+    var cancelled = false;
 
     function renderTemplates() {
-      var q = searchInput.value.toLowerCase();
-      var filtered = TEMPLATES.filter(function(t) {
+      if (!grid) return;
+      var q = searchInput ? searchInput.value.toLowerCase() : '';
+      var filtered = templates.filter(function(t) {
         var matchCat = activeCategory === 'All' || t.category === activeCategory;
         var matchSearch = !q || t.name.toLowerCase().indexOf(q) !== -1 || t.desc.toLowerCase().indexOf(q) !== -1;
         return matchCat && matchSearch;
       });
 
+      if (filtered.length === 0 && templates.length === 0) {
+        grid.innerHTML = '<div class="community-card"><div class="app-info"><div class="app-name" style="color:var(--fg-muted)">No templates yet</div><div class="app-desc">Templates will appear here once published</div></div></div>';
+        return;
+      }
+
+      if (filtered.length === 0) {
+        grid.innerHTML = '<div class="community-card"><div class="app-info"><div class="app-name" style="color:var(--fg-muted)">No matching templates</div></div></div>';
+        return;
+      }
+
       grid.innerHTML = filtered.map(function(t, i) {
-        var diffClass = 'diff-' + t.diff;
+        var diffClass = 'diff-' + (t.diff || 'beginner');
         return '<div class="template-card stagger-' + Math.min(i + 1, 12) + '">' +
           '<div class="tpl-preview"><div class="card-gradient" style="background:' + t.gradient + ';"></div>' +
           (t.isNew ? '<div class="new-badge"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1l1.8 3.6L14 5.3l-3 2.9.7 4.1L8 10.3l-3.7 2 .7-4.1-3-2.9 4.2-.7z"/></svg> NEW</div>' : '') +
           '<div class="hover-overlay"><button class="view-btn">Use Template <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12L12 4M12 4H6M12 4v6"/></svg></button></div></div>' +
-          '<div class="tpl-info"><div class="tpl-top"><div class="tpl-name">' + t.name + '</div>' +
-          '<span class="diff-badge ' + diffClass + '"><span class="dot"></span> ' + t.diff + '</span></div>' +
-          '<div class="tpl-desc">' + t.desc + '</div>' +
-          '<div class="tech-pills">' + t.tech.map(function(p) { return '<span class="tech-pill">' + p + '</span>'; }).join('') + '</div>' +
-          '<div class="tpl-footer"><span class="tpl-uses">' + t.uses.toLocaleString() + ' uses</span><span class="tpl-category">' + t.category + '</span></div></div></div>';
+          '<div class="tpl-info"><div class="tpl-top"><div class="tpl-name">' + escapeHtml(t.name) + '</div>' +
+          '<span class="diff-badge ' + diffClass + '"><span class="dot"></span> ' + escapeHtml(t.diff || 'beginner') + '</span></div>' +
+          '<div class="tpl-desc">' + escapeHtml(t.desc) + '</div>' +
+          '<div class="tech-pills">' + (t.tech || []).map(function(p) { return '<span class="tech-pill">' + escapeHtml(p) + '</span>'; }).join('') + '</div>' +
+          '<div class="tpl-footer"><span class="tpl-uses">' + (t.uses || 0).toLocaleString() + ' uses</span><span class="tpl-category">' + escapeHtml(t.category) + '</span></div></div></div>';
       }).join('');
     }
+
+    // Show loading skeleton
+    if (grid) grid.innerHTML = '<div class="community-card"><div class="app-info"><div class="app-name" style="color:var(--fg-muted)">Loading templates...</div></div></div>';
+
+    // Fetch templates from API, fall back to built-in templates
+    fetchTemplates().then(function(listings) {
+      if (cancelled) return;
+      if (listings && listings.length > 0) {
+        templates = listings.map(function(l) {
+          return {
+            id: l.id,
+            name: l.title,
+            desc: l.description || '',
+            category: l.category || 'General',
+            gradient: l.gradient || generateGradient(l.id),
+            tech: l.tags || [],
+            diff: 'beginner',
+            uses: l.use_count || 0,
+            isNew: false,
+          };
+        });
+      } else {
+        // Use built-in fallback templates when marketplace is empty
+        templates = FALLBACK_TEMPLATES;
+      }
+      renderTemplates();
+    }).catch(function() {
+      if (cancelled) return;
+      // Use built-in fallback templates on error
+      templates = FALLBACK_TEMPLATES;
+      renderTemplates();
+    });
 
     var chipsClickHandler = function(e) {
       var chip = (e.target as HTMLElement).closest('.filter-chip');
       if (!chip) return;
-      chips.querySelectorAll('.filter-chip').forEach(function(c) { c.classList.remove('active'); });
+      if (chips) chips.querySelectorAll('.filter-chip').forEach(function(c) { c.classList.remove('active'); });
       chip.classList.add('active');
       activeCategory = (chip as HTMLElement).dataset.category;
       renderTemplates();
     };
-    chips.addEventListener('click', chipsClickHandler);
+    if (chips) chips.addEventListener('click', chipsClickHandler);
 
     var inputHandler = function() { renderTemplates(); };
-    searchInput.addEventListener('input', inputHandler);
-
-    renderTemplates();
+    if (searchInput) searchInput.addEventListener('input', inputHandler);
 
     return () => {
-      chips.removeEventListener('click', chipsClickHandler);
-      searchInput.removeEventListener('input', inputHandler);
+      cancelled = true;
+      if (chips) chips.removeEventListener('click', chipsClickHandler);
+      if (searchInput) searchInput.removeEventListener('input', inputHandler);
     };
   }, []);
 
@@ -77,14 +123,14 @@ export default function TemplatesTab() {
       </div>
       <div className="filter-chips stagger-2" id="templateFilters">
         <button className="filter-chip active" data-category="All">All</button>
-        <button className="filter-chip" data-category="Landing Pages">Landing Pages</button>
-        <button className="filter-chip" data-category="SaaS">SaaS</button>
+        <button className="filter-chip" data-category="Marketing">Marketing</button>
+        <button className="filter-chip" data-category="Personal">Personal</button>
         <button className="filter-chip" data-category="E-commerce">E-commerce</button>
-        <button className="filter-chip" data-category="Dashboard">Dashboard</button>
-        <button className="filter-chip" data-category="Portfolio">Portfolio</button>
-        <button className="filter-chip" data-category="Blog">Blog</button>
-        <button className="filter-chip" data-category="Mobile">Mobile</button>
-        <button className="filter-chip" data-category="AI/ML">AI/ML</button>
+        <button className="filter-chip" data-category="Content">Content</button>
+        <button className="filter-chip" data-category="Application">Application</button>
+        <button className="filter-chip" data-category="Developer">Developer</button>
+        <button className="filter-chip" data-category="Food & Drink">Food & Drink</button>
+        <button className="filter-chip" data-category="Health">Health</button>
       </div>
       <div className="template-grid" id="templateGrid"></div>
     </div>

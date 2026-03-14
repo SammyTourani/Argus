@@ -3,6 +3,7 @@
 
 import { useEffect } from 'react';
 import { showToast } from './workspace-state';
+import { fetchReferralStats } from './workspace-api';
 
 export default function ReferralModal() {
   // ===== initReferralModal =====
@@ -114,7 +115,21 @@ export default function ReferralModal() {
     }
     linkInput.addEventListener('click', handleInputClick);
 
+    // Fetch referral stats and code from API
+    var cancelled = false;
+    fetchReferralStats().then(function(data) {
+      if (cancelled || !data) return;
+      if (data.referral_url) linkInput!.value = data.referral_url;
+      var signedUpEl = document.getElementById('referralSignedUp');
+      var convertedEl = document.getElementById('referralConverted');
+      if (signedUpEl && data.stats) signedUpEl.textContent = String(data.stats.signed_up || 0);
+      if (convertedEl && data.stats) convertedEl.textContent = String(data.stats.converted || 0);
+      var buildsEarnedEl = document.getElementById('referralBuildsEarned');
+      if (buildsEarnedEl) buildsEarnedEl.textContent = String(data.total_builds_earned || 0);
+    }).catch(function() {});
+
     return () => {
+      cancelled = true;
       shareBtn!.removeEventListener('click', handleShareClick);
       closeBtn!.removeEventListener('click', handleCloseClick);
       backdrop!.removeEventListener('click', handleBackdropClick);
@@ -139,7 +154,7 @@ export default function ReferralModal() {
 
         {/* Hero */}
         <div className="referral-hero">
-          <img src="assets/official_eye.png" alt="" className="referral-hero-eye" aria-hidden="true" />
+          <img src="/argus-assets/official_eye.png" alt="" className="referral-hero-eye" aria-hidden="true" />
           <div className="referral-hero-glow"></div>
           <div className="referral-hero-gradient"></div>
           <div className="referral-hero-badge">
@@ -206,6 +221,10 @@ export default function ReferralModal() {
             <div className="referral-stat">
               <span className="referral-stat-value" id="referralConverted">0</span> converted
             </div>
+            <div className="referral-stat-dot"></div>
+            <div className="referral-stat">
+              <span className="referral-stat-value" id="referralBuildsEarned">0</span> builds earned
+            </div>
           </div>
 
           {/* Link copy */}
@@ -214,7 +233,7 @@ export default function ReferralModal() {
               type="text"
               className="referral-link-input"
               id="referralLinkInput"
-              defaultValue="https://buildargus.dev/invite/SAMMY2024"
+              defaultValue="https://buildargus.dev/invite/..."
               readOnly
             />
             <button className="referral-copy-btn" id="referralCopyBtn">

@@ -257,7 +257,7 @@ export default function PublishButton({
       <div className="relative flex flex-col items-end gap-1.5">
         <div className="flex items-center gap-1">
           {/* Environment selector stub */}
-          <div className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[10px] font-mono text-[#555] border border-[rgba(255,255,255,0.06)] bg-[#0E0E0E]">
+          <div className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[10px] font-mono text-[var(--editor-fg-dim)] border border-[var(--editor-border-faint)] bg-[var(--editor-bg-surface)]">
             <Globe className="w-3 h-3" />
             <span className="capitalize">{environment}</span>
           </div>
@@ -265,7 +265,7 @@ export default function PublishButton({
           {/* History button */}
           <button
             onClick={() => setHistoryOpen(true)}
-            className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-mono text-[#888] hover:text-white border border-[rgba(255,255,255,0.08)] hover:border-[rgba(255,255,255,0.15)] transition-colors"
+            className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-sans text-[var(--editor-fg-muted)] hover:text-white border border-[var(--editor-border)] hover:border-[var(--editor-border-hover)] transition-colors"
             title="View deploy history"
           >
             <History className="w-3.5 h-3.5" />
@@ -276,10 +276,10 @@ export default function PublishButton({
             onClick={state === 'error' ? handleRetry : handlePublish}
             disabled={false}
             className={cn(
-              'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono text-white transition-colors',
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-sans text-white transition-colors',
               state === 'error'
                 ? 'bg-red-600/80 hover:bg-red-600'
-                : 'bg-[#FA4500] hover:bg-[#E63F00]'
+                : 'bg-[var(--editor-accent)] hover:bg-[var(--editor-accent-hover)]'
             )}
           >
             {state === 'error' ? (
@@ -301,7 +301,7 @@ export default function PublishButton({
             >
               <div className="flex items-start gap-2">
                 <AlertCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0 mt-0.5" />
-                <p className="text-[11px] font-mono text-red-300 leading-relaxed">
+                <p className="text-[11px] font-sans text-red-300 leading-relaxed">
                   {errorMessage}
                 </p>
               </div>
@@ -326,7 +326,7 @@ export default function PublishButton({
       <div className="relative flex flex-col items-end gap-1.5">
         <button
           disabled
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono text-white bg-[#FA4500]/60 cursor-not-allowed"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-sans text-white bg-[var(--editor-accent-60)] cursor-not-allowed"
         >
           <Loader2 className="w-3.5 h-3.5 animate-spin" />
           Deploying...
@@ -336,7 +336,7 @@ export default function PublishButton({
         <motion.div
           initial={{ opacity: 0, y: -4, scale: 0.97 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          className="absolute top-full mt-2 right-0 w-56 bg-[#111] border border-[rgba(255,255,255,0.08)] rounded-xl p-3 z-50 shadow-2xl"
+          className="absolute top-full mt-2 right-0 w-56 bg-[var(--editor-bg-elevated)] border border-[var(--editor-border)] rounded-xl p-3 z-50 shadow-2xl shadow-black/50"
         >
           <div className="flex flex-col gap-2">
             {steps.map((step, i) => (
@@ -345,19 +345,19 @@ export default function PublishButton({
                   {step.done ? (
                     <Check className="w-3 h-3 text-green-400" />
                   ) : step.active ? (
-                    <Loader2 className="w-3 h-3 text-[#FA4500] animate-spin" />
+                    <Loader2 className="w-3 h-3 text-[var(--editor-accent)] animate-spin" />
                   ) : (
-                    <div className="w-1.5 h-1.5 rounded-full bg-[#333]" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-[var(--editor-border)]" />
                   )}
                 </div>
                 <span
                   className={cn(
-                    'text-[11px] font-mono',
+                    'text-[11px] font-sans',
                     step.done
                       ? 'text-green-400'
                       : step.active
-                      ? 'text-[#FA4500]'
-                      : 'text-[#555]',
+                      ? 'text-[var(--editor-accent)]'
+                      : 'text-[var(--editor-fg-dim)]',
                     i === steps.length - 1 &&
                       (step.done || step.active) &&
                       '!text-green-400'
@@ -371,12 +371,12 @@ export default function PublishButton({
 
           {/* Show URL immediately if available (before READY) */}
           {deployUrl && (
-            <div className="mt-2.5 pt-2.5 border-t border-[rgba(255,255,255,0.06)]">
+            <div className="mt-2.5 pt-2.5 border-t border-[var(--editor-border-faint)]">
               <a
                 href={deployUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-[10px] font-mono text-[#666] hover:text-white transition-colors truncate"
+                className="flex items-center gap-1.5 text-[10px] font-mono text-[var(--editor-fg-tertiary)] hover:text-white transition-colors truncate"
                 title={deployUrl}
               >
                 <ExternalLink className="w-2.5 h-2.5 flex-shrink-0" />
@@ -396,7 +396,7 @@ export default function PublishButton({
         {/* History button */}
         <button
           onClick={() => setHistoryOpen(true)}
-          className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-mono text-[#888] hover:text-white border border-[rgba(255,255,255,0.08)] hover:border-[rgba(255,255,255,0.15)] transition-colors"
+          className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-sans text-[var(--editor-fg-muted)] hover:text-white border border-[var(--editor-border)] hover:border-[var(--editor-border-hover)] transition-colors"
           title="View deploy history"
         >
           <History className="w-3.5 h-3.5" />
@@ -405,7 +405,7 @@ export default function PublishButton({
         {/* Copy URL */}
         <button
           onClick={handleCopyUrl}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-mono text-[#888] hover:text-white border border-[rgba(255,255,255,0.08)] hover:border-[rgba(255,255,255,0.15)] transition-colors"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-sans text-[var(--editor-fg-muted)] hover:text-white border border-[var(--editor-border)] hover:border-[var(--editor-border-hover)] transition-colors"
           title="Copy deployment URL"
         >
           {copied ? (
@@ -421,7 +421,7 @@ export default function PublishButton({
             href={deployUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-mono text-green-400 hover:text-green-300 border border-green-900/40 hover:border-green-700/60 transition-colors"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-sans text-green-400 hover:text-green-300 border border-green-900/40 hover:border-green-700/60 transition-colors"
             title="Open deployed app"
           >
             <ExternalLink className="w-3.5 h-3.5" />
@@ -432,7 +432,7 @@ export default function PublishButton({
         {/* Live button + deploy again */}
         <button
           onClick={handleRetry}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono text-white bg-green-700 hover:bg-green-600 transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-sans text-white bg-green-700 hover:bg-green-600 transition-colors"
         >
           <Check className="w-3.5 h-3.5" />
           Live
@@ -451,8 +451,8 @@ export default function PublishButton({
             {/* Duration badge */}
             {deployDuration && (
               <div className="flex items-center justify-end gap-1.5">
-                <Clock className="w-3 h-3 text-[#555]" />
-                <span className="text-[10px] font-mono text-[#555]">
+                <Clock className="w-3 h-3 text-[var(--editor-fg-dim)]" />
+                <span className="text-[10px] font-mono text-[var(--editor-fg-dim)]">
                   Deployed in {formatDuration(deployDuration)}
                 </span>
               </div>
@@ -464,7 +464,7 @@ export default function PublishButton({
             ) : (
               <button
                 onClick={() => setShowDomainInput(true)}
-                className="flex items-center gap-1.5 text-[10px] font-mono text-[#444] hover:text-[#888] transition-colors self-end"
+                className="flex items-center gap-1.5 text-[10px] font-sans text-[var(--editor-fg-ghost)] hover:text-[var(--editor-fg-muted)] transition-colors self-end"
               >
                 <Globe className="w-3 h-3" />
                 Add custom domain

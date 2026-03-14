@@ -97,7 +97,15 @@ export default function ProjectDetailPage() {
 
   useEffect(() => {
     fetchProjectData();
-  }, [fetchProjectData]);
+    // Record this project view for "recently viewed"
+    if (projectId) {
+      fetch('/api/user/recents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project_id: projectId }),
+      }).catch(function() {});
+    }
+  }, [fetchProjectData, projectId]);
 
   const gradientPlaceholders = [
     'from-orange-400 to-rose-500',

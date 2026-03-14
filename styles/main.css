@@ -6,6 +6,7 @@
 /* Additional styles */
 @import "additional-styles/utility-patterns.css";
 @import "additional-styles/theme.css";
+@import "./editor-v2.css";
 
 @tailwind base;
 @tailwind components;

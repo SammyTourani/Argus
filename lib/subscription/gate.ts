@@ -141,42 +141,12 @@ export async function getUserSubscriptionGate(userId: string): Promise<Subscript
 }
 
 /**
- * Increment the user's builds_this_month counter by 1.
+ * Increment the user's builds_this_month counter by 1 atomically.
+ * Uses a Postgres RPC function to prevent race conditions from concurrent builds.
  * Call this AFTER a successful build/generation starts.
  */
 export async function incrementBuildCount(userId: string): Promise<void> {
   const supabase = getSupabaseAdmin();
-
-  // Use raw SQL increment via RPC if available, else read-modify-write
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('builds_this_month, builds_reset_at')
-    .eq('id', userId)
-    .single();
-
-  if (!profile) return;
-
-  const now = new Date();
-  const buildsResetAt = profile.builds_reset_at ? new Date(profile.builds_reset_at) : null;
-
-  // If reset date passed, reset to 1 (this build) and set new reset
-  if (buildsResetAt && buildsResetAt <= now) {
-    const nextReset = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
-    await supabase
-      .from('profiles')
-      .update({
-        builds_this_month: 1,
-        builds_reset_at: nextReset,
-        updated_at: now.toISOString(),
-      })
-      .eq('id', userId);
-  } else {
-    await supabase
-      .from('profiles')
-      .update({
-        builds_this_month: (profile.builds_this_month ?? 0) + 1,
-        updated_at: now.toISOString(),
-      })
-      .eq('id', userId);
-  }
+  const { error } = await supabase.rpc('increment_build_count', { p_user_id: userId });
+  if (error) console.error('[incrementBuildCount] RPC error:', error);
 }

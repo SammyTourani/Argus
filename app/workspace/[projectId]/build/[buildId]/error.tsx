@@ -29,24 +29,24 @@ export default function BuildError({
   }, [error, projectId]);
 
   return (
-    <div className="min-h-screen bg-[#080808] flex flex-col items-center justify-center text-center px-6">
+    <div className="editor-root min-h-screen bg-[var(--editor-bg-deep)] flex flex-col items-center justify-center text-center px-6">
       {/* Icon */}
       <div className="rounded-2xl bg-red-500/10 p-4 mb-6">
         <ShieldAlert className="w-8 h-8 text-red-400" />
       </div>
 
       {/* Status code */}
-      <div className="text-[#FA4500] text-xs font-mono mb-3 tracking-wider">
+      <div className="text-[var(--editor-accent)] text-xs font-mono mb-3 tracking-wider">
         BUILD ERROR
       </div>
 
       {/* Heading */}
-      <h1 className="text-2xl font-semibold text-white mb-3">
+      <h1 className="text-2xl font-sans font-semibold text-white mb-3">
         Something went wrong in the builder
       </h1>
 
       {/* Description */}
-      <p className="text-white/50 text-sm max-w-md mb-2">
+      <p className="text-white/50 text-sm font-sans max-w-md mb-2">
         The builder encountered an error. Your code and project are safe — try
         refreshing or return to your workspace.
       </p>
@@ -62,8 +62,7 @@ export default function BuildError({
       <div className="flex items-center gap-3">
         <button
           onClick={reset}
-          className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium text-white transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
-          style={{ background: '#FA4500' }}
+          className="inline-flex items-center gap-2 rounded-xl bg-[var(--editor-accent)] hover:bg-[var(--editor-accent-hover)] px-5 py-2.5 text-sm font-sans font-medium text-white transition-all duration-200 active:scale-[0.98]"
         >
           <RefreshCw className="w-4 h-4" />
           Try again
@@ -71,7 +70,7 @@ export default function BuildError({
 
         <Link
           href={projectId ? `/workspace/${projectId}` : '/workspace'}
-          className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-5 py-2.5 text-sm font-medium text-white/70 transition-colors hover:bg-white/15 hover:text-white"
+          className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-5 py-2.5 text-sm font-sans font-medium text-white/70 transition-colors hover:bg-white/15 hover:text-white"
         >
           <ArrowLeft className="w-4 h-4" />
           Return to workspace

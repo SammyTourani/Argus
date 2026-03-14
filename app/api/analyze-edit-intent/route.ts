@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { generateObject } from 'ai';
 import { z } from 'zod';
 import { getProviderForModel } from '@/lib/ai/provider-manager';
+import { getUserApiKey } from '@/lib/ai/user-key-resolver';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { checkRateLimit } from '@/lib/ratelimit';
@@ -109,8 +110,10 @@ export async function POST(request: NextRequest) {
     console.log('[analyze-edit-intent] Analyzing prompt:', prompt);
     console.log('[analyze-edit-intent] File summary preview:', fileSummary.split('\n').slice(0, 5).join('\n'));
     
-    // Select the appropriate AI model using centralized provider-manager
-    const { client: resolvedProvider, actualModel: resolvedModel } = getProviderForModel(model);
+    // Select the appropriate AI model using centralized provider-manager (with BYOK if available)
+    const userApiKey = await getUserApiKey(user.id, model);
+    const byokOptions = userApiKey ? { apiKey: userApiKey } : undefined;
+    const { client: resolvedProvider, actualModel: resolvedModel } = getProviderForModel(model, byokOptions);
     const aiModel = resolvedProvider(resolvedModel);
     
     console.log('[analyze-edit-intent] Using AI model:', model);

@@ -93,6 +93,20 @@
     .workspace-root.dark .carousel-fade-left { background: linear-gradient(to right, #0f0f0f 0%, #0f0f0f 20%, transparent 100%); }
     .workspace-root.dark .carousel-fade-right { background: linear-gradient(to left, #0f0f0f 0%, #0f0f0f 20%, transparent 100%); }
 
+    /* --- Dark mode: result overlay refinement --- */
+    .workspace-root.dark .result-overlay {
+      background: linear-gradient(to top, rgba(0, 0, 0, 0.92), rgba(0, 0, 0, 0.55) 50%, rgba(0, 0, 0, 0.35));
+    }
+    .workspace-root.dark .result-overlay-title { color: #f5f5f5; }
+    .workspace-root.dark .result-overlay-sub { color: rgba(255, 255, 255, 0.6); }
+
+    /* --- Dark mode: instruction button --- */
+    .workspace-root.dark .btn-instructions { background: rgba(255, 255, 255, 0.12); color: #e0e0e0; }
+    .workspace-root.dark .btn-instructions:hover { background: rgba(255, 255, 255, 0.2); }
+
+    /* --- Dark mode: carousel inner --- */
+    .workspace-root.dark .carousel-inner { background: var(--bg-100); }
+
     /* --- Dark mode: toast --- */
     .workspace-root.dark .toast { background: #f5f5f5; color: #0f0f0f; }
     .workspace-root.dark .toast.error { background: #e74c3c; color: white; }
@@ -3777,7 +3791,14 @@
     .back-btn svg { width: 16px; height: 16px; }
 
     /* ===== PRICING OVERLAY ===== */
+    /* Override workspace color vars with neutral palette for pricing cards */
     .pricing-overlay {
+      --fg-100: #1a1a1a;
+      --fg-300: #666;
+      --fg-muted: #999;
+      --border-100: #e5e5e5;
+      --border-200: #d0d0d0;
+
       position: fixed;
       inset: 0;
       z-index: 10;

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { streamText } from 'ai';
 import { getProviderForModel } from '@/lib/ai/provider-manager';
+import { getUserApiKey } from '@/lib/ai/user-key-resolver';
 import { streamWithFallback, DEFAULT_FALLBACK_CHAIN } from '@/lib/ai/fallback-chain';
 import type { SandboxState } from '@/types/sandbox';
 import { selectFilesForEdit, getFileContents, formatFilesForAI } from '@/lib/context-selector';
@@ -137,6 +138,11 @@ export async function POST(request: NextRequest) {
       );
     }
     const { context, isEdit = false, lockedFiles = [], chatMode = 'build', promptVariant, designScheme } = rawBody;
+
+    // BYOK: resolve user's own API key for this model (null = use server key)
+    const userApiKey = await getUserApiKey(user.id, model);
+    const byokOptions = userApiKey ? { apiKey: userApiKey } : undefined;
+    if (userApiKey) console.log('[generate-ai-code-stream] Using BYOK key for provider');
 
     console.log('[generate-ai-code-stream] Received request (user:', user.id, '):');
     console.log('[generate-ai-code-stream] - prompt length:', prompt.length);
@@ -1289,7 +1295,7 @@ MORPH FAST APPLY MODE (EDIT-ONLY):
         const packagesToInstall: string[] = [];
         
         // Resolve provider using centralized provider-manager
-        const { client: modelProvider, actualModel: resolvedModel } = getProviderForModel(model);
+        const { client: modelProvider, actualModel: resolvedModel } = getProviderForModel(model, byokOptions);
         let actualModel = resolvedModel;
         const isAnthropic = model.startsWith('anthropic/');
         const isGoogle = model.startsWith('google/');
@@ -1393,7 +1399,7 @@ It's better to have 3 complete files than 10 incomplete files.`
             },
             async (fallbackModelId: string) => {
               // Resolve provider for this fallback model
-              const { client: fbProvider, actualModel: fbModel } = getProviderForModel(fallbackModelId);
+              const { client: fbProvider, actualModel: fbModel } = getProviderForModel(fallbackModelId, byokOptions);
               streamOptions.model = fbProvider(fbModel);
 
               // Adjust temperature for reasoning models
@@ -1413,7 +1419,7 @@ It's better to have 3 complete files than 10 incomplete files.`
               sendProgress({ type: 'info', message: `${fromModel} unavailable, trying ${toModel}...` });
             }
           );
-          actualModel = getProviderForModel(fallbackResult.usedModel).actualModel;
+          actualModel = getProviderForModel(fallbackResult.usedModel, byokOptions).actualModel;
         } catch (finalError: any) {
           await sendProgress({
             type: 'error',
@@ -1783,7 +1789,7 @@ Original request: ${prompt}
 Provide the complete file content without any truncation. Include all necessary imports, complete all functions, and close all tags properly.`;
                 
                 // Make a focused API call to complete this specific file
-                const { client: completionClient, actualModel: completionModelName } = getProviderForModel(model);
+                const { client: completionClient, actualModel: completionModelName } = getProviderForModel(model, byokOptions);
 
                 const completionResult = await streamText({
                   model: completionClient(completionModelName),

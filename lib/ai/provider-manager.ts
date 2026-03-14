@@ -76,12 +76,17 @@ function getOrCreateClient(provider: ProviderName, apiKey?: string, baseURL?: st
   return client;
 }
 
-export function getProviderForModel(modelId: string): ProviderResolution {
+export function getProviderForModel(
+  modelId: string,
+  options?: { apiKey?: string },
+): ProviderResolution {
+  const userApiKey = options?.apiKey;
+
   // 1) Check explicit model configuration in app config (custom models)
   const configured = appConfig.ai.modelApiConfig?.[modelId as keyof typeof appConfig.ai.modelApiConfig];
   if (configured) {
     const { provider, apiKey, baseURL, model } = configured as { provider: ProviderName; apiKey?: string; baseURL?: string; model: string };
-    const client = getOrCreateClient(provider, apiKey, baseURL);
+    const client = getOrCreateClient(provider, userApiKey || apiKey, baseURL);
     return { client, actualModel: model };
   }
 
@@ -92,27 +97,27 @@ export function getProviderForModel(modelId: string): ProviderResolution {
   const isKimiGroq = modelId === 'moonshotai/kimi-k2-instruct-0905';
 
   if (isKimiGroq) {
-    const client = getOrCreateClient('groq');
+    const client = getOrCreateClient('groq', userApiKey);
     return { client, actualModel: 'moonshotai/kimi-k2-instruct-0905' };
   }
 
   if (isAnthropic) {
-    const client = getOrCreateClient('anthropic');
+    const client = getOrCreateClient('anthropic', userApiKey);
     return { client, actualModel: modelId.replace('anthropic/', '') };
   }
 
   if (isOpenAI) {
-    const client = getOrCreateClient('openai');
+    const client = getOrCreateClient('openai', userApiKey);
     return { client, actualModel: modelId.replace('openai/', '') };
   }
 
   if (isGoogle) {
-    const client = getOrCreateClient('google');
+    const client = getOrCreateClient('google', userApiKey);
     return { client, actualModel: modelId.replace('google/', '') };
   }
 
   // Default: use Groq with modelId as-is
-  const client = getOrCreateClient('groq');
+  const client = getOrCreateClient('groq', userApiKey);
   return { client, actualModel: modelId };
 }
 

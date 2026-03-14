@@ -90,20 +90,20 @@ export default function DesignSchemePanel({
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="border-b border-[rgba(255,255,255,0.06)]">
+    <div className="border-b border-[var(--editor-border-faint)]">
       {/* Header / toggle */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between px-4 py-3 hover:bg-[#0E0E0E] transition-colors"
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-[var(--editor-bg-surface)] transition-colors"
       >
         <div className="flex items-center gap-2">
-          <Palette className="w-4 h-4 text-[#FA4500]" />
-          <span className="text-sm font-mono text-white">Design Scheme</span>
+          <Palette className="w-4 h-4 text-[var(--editor-accent)]" />
+          <span className="text-sm font-sans text-white">Design Scheme</span>
         </div>
         {expanded ? (
-          <ChevronDown className="w-4 h-4 text-[#666]" />
+          <ChevronDown className="w-4 h-4 text-[var(--editor-fg-tertiary)]" />
         ) : (
-          <ChevronRight className="w-4 h-4 text-[#666]" />
+          <ChevronRight className="w-4 h-4 text-[var(--editor-fg-tertiary)]" />
         )}
       </button>
 
@@ -116,7 +116,7 @@ export default function DesignSchemePanel({
                 <button
                   key={name}
                   onClick={() => applyPreset(name)}
-                  className="px-2.5 py-1 rounded-md text-[11px] font-mono border border-[rgba(255,255,255,0.08)] bg-[#161616] hover:bg-[#1A1A1A] text-[#888] hover:text-white transition-colors capitalize"
+                  className="px-2.5 py-1 rounded-md text-[11px] font-sans border border-[var(--editor-border)] bg-[var(--editor-bg-elevated)] hover:bg-[var(--editor-bg-card)] text-[var(--editor-fg-muted)] hover:text-white transition-colors capitalize"
                 >
                   {name}
                 </button>
@@ -131,10 +131,10 @@ export default function DesignSchemePanel({
                 <button
                   key={opt.value}
                   onClick={() => updateScheme({ style: opt.value })}
-                  className={`px-2.5 py-1.5 rounded-md text-[11px] font-mono border transition-colors ${
+                  className={`px-2.5 py-1.5 rounded-md text-[11px] font-sans border transition-colors ${
                     scheme.style === opt.value
-                      ? 'border-[#FA4500] bg-[rgba(250,69,0,0.08)] text-[#FA4500]'
-                      : 'border-[rgba(255,255,255,0.08)] bg-[#161616] hover:bg-[#1A1A1A] text-[#888] hover:text-white'
+                      ? 'border-[var(--editor-accent)] bg-[var(--editor-accent-8)] text-[var(--editor-accent)]'
+                      : 'border-[var(--editor-border)] bg-[var(--editor-bg-elevated)] hover:bg-[var(--editor-bg-card)] text-[var(--editor-fg-muted)] hover:text-white'
                   }`}
                 >
                   {opt.label}
@@ -188,10 +188,10 @@ export default function DesignSchemePanel({
                 <button
                   key={opt.value}
                   onClick={() => updateScheme({ borderRadius: opt.value })}
-                  className={`px-2.5 py-1 rounded-md text-[11px] font-mono border transition-colors ${
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-sans border transition-colors ${
                     scheme.borderRadius === opt.value
-                      ? 'border-[#FA4500] bg-[rgba(250,69,0,0.08)] text-[#FA4500]'
-                      : 'border-[rgba(255,255,255,0.08)] bg-[#161616] hover:bg-[#1A1A1A] text-[#888] hover:text-white'
+                      ? 'border-[var(--editor-accent)] bg-[var(--editor-accent-8)] text-[var(--editor-accent)]'
+                      : 'border-[var(--editor-border)] bg-[var(--editor-bg-elevated)] hover:bg-[var(--editor-bg-card)] text-[var(--editor-fg-muted)] hover:text-white'
                   }`}
                 >
                   {opt.label}
@@ -204,7 +204,7 @@ export default function DesignSchemePanel({
           <div className="flex items-center gap-2 pt-1">
             <button
               onClick={resetToDefault}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] font-mono border border-[rgba(255,255,255,0.08)] bg-[#161616] hover:bg-[#1A1A1A] text-[#888] hover:text-white transition-colors"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] font-sans border border-[var(--editor-border)] bg-[var(--editor-bg-elevated)] hover:bg-[var(--editor-bg-card)] text-[var(--editor-fg-muted)] hover:text-white transition-colors"
             >
               <RotateCcw className="w-3 h-3" />
               Reset
@@ -213,7 +213,7 @@ export default function DesignSchemePanel({
             {sourceUrl && onExtractFromUrl && (
               <button
                 onClick={() => onExtractFromUrl(sourceUrl)}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] font-mono border border-[rgba(255,255,255,0.08)] bg-[#161616] hover:bg-[#1A1A1A] text-[#888] hover:text-white transition-colors"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] font-sans border border-[var(--editor-border)] bg-[var(--editor-bg-elevated)] hover:bg-[var(--editor-bg-card)] text-[var(--editor-fg-muted)] hover:text-white transition-colors"
               >
                 <Pipette className="w-3 h-3" />
                 Extract from URL
@@ -233,7 +233,7 @@ export default function DesignSchemePanel({
 function Section({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <div className="text-[11px] font-mono uppercase tracking-wider text-[#666] mb-2">
+      <div className="text-[11px] font-sans uppercase tracking-wider text-[var(--editor-fg-tertiary)] mb-2">
         {label}
       </div>
       {children}
@@ -252,7 +252,7 @@ function ColorPicker({
 }) {
   return (
     <label className="flex items-center gap-2 group cursor-pointer">
-      <div className="relative w-6 h-6 rounded-md overflow-hidden border border-[rgba(255,255,255,0.08)] flex-shrink-0">
+      <div className="relative w-6 h-6 rounded-md overflow-hidden border border-[var(--editor-border)] flex-shrink-0">
         <input
           type="color"
           value={value}
@@ -262,10 +262,10 @@ function ColorPicker({
         <div className="w-full h-full" style={{ backgroundColor: value }} />
       </div>
       <div className="flex flex-col min-w-0">
-        <span className="text-[11px] font-mono text-[#888] group-hover:text-white transition-colors truncate">
+        <span className="text-[11px] font-sans text-[var(--editor-fg-muted)] group-hover:text-white transition-colors truncate">
           {label}
         </span>
-        <span className="text-[10px] font-mono text-[#555] uppercase">
+        <span className="text-[10px] font-mono text-[var(--editor-fg-dim)] uppercase">
           {value}
         </span>
       </div>
@@ -286,13 +286,13 @@ function FontSelect({
 }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="text-[11px] font-mono text-[#666] w-16 flex-shrink-0">
+      <span className="text-[11px] font-sans text-[var(--editor-fg-tertiary)] w-16 flex-shrink-0">
         {label}
       </span>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="flex-1 bg-[#161616] border border-[rgba(255,255,255,0.08)] rounded-md px-2 py-1.5 text-[11px] font-mono text-white outline-none focus:border-[#FA4500] transition-colors appearance-none cursor-pointer"
+        className="flex-1 bg-[var(--editor-bg-elevated)] border border-[var(--editor-border)] rounded-md px-2 py-1.5 text-[11px] font-sans text-white outline-none focus:border-[var(--editor-accent)] transition-colors appearance-none cursor-pointer"
       >
         {/* Always include the current value even if it's not in our options list */}
         {!options.includes(value) && (

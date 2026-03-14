@@ -22,11 +22,11 @@ interface BuildStatusBarProps {
 }
 
 const STATUS_CONFIG: Record<BuildStatus, { icon: typeof Zap; color: string; label: string }> = {
-  idle: { icon: Code2, color: '#555', label: 'Ready' },
-  generating: { icon: Loader2, color: '#FA4500', label: 'Generating' },
-  applying: { icon: Loader2, color: '#3B82F6', label: 'Applying' },
-  success: { icon: CheckCircle, color: '#22C55E', label: 'Done' },
-  error: { icon: AlertCircle, color: '#EF4444', label: 'Error' },
+  idle: { icon: Code2, color: 'var(--editor-fg-dim)', label: 'Ready' },
+  generating: { icon: Loader2, color: 'var(--editor-accent)', label: 'Generating' },
+  applying: { icon: Loader2, color: 'var(--editor-info)', label: 'Applying' },
+  success: { icon: CheckCircle, color: 'var(--editor-success)', label: 'Done' },
+  error: { icon: AlertCircle, color: 'var(--editor-error)', label: 'Error' },
 };
 
 function formatMs(ms: number): string {
@@ -57,14 +57,14 @@ export default function BuildStatusBar({
   }, [isLoading]);
 
   return (
-    <div className="flex items-center h-7 px-4 border-t border-[rgba(255,255,255,0.04)] bg-[#080808] text-[11px] font-mono flex-shrink-0">
+    <div className="flex items-center h-7 px-4 border-t border-[var(--editor-border-faint)] bg-[var(--editor-bg-deep)] text-[11px] font-mono flex-shrink-0">
       {/* Status indicator */}
       <div className="flex items-center gap-1.5 mr-4">
         <Icon
           className={cn('w-3 h-3', isLoading && 'animate-spin')}
           style={{ color: config.color }}
         />
-        <span style={{ color: config.color }}>{config.label}</span>
+        <span className="font-sans" style={{ color: config.color }}>{config.label}</span>
         {isLoading && <span style={{ color: config.color }}>{dots}</span>}
       </div>
 
@@ -76,7 +76,7 @@ export default function BuildStatusBar({
             initial={{ opacity: 0, x: 5 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0 }}
-            className="text-[#555] mr-4 truncate max-w-[300px]"
+            className="text-[var(--editor-fg-dim)] font-sans mr-4 truncate max-w-[300px]"
           >
             {message}
           </motion.span>
@@ -84,14 +84,14 @@ export default function BuildStatusBar({
       </AnimatePresence>
 
       {errorMessage && (
-        <span className="text-red-400 truncate max-w-[300px] mr-4">{errorMessage}</span>
+        <span className="text-red-400 font-sans truncate max-w-[300px] mr-4">{errorMessage}</span>
       )}
 
       {/* Spacer */}
       <div className="flex-1" />
 
       {/* Stats */}
-      <div className="flex items-center gap-4 text-[#444]">
+      <div className="flex items-center gap-4 text-[var(--editor-fg-ghost)]">
         {filesChanged !== undefined && filesChanged > 0 && (
           <div className="flex items-center gap-1">
             <Code2 className="w-3 h-3" />

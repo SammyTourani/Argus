@@ -68,7 +68,12 @@ export function createMockSupabase() {
           const [col, val] = _args;
           filteredRows = filteredRows.filter((r) => r[col as string] === val);
         }
-        return { ...chain, ...terminalMethods };
+        return {
+          ...chain,
+          ...terminalMethods,
+          then: (resolve: (v: unknown) => void) =>
+            resolve({ data: filteredRows, error: tableData.error }),
+        };
       });
     }
 

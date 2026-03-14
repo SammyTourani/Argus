@@ -67,7 +67,7 @@ function statusBadge(status: string) {
   if (normalized === 'building' || normalized === 'deploying' || normalized === 'initializing') {
     return {
       label: 'Building',
-      color: 'text-[#FA4500] bg-[#FA4500]/10 border-[#FA4500]/30',
+      color: 'text-[var(--editor-accent)] bg-[var(--editor-accent-10)] border-[var(--editor-accent-30)]',
       icon: Loader2,
     };
   }
@@ -80,7 +80,7 @@ function statusBadge(status: string) {
   }
   return {
     label: status,
-    color: 'text-[#888] bg-[#888]/10 border-[rgba(255,255,255,0.08)]',
+    color: 'text-[var(--editor-fg-muted)] bg-[var(--editor-fg-muted)]/10 border-[var(--editor-border)]',
     icon: Clock,
   };
 }
@@ -92,14 +92,14 @@ function DeployHistorySkeleton() {
       {[0, 1, 2].map((i) => (
         <div
           key={i}
-          className="flex items-center gap-3 p-3 rounded-lg bg-[#0E0E0E] animate-pulse"
+          className="flex items-center gap-3 p-3 rounded-lg bg-[var(--editor-bg-surface)] animate-pulse"
         >
-          <div className="w-8 h-8 rounded-lg bg-[#1A1A1A]" />
+          <div className="w-8 h-8 rounded-lg bg-[var(--editor-bg-card)]" />
           <div className="flex-1 space-y-1.5">
-            <div className="h-3 w-20 rounded bg-[#1A1A1A]" />
-            <div className="h-2.5 w-32 rounded bg-[#1A1A1A]" />
+            <div className="h-3 w-20 rounded bg-[var(--editor-bg-card)]" />
+            <div className="h-2.5 w-32 rounded bg-[var(--editor-bg-card)]" />
           </div>
-          <div className="h-5 w-12 rounded-full bg-[#1A1A1A]" />
+          <div className="h-5 w-12 rounded-full bg-[var(--editor-bg-card)]" />
         </div>
       ))}
     </div>
@@ -110,12 +110,12 @@ function DeployHistorySkeleton() {
 function DeployHistoryEmpty() {
   return (
     <div className="flex flex-col items-center justify-center py-10 gap-3">
-      <div className="w-10 h-10 rounded-xl bg-[#1A1A1A] flex items-center justify-center">
-        <Rocket className="w-5 h-5 text-[#555]" />
+      <div className="w-10 h-10 rounded-xl bg-[var(--editor-bg-card)] flex items-center justify-center">
+        <Rocket className="w-5 h-5 text-[var(--editor-fg-dim)]" />
       </div>
       <div className="text-center">
-        <p className="text-xs font-mono text-[#888]">No deployments yet</p>
-        <p className="text-[11px] font-mono text-[#555] mt-1">
+        <p className="text-xs font-sans text-[var(--editor-fg-muted)]">No deployments yet</p>
+        <p className="text-[11px] font-sans text-[var(--editor-fg-dim)] mt-1">
           Deploy your project to see history here
         </p>
       </div>
@@ -215,19 +215,19 @@ export default function DeployHistory({
             animate={{ opacity: 1, x: 0, scale: 1 }}
             exit={{ opacity: 0, x: 20, scale: 0.97 }}
             transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-            className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-sm bg-[#0A0A0A] border-l border-[rgba(255,255,255,0.08)] shadow-2xl flex flex-col"
+            className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-sm bg-[var(--editor-bg-base)] border-l border-[var(--editor-border)] shadow-2xl shadow-black/50 flex flex-col"
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[rgba(255,255,255,0.08)]">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--editor-border)]">
               <div className="flex items-center gap-2">
-                <History className="w-4 h-4 text-[#FA4500]" />
-                <h2 className="text-sm font-mono font-semibold text-white">
+                <History className="w-4 h-4 text-[var(--editor-accent)]" />
+                <h2 className="text-sm font-sans font-semibold text-white">
                   Deploy History
                 </h2>
               </div>
               <button
                 onClick={onClose}
-                className="p-1.5 rounded-lg text-[#555] hover:text-white hover:bg-[#1A1A1A] transition-colors"
+                className="p-1.5 rounded-lg text-[var(--editor-fg-dim)] hover:text-white hover:bg-[var(--editor-bg-card)] transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -240,12 +240,12 @@ export default function DeployHistory({
               ) : error ? (
                 <div className="flex flex-col items-center justify-center py-10 gap-3">
                   <XCircle className="w-6 h-6 text-red-400" />
-                  <p className="text-xs font-mono text-red-300 text-center max-w-[200px]">
+                  <p className="text-xs font-sans text-red-300 text-center max-w-[200px]">
                     {error}
                   </p>
                   <button
                     onClick={fetchHistory}
-                    className="text-[11px] font-mono text-[#FA4500] hover:text-[#E63F00] transition-colors"
+                    className="text-[11px] font-sans text-[var(--editor-accent)] hover:text-[var(--editor-accent-hover)] transition-colors"
                   >
                     Try again
                   </button>
@@ -269,8 +269,8 @@ export default function DeployHistory({
                         className={cn(
                           'group relative rounded-xl border p-3 transition-colors',
                           isFirst
-                            ? 'bg-[#0E0E0E] border-[#FA4500]/20'
-                            : 'bg-[#0E0E0E] border-[rgba(255,255,255,0.06)] hover:border-[rgba(255,255,255,0.12)]'
+                            ? 'bg-[var(--editor-bg-surface)] border-[var(--editor-accent-20)]'
+                            : 'bg-[var(--editor-bg-surface)] border-[var(--editor-border-faint)] hover:border-[var(--editor-border)]'
                         )}
                       >
                         <div className="flex items-start gap-3">
@@ -279,8 +279,8 @@ export default function DeployHistory({
                             className={cn(
                               'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-mono font-bold',
                               isFirst
-                                ? 'bg-[#FA4500]/10 text-[#FA4500]'
-                                : 'bg-[#1A1A1A] text-[#888]'
+                                ? 'bg-[var(--editor-accent-10)] text-[var(--editor-accent)]'
+                                : 'bg-[var(--editor-bg-card)] text-[var(--editor-fg-muted)]'
                             )}
                           >
                             v{deploy.version}
@@ -306,7 +306,7 @@ export default function DeployHistory({
                               </span>
 
                               {isFirst && (
-                                <span className="text-[10px] font-mono text-[#FA4500]">
+                                <span className="text-[10px] font-sans text-[var(--editor-accent)]">
                                   latest
                                 </span>
                               )}
@@ -318,7 +318,7 @@ export default function DeployHistory({
                                 href={deploy.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center gap-1 mt-1 text-[11px] font-mono text-[#666] hover:text-white transition-colors truncate max-w-[200px]"
+                                className="flex items-center gap-1 mt-1 text-[11px] font-mono text-[var(--editor-fg-tertiary)] hover:text-white transition-colors truncate max-w-[200px]"
                                 title={deploy.url}
                               >
                                 <ExternalLink className="w-2.5 h-2.5 flex-shrink-0" />
@@ -330,8 +330,8 @@ export default function DeployHistory({
 
                             {/* Time */}
                             <div className="flex items-center gap-1.5 mt-1.5">
-                              <Clock className="w-2.5 h-2.5 text-[#555]" />
-                              <span className="text-[10px] font-mono text-[#555]">
+                              <Clock className="w-2.5 h-2.5 text-[var(--editor-fg-dim)]" />
+                              <span className="text-[10px] font-mono text-[var(--editor-fg-dim)]">
                                 {relativeTime(deploy.createdAt)}
                               </span>
                             </div>
@@ -343,11 +343,11 @@ export default function DeployHistory({
                               onClick={() => handleRollback(deploy.buildId)}
                               disabled={isRollingBack || !!rollingBack}
                               className={cn(
-                                'flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-mono transition-all',
+                                'flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-sans transition-all',
                                 'opacity-0 group-hover:opacity-100',
                                 isRollingBack
-                                  ? 'text-[#FA4500] bg-[#FA4500]/10 cursor-wait'
-                                  : 'text-[#888] hover:text-white hover:bg-[#1A1A1A] border border-[rgba(255,255,255,0.08)]'
+                                  ? 'text-[var(--editor-accent)] bg-[var(--editor-accent-10)] cursor-wait'
+                                  : 'text-[var(--editor-fg-muted)] hover:text-white hover:bg-[var(--editor-bg-card)] border border-[var(--editor-border)]'
                               )}
                               title="Rollback to this version"
                             >

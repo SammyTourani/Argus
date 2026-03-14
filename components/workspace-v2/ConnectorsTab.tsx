@@ -2,17 +2,20 @@
 'use client';
 
 import { useEffect } from 'react';
+import { createClient } from '@/lib/supabase/client';
+import { showToast } from './workspace-state';
+import { fetchConnectorStatuses } from './workspace-api';
 
 const CONNECTORS = [
-  { id:'c1', name:'Gmail', desc:'Draft replies, search inbox, summarize threads', icon:'https://www.gstatic.com/images/branding/product/1x/gmail_2020q4_48dp.png', connected:true, popular:true },
-  { id:'c2', name:'Google Calendar', desc:'Manage events and optimize your schedule', icon:'https://ssl.gstatic.com/calendar/images/dynamiclogo_2020q4/calendar_31_2x.png', connected:true, popular:true },
-  { id:'c3', name:'GitHub', desc:'Manage repos, track changes, collaborate', icon:'https://github.githubassets.com/favicons/favicon-dark.svg', connected:true, popular:false },
+  { id:'c1', name:'Gmail', desc:'Draft replies, search inbox, summarize threads', icon:'https://www.gstatic.com/images/branding/product/1x/gmail_2020q4_48dp.png', connected:false, popular:true },
+  { id:'c2', name:'Google Calendar', desc:'Manage events and optimize your schedule', icon:'https://ssl.gstatic.com/calendar/images/dynamiclogo_2020q4/calendar_31_2x.png', connected:false, popular:true },
+  { id:'c3', name:'GitHub', desc:'Manage repos, track changes, collaborate', icon:'https://github.githubassets.com/favicons/favicon-dark.svg', connected:false, popular:false },
   { id:'c4', name:'Google Drive', desc:'Access files, search, and manage documents', icon:'https://ssl.gstatic.com/images/branding/product/1x/drive_2020q4_48dp.png', connected:false, popular:false },
   { id:'c5', name:'Slack', desc:'Team messaging and real-time notifications', icon:'https://a.slack-edge.com/80588/marketing/img/meta/favicon-32.png', connected:false, popular:true },
   { id:'c6', name:'Notion', desc:'Docs, wikis, and project management', icon:'https://www.notion.so/images/favicon.ico', connected:false, popular:false },
   { id:'c7', name:'Linear', desc:'Issue tracking and project planning', icon:'https://linear.app/favicon.ico', connected:false, popular:false },
   { id:'c8', name:'Figma', desc:'Design files and prototypes', icon:'https://static.figma.com/app/icon/1/favicon.png', connected:false, popular:false },
-  { id:'c9', name:'Vercel', desc:'Deploy and host web applications', icon:'https://assets.vercel.com/image/upload/front/favicon/vercel/favicon.ico', connected:true, popular:false },
+  { id:'c9', name:'Vercel', desc:'Deploy and host web applications', icon:'https://assets.vercel.com/image/upload/front/favicon/vercel/favicon.ico', connected:false, popular:false },
   { id:'c10', name:'Stripe', desc:'Payment processing and billing', icon:'https://images.stripeassets.com/fzn2n1nzq965/HTTOloNPhisV9P4hlMPNA/cacf1bb88b9fc492dfad34378d844280/Stripe_icon_-_square.svg', connected:false, popular:false },
   { id:'c11', name:'Jira', desc:'Project and issue tracking', icon:'https://wac-cdn.atlassian.com/assets/img/favicons/atlassian/favicon.png', connected:false, popular:false },
   { id:'c12', name:'Meta Ads Manager', desc:'Automate ads insights and optimization', icon:'https://static.xx.fbcdn.net/rsrc.php/yb/r/hLRJ1GG_y0J.ico', connected:false, popular:false },
@@ -91,7 +94,26 @@ export default function ConnectorsTab() {
           e.stopPropagation();
           var id = (btn as HTMLElement).dataset.connector;
           var c = CONNECTORS.find(function(x) { return x.id === id; });
-          if (c) { c.connected = !c.connected; renderConnectors(); }
+          if (!c) return;
+
+          // GitHub uses OAuth
+          if (c.name === 'GitHub' && !c.connected) {
+            var supabase = createClient();
+            supabase.auth.signInWithOAuth({
+              provider: 'github',
+              options: {
+                redirectTo: window.location.origin + '/auth/callback?redirect=' + encodeURIComponent(window.location.pathname),
+                scopes: 'repo',
+              },
+            });
+            return;
+          }
+
+          // Other connectors: coming soon
+          if (!c.connected) {
+            showToast(c.name + ' integration coming soon', '');
+            return;
+          }
         });
       });
     }
@@ -109,7 +131,25 @@ export default function ConnectorsTab() {
 
     renderConnectors();
 
+    // Fetch real connector statuses from API
+    var cancelled = false;
+    fetchConnectorStatuses().then(function(statuses) {
+      if (cancelled || !statuses || statuses.length === 0) return;
+      var changed = false;
+      statuses.forEach(function(s) {
+        if (s.status === 'connected') {
+          // Map provider name to connector
+          var providerMap = { github: 'GitHub', gmail: 'Gmail', slack: 'Slack', notion: 'Notion' };
+          var connName = providerMap[s.provider] || s.provider;
+          var c = CONNECTORS.find(function(x) { return x.name.toLowerCase() === connName.toLowerCase(); });
+          if (c && !c.connected) { c.connected = true; changed = true; }
+        }
+      });
+      if (changed) renderConnectors();
+    }).catch(function() {});
+
     return () => {
+      cancelled = true;
       connectorSearch.removeEventListener('input', searchHandler);
     };
   }, []);
@@ -142,13 +182,7 @@ export default function ConnectorsTab() {
           <button className="add-btn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8 3v10M3 8h10" /></svg> Add API</button>
         </div>
         <div className="key-list">
-          <div className="key-row stagger-2">
-            <div className="key-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 6h12M4 10h12M4 14h8" /></svg></div>
-            <div className="key-info"><div className="key-provider">Internal Auth Service</div><div className="key-mask">https://auth.mycompany.com/v2</div></div>
-            <span className="status-badge status-active"><span className="dot"></span> active</span>
-            <span style={{ fontSize: '11px', color: 'var(--fg-muted)' }}>Bearer</span>
-            <button className="key-delete"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 4l8 8M12 4l-8 8" /></svg></button>
-          </div>
+          <div style={{ padding: '16px', textAlign: 'center', color: 'var(--fg-muted)', fontSize: '13px' }}>No custom APIs configured yet</div>
         </div>
       </div>
 

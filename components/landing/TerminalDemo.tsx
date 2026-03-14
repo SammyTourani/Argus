@@ -188,7 +188,7 @@ export default function TerminalDemo() {
             {showResult && <div className="text-[#42C366] mt-8">{"\u25B8"} Live preview ready at localhost:5173          total: 28.4s</div>}
             {showCta && (
               <div className="flex gap-12 mt-16">
-                <a href="/generation" className="px-16 py-8 bg-heat-100 text-white rounded-8 text-label-small hover:opacity-90 transition-opacity">Open Live Preview</a>
+                <a href="/workspace" className="px-16 py-8 bg-heat-100 text-white rounded-8 text-label-small hover:opacity-90 transition-opacity">Open Live Preview</a>
                 <button className="px-16 py-8 border border-[var(--landing-border)] text-white/60 rounded-8 text-label-small hover:text-white hover:border-[var(--landing-border-hover)] transition-colors">Download ZIP</button>
               </div>
             )}

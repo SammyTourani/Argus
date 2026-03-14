@@ -43,4 +43,9 @@ test.describe('Landing Page', () => {
       await expect(cta).toBeEnabled();
     }
   });
+
+  test('hero CTA links to /workspace, not /generation', async ({ page }) => {
+    const generationLinks = page.locator('a[href="/generation"]');
+    await expect(generationLinks).toHaveCount(0);
+  });
 });

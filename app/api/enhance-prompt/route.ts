@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateText } from 'ai';
 import { getProviderForModel } from '@/lib/ai/provider-manager';
+import { getUserApiKey } from '@/lib/ai/user-key-resolver';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { checkRateLimit } from '@/lib/ratelimit';
@@ -82,8 +83,11 @@ If the prompt is already specific enough, return it unchanged with an empty chan
 
 IMPORTANT: Return ONLY valid JSON, no markdown code fences or extra text.`;
 
-    // ── Call Gemini Flash ──────────────────────────────────────────────────────
-    const { client: googleProvider, actualModel: geminiModel } = getProviderForModel('google/gemini-2.5-flash');
+    // ── Call Gemini Flash (with BYOK if user has a Google key) ─────────────────
+    const enhanceModel = 'google/gemini-2.5-flash';
+    const userApiKey = await getUserApiKey(user.id, enhanceModel);
+    const byokOptions = userApiKey ? { apiKey: userApiKey } : undefined;
+    const { client: googleProvider, actualModel: geminiModel } = getProviderForModel(enhanceModel, byokOptions);
     const { text } = await generateText({
       model: googleProvider(geminiModel),
       prompt: enhancementPrompt,

@@ -43,26 +43,26 @@ export default function BranchPicker({
           <button
             onClick={() => onPrevious(messageId)}
             disabled={isFirst}
-            className="p-0.5 rounded hover:bg-[rgba(255,255,255,0.06)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            className="p-0.5 rounded hover:bg-[var(--editor-border-faint)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             aria-label="Previous branch"
           >
-            <ChevronLeft className="w-3.5 h-3.5 text-[#888]" />
+            <ChevronLeft className="w-3.5 h-3.5 text-[var(--editor-fg-muted)]" />
           </button>
 
-          <span className="font-mono text-[11px] text-[#888] tabular-nums select-none min-w-[28px] text-center">
+          <span className="font-mono text-[11px] text-[var(--editor-fg-muted)] tabular-nums select-none min-w-[28px] text-center">
             {currentBranch + 1}/{totalBranches}
           </span>
 
           <button
             onClick={() => onNext(messageId)}
             disabled={isLast}
-            className="p-0.5 rounded hover:bg-[rgba(255,255,255,0.06)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            className="p-0.5 rounded hover:bg-[var(--editor-border-faint)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             aria-label="Next branch"
           >
-            <ChevronRight className="w-3.5 h-3.5 text-[#888]" />
+            <ChevronRight className="w-3.5 h-3.5 text-[var(--editor-fg-muted)]" />
           </button>
 
-          <div className="w-px h-3 bg-[rgba(255,255,255,0.08)] mx-0.5" />
+          <div className="w-px h-3 bg-[var(--editor-border)] mx-0.5" />
         </div>
       )}
 
@@ -70,20 +70,20 @@ export default function BranchPicker({
       <button
         onClick={handleCopy}
         disabled={!content}
-        className="p-1 rounded hover:bg-[rgba(255,255,255,0.06)] disabled:opacity-30 transition-colors"
+        className="p-1 rounded hover:bg-[var(--editor-border-faint)] disabled:opacity-30 transition-colors"
         aria-label="Copy message"
         title="Copy"
       >
         {copied ? (
           <Check className="w-3 h-3 text-green-400" />
         ) : (
-          <Copy className="w-3 h-3 text-[#888]" />
+          <Copy className="w-3 h-3 text-[var(--editor-fg-muted)]" />
         )}
       </button>
 
       <button
         onClick={() => onRegenerate(messageId)}
-        className="p-1 rounded hover:bg-[rgba(255,255,255,0.06)] text-[#888] hover:text-[#FA4500] transition-colors"
+        className="p-1 rounded hover:bg-[var(--editor-border-faint)] text-[var(--editor-fg-muted)] hover:text-[var(--editor-accent)] transition-colors"
         aria-label="Regenerate response"
         title="Regenerate"
       >

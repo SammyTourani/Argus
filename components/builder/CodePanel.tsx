@@ -103,8 +103,8 @@ function FileTreeItem({ node, depth, selected, expanded, onSelect, onToggle, isL
           onClick={() => (node.isDir ? onToggle(node.path) : onSelect(node.path))}
           className={`flex-1 flex items-center gap-1.5 py-1 text-left text-xs font-mono transition-colors rounded ${
             selected === node.path
-              ? 'bg-[#FA4500]/15 text-[#FA4500]'
-              : 'text-[#888] hover:text-white hover:bg-[rgba(255,255,255,0.04)]'
+              ? 'bg-[var(--editor-accent-15)] text-[var(--editor-accent)]'
+              : 'text-[var(--editor-fg-muted)] hover:text-white hover:bg-[var(--editor-bg-hover)]/30'
           }`}
           style={{ paddingLeft: `${depth * 14 + 8}px` }}
         >
@@ -123,13 +123,13 @@ function FileTreeItem({ node, depth, selected, expanded, onSelect, onToggle, isL
         {!node.isDir && onToggleLock && (
           <button
             onClick={(e) => { e.stopPropagation(); onToggleLock(node.path); }}
-            className="opacity-0 group-hover:opacity-100 p-0.5 mr-1 rounded hover:bg-[rgba(255,255,255,0.08)] transition-all"
+            className="opacity-0 group-hover:opacity-100 p-0.5 mr-1 rounded hover:bg-[var(--editor-border)] transition-all"
             title={fileLocked ? 'Unlock file' : 'Lock file (AI cannot modify)'}
           >
             {fileLocked ? (
               <LockOpen className="w-3 h-3 text-amber-500" />
             ) : (
-              <Lock className="w-3 h-3 text-[#555]" />
+              <Lock className="w-3 h-3 text-[var(--editor-fg-dim)]" />
             )}
           </button>
         )}
@@ -202,17 +202,17 @@ export default function CodePanel({ files, buildLogs = [], onDownloadZip, locked
   }, [selectedContent]);
 
   return (
-    <div className="flex flex-col h-full bg-[#0A0A0A]">
+    <div className="flex flex-col h-full bg-[var(--editor-bg-base)]">
       {/* Tabs */}
-      <div className="flex items-center border-b border-[rgba(255,255,255,0.06)] flex-shrink-0">
+      <div className="flex items-center border-b border-[var(--editor-border-faint)] flex-shrink-0">
         {(['files', 'console'] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-4 py-2.5 text-xs font-mono uppercase tracking-wider transition-colors border-b-2 ${
+            className={`px-4 py-2.5 text-xs font-sans uppercase tracking-wider transition-colors border-b-2 ${
               tab === t
-                ? 'text-white border-[#FA4500]'
-                : 'text-[#666] border-transparent hover:text-white'
+                ? 'text-white border-[var(--editor-accent)]'
+                : 'text-[var(--editor-fg-tertiary)] border-transparent hover:text-white'
             }`}
           >
             {t}
@@ -223,9 +223,9 @@ export default function CodePanel({ files, buildLogs = [], onDownloadZip, locked
       {tab === 'files' ? (
         <div className="flex-1 flex flex-col min-h-0">
           {/* File tree – top portion */}
-          <div className="h-[45%] overflow-y-auto border-b border-[rgba(255,255,255,0.06)] py-1 scrollbar-hide">
+          <div className="h-[45%] overflow-y-auto border-b border-[var(--editor-border-faint)] py-1 scrollbar-hide">
             {tree.length === 0 ? (
-              <div className="text-[#555] text-xs font-mono text-center py-6">No files yet</div>
+              <div className="text-[var(--editor-fg-dim)] text-xs font-sans text-center py-6">No files yet</div>
             ) : (
               tree.map((node) => (
                 <FileTreeItem
@@ -247,13 +247,13 @@ export default function CodePanel({ files, buildLogs = [], onDownloadZip, locked
           <div className="flex-1 min-h-0 flex flex-col">
             {selectedContent !== null ? (
               <>
-                <div className="flex items-center justify-between px-3 py-1.5 bg-[#0E0E0E] border-b border-[rgba(255,255,255,0.06)] flex-shrink-0">
-                  <span className="text-[11px] font-mono text-[#888] truncate">
+                <div className="flex items-center justify-between px-3 py-1.5 bg-[var(--editor-bg-surface)] border-b border-[var(--editor-border-faint)] flex-shrink-0">
+                  <span className="text-[11px] font-mono text-[var(--editor-fg-muted)] truncate">
                     {selectedFile}
                   </span>
                   <button
                     onClick={handleCopy}
-                    className="p-1 text-[#666] hover:text-white transition-colors rounded hover:bg-[#2A2A2A]"
+                    className="p-1 text-[var(--editor-fg-tertiary)] hover:text-white transition-colors rounded hover:bg-[var(--editor-bg-hover)]"
                     title="Copy code"
                   >
                     {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
@@ -277,7 +277,7 @@ export default function CodePanel({ files, buildLogs = [], onDownloadZip, locked
                 </div>
               </>
             ) : (
-              <div className="flex items-center justify-center flex-1 text-[#444] text-xs font-mono">
+              <div className="flex items-center justify-center flex-1 text-[var(--editor-fg-ghost)] text-xs font-sans">
                 Select a file to view
               </div>
             )}
@@ -285,10 +285,10 @@ export default function CodePanel({ files, buildLogs = [], onDownloadZip, locked
 
           {/* Download ZIP */}
           {onDownloadZip && (
-            <div className="border-t border-[rgba(255,255,255,0.06)] p-2 flex-shrink-0">
+            <div className="border-t border-[var(--editor-border-faint)] p-2 flex-shrink-0">
               <button
                 onClick={onDownloadZip}
-                className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-[#1A1A1A] hover:bg-[#202020] text-[#888] hover:text-white text-xs font-mono transition-colors border border-[rgba(255,255,255,0.06)]"
+                className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-[var(--editor-bg-card)] hover:bg-[var(--editor-bg-hover)] text-[var(--editor-fg-muted)] hover:text-white text-xs font-sans transition-colors border border-[var(--editor-border-faint)]"
               >
                 <Download className="w-3.5 h-3.5" />
                 Download ZIP
@@ -300,11 +300,11 @@ export default function CodePanel({ files, buildLogs = [], onDownloadZip, locked
         /* Console tab */
         <div className="flex-1 overflow-auto p-3 scrollbar-hide">
           {buildLogs.length === 0 ? (
-            <div className="text-[#555] text-xs font-mono text-center py-6">
+            <div className="text-[var(--editor-fg-dim)] text-xs font-mono text-center py-6">
               No build logs yet
             </div>
           ) : (
-            <pre className="text-[11px] font-mono text-[#AAA] whitespace-pre-wrap leading-relaxed">
+            <pre className="text-[11px] font-mono text-[var(--editor-fg-tertiary)] whitespace-pre-wrap leading-relaxed">
               {buildLogs.join('\n')}
             </pre>
           )}

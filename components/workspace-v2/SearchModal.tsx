@@ -2,17 +2,12 @@
 'use client';
 
 import { useEffect } from 'react';
+import { fetchProjects, fetchCurrentUser, formatRelativeTime, generateGradient } from './workspace-api';
 
 export default function SearchModal() {
   // ===== initSearchModal =====
   useEffect(() => {
-    var SEARCH_PROJECTS = [
-      { id: 1, name: 'Shopify Clone', type: 'project', owner: 'sammytourani@gmail.com', time: '11 hours ago', gradient: 'linear-gradient(135deg, #ff4801 0%, #ff9a6c 50%, #ffd4b8 100%)' },
-      { id: 2, name: 'alyssas-matcha-dreams', type: 'project', owner: 'sammytourani@gmail.com', time: '13 hours ago', gradient: 'linear-gradient(135deg, #521000 0%, #ff4801 60%, #ff7038 100%)' },
-      { id: 3, name: 'AI Chat Agent', type: 'project', owner: 'sammytourani@gmail.com', time: '2 days ago', gradient: 'linear-gradient(135deg, #0a0a0a 0%, #ff4801 40%, #ff7038 100%)' },
-      { id: 4, name: 'Dashboard Pro', type: 'project', owner: 'sammytourani@gmail.com', time: '3 days ago', gradient: 'linear-gradient(160deg, #fffdfb 0%, #ebd5c1 30%, #ff7038 70%, #ff4801 100%)' },
-      { id: 5, name: 'Marketing Site', type: 'folder', owner: 'sammytourani@gmail.com', time: '1 week ago', gradient: 'linear-gradient(135deg, #ff7038 0%, #ff4801 100%)' }
-    ];
+    var SEARCH_PROJECTS = [];
 
     var backdrop = document.getElementById('searchBackdrop');
     var modal = document.getElementById('searchModal');
@@ -166,8 +161,8 @@ export default function SearchModal() {
       var results = filterResults();
       if (results.length > 0 && smState.selectedIndex < results.length) {
         var project = results[smState.selectedIndex];
-        console.log('Open project:', project.name);
         closeSearch();
+        window.location.href = '/workspace/' + project.id;
       }
     }
 
@@ -185,15 +180,17 @@ export default function SearchModal() {
 
       var item = (e.target as HTMLElement).closest('.search-result-item');
       if (item) {
-        console.log('Open project:', item.getAttribute('data-project-name'));
+        var projectId = item.getAttribute('data-project-id');
         closeSearch();
+        if (projectId) window.location.href = '/workspace/' + projectId;
         return;
       }
 
       var cta = (e.target as HTMLElement).closest('.search-empty-cta');
       if (cta) {
-        console.log('Navigate to new project');
         closeSearch();
+        var chatInput = document.getElementById('chatInput') as HTMLInputElement | null;
+        if (chatInput) chatInput.focus();
         return;
       }
     }
@@ -211,6 +208,27 @@ export default function SearchModal() {
       openSearch();
     }
     if (searchNav) searchNav.addEventListener('click', handleSearchNavClick);
+
+    // Load real projects from API
+    var cancelled = false;
+    Promise.all([fetchCurrentUser(), fetchProjects()]).then(function(results) {
+      if (cancelled) return;
+      var user = results[0];
+      var apiProjects = results[1] || [];
+      SEARCH_PROJECTS = apiProjects.map(function(p) {
+        var ownerEmail = (user && p.created_by === user.id) ? user.email : (user?.email || '');
+        return {
+          id: p.id,
+          name: p.name,
+          type: 'project',
+          owner: ownerEmail,
+          time: formatRelativeTime(p.updated_at),
+          gradient: generateGradient(p.id),
+        };
+      });
+      smState.isEmpty = SEARCH_PROJECTS.length === 0;
+      if (smState.isOpen) renderPanel();
+    }).catch(function() {});
 
     // Auto-open search if navigated from another page with ?action=search
     var searchParams = new URLSearchParams(window.location.search);
@@ -274,6 +292,7 @@ export default function SearchModal() {
     }
 
     return () => {
+      cancelled = true;
       modal!.removeEventListener('click', handleModalClick);
       backdrop!.removeEventListener('click', handleBackdropClick);
       if (searchNav) searchNav.removeEventListener('click', handleSearchNavClick);

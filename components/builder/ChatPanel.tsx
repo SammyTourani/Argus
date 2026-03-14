@@ -118,7 +118,7 @@ export default function ChatPanel({
   /** Custom Streamdown components — code blocks use SyntaxHighlighter */
   const streamdownComponents = useMemo(() => ({
     pre: ({ children }: React.ComponentPropsWithoutRef<'pre'>) => (
-      <div className="my-2 rounded-lg overflow-hidden border border-[rgba(255,255,255,0.06)]">
+      <div className="my-2 rounded-lg overflow-hidden border border-[var(--editor-border-faint)]">
         {children}
       </div>
     ),
@@ -127,13 +127,13 @@ export default function ChatPanel({
       if (match) {
         return (
           <>
-            <div className="flex items-center justify-between px-3 py-1 bg-[#0E0E0E] border-b border-[rgba(255,255,255,0.04)]">
-              <span className="text-[10px] font-mono text-[#555] uppercase">{match[1]}</span>
+            <div className="flex items-center justify-between px-3 py-1 bg-[var(--editor-bg-surface)] border-b border-[var(--editor-border-faint)]">
+              <span className="text-[10px] font-mono text-[var(--editor-fg-dim)] uppercase">{match[1]}</span>
             </div>
             <SyntaxHighlighter
               language={match[1]}
               style={vscDarkPlus}
-              customStyle={{ margin: 0, padding: '0.75rem', fontSize: '0.75rem', background: '#0E0E0E' }}
+              customStyle={{ margin: 0, padding: '0.75rem', fontSize: '0.75rem', background: 'var(--editor-bg-surface)' }}
             >
               {String(children).replace(/\n$/, '')}
             </SyntaxHighlighter>
@@ -142,7 +142,7 @@ export default function ChatPanel({
       }
       // Inline code
       return (
-        <code className="px-1.5 py-0.5 rounded bg-[rgba(255,255,255,0.08)] text-[0.85em] font-mono" {...props}>
+        <code className="px-1.5 py-0.5 rounded bg-[var(--editor-border)] text-[0.85em] font-mono" {...props}>
           {children}
         </code>
       );
@@ -152,19 +152,19 @@ export default function ChatPanel({
   const isEmpty = messages.length === 0;
 
   return (
-    <div className="flex flex-col h-full bg-[#0A0A0A]">
+    <div className="flex flex-col h-full bg-[var(--editor-bg-base)]">
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 scrollbar-hide">
         {isEmpty && (
           <div className="flex flex-col items-center justify-center h-full text-center px-4">
-            <pre className="text-[#FA4500] text-[10px] font-mono opacity-40 mb-4 leading-tight select-none">
+            <pre className="text-[var(--editor-accent)] text-[10px] font-mono opacity-40 mb-4 leading-tight select-none">
 {`    _    ____   ____ _   _ ____
    / \\  |  _ \\ / ___| | | / ___|
   / _ \\ | |_) | |  _| | | \\___ \\
  / ___ \\|  _ <| |_| | |_| |___) |
 /_/   \\_\\_| \\_\\\\____|\\___/|____/`}
             </pre>
-            <p className="text-[#666] text-sm font-mono">
+            <p className="text-[var(--editor-fg-tertiary)] text-sm font-sans">
               Describe what you want to build...
             </p>
           </div>
@@ -179,10 +179,10 @@ export default function ChatPanel({
               <div
                 className={`rounded-xl px-3.5 py-2.5 text-sm leading-relaxed ${
                   msg.role === 'user'
-                    ? 'bg-[#FA4500] text-white font-mono whitespace-pre-wrap'
+                    ? 'bg-[var(--editor-accent)] text-white font-sans whitespace-pre-wrap'
                     : msg.role === 'system'
-                    ? 'bg-[#1A1A1A] text-[#888] text-xs font-mono whitespace-pre-wrap border border-[rgba(255,255,255,0.05)]'
-                    : 'bg-[#F5F5F5] text-[#1A1A1A]'
+                    ? 'bg-[var(--editor-bg-card)] text-[var(--editor-fg-muted)] text-xs font-mono whitespace-pre-wrap border border-[var(--editor-border-faint)]'
+                    : 'bg-[var(--editor-bg-card)] text-[var(--editor-fg-secondary)]'
                 }`}
               >
                 {msg.role === 'assistant' ? (
@@ -232,17 +232,17 @@ export default function ChatPanel({
       </div>
 
       {/* Prompt bar */}
-      <div className="border-t border-[rgba(255,255,255,0.06)] bg-[#0E0E0E] p-3">
-        <div className="flex items-end gap-2 bg-[#1A1A1A] rounded-xl border border-[rgba(255,255,255,0.08)] focus-within:border-[#FA4500] transition-colors px-3 py-2">
+      <div className="border-t border-[var(--editor-border-faint)] bg-[var(--editor-bg-surface)] p-3">
+        <div className="flex items-end gap-2 bg-[var(--editor-bg-card)] rounded-xl border border-[var(--editor-border)] focus-within:border-[var(--editor-accent)] transition-colors px-3 py-2">
           {/* Model pill */}
           {selectedModelName && (
             <button
               onClick={onModelClick}
-              className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-[#0E0E0E] text-[11px] font-mono text-[#888] hover:text-white transition-colors flex-shrink-0 mb-0.5"
+              className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-[var(--editor-bg-surface)] text-[11px] font-mono text-[var(--editor-fg-muted)] hover:text-white transition-colors flex-shrink-0 mb-0.5"
             >
               <span
                 className="w-2 h-2 rounded-full"
-                style={{ backgroundColor: selectedModelColor || '#FA4500' }}
+                style={{ backgroundColor: selectedModelColor || '#ff4801' }}
               />
               {selectedModelName}
             </button>
@@ -264,7 +264,7 @@ export default function ChatPanel({
             onKeyDown={handleKeyDown}
             placeholder={chatMode === 'discuss' ? 'Ask a question or discuss ideas...' : 'Ask Argus to build something...'}
             rows={1}
-            className="flex-1 bg-transparent text-white text-sm font-mono placeholder:text-[#555] resize-none outline-none min-h-[24px] max-h-[96px]"
+            className="flex-1 bg-transparent text-white text-sm font-sans placeholder:text-[var(--editor-fg-dim)] resize-none outline-none min-h-[24px] max-h-[96px]"
             disabled={isGenerating}
           />
 
@@ -280,12 +280,12 @@ export default function ChatPanel({
           <button
             onClick={handleSend}
             disabled={!input.trim() || isGenerating}
-            className="flex-shrink-0 w-8 h-8 rounded-lg bg-[#FA4500] hover:bg-[#E63F00] disabled:bg-[#2A2A2A] disabled:cursor-not-allowed flex items-center justify-center transition-colors mb-0.5"
+            className="flex-shrink-0 w-8 h-8 rounded-lg bg-[var(--editor-accent)] hover:bg-[var(--editor-accent-hover)] disabled:bg-[var(--editor-bg-hover)] disabled:cursor-not-allowed flex items-center justify-center transition-colors mb-0.5"
           >
             <ArrowUp className="w-4 h-4 text-white" />
           </button>
         </div>
-        <div className="text-[10px] text-[#444] font-mono mt-1.5 text-center">
+        <div className="text-[10px] text-[var(--editor-fg-ghost)] font-sans mt-1.5 text-center">
           {chatMode === 'discuss' ? 'Discussion mode — no code generation' : '\u2318 + Enter to send'}
         </div>
       </div>

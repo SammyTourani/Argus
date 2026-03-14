@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import AuthLayout from '@/components/auth/AuthLayout';
@@ -188,7 +188,7 @@ function ErrorMessage({ message }: { message: string }) {
 }
 
 /* ─── Main page ─── */
-export default function SignUpPage() {
+function SignUpContent() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -196,6 +196,22 @@ export default function SignUpPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Capture referral code from URL and persist to localStorage
+  useEffect(() => {
+    const ref = searchParams.get('ref');
+    if (ref) {
+      localStorage.setItem('argus_ref_code', ref);
+    }
+  }, [searchParams]);
+
+  /** Build callback URL, appending referral code if present */
+  function getCallbackUrl() {
+    const ref = searchParams.get('ref') || localStorage.getItem('argus_ref_code');
+    const base = `${window.location.origin}/auth/callback`;
+    return ref ? `${base}?ref=${encodeURIComponent(ref)}` : base;
+  }
 
   const handleEmailSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -214,7 +230,7 @@ export default function SignUpPage() {
       password,
       options: {
         data: { full_name: fullName },
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: getCallbackUrl(),
       },
     });
 
@@ -232,7 +248,7 @@ export default function SignUpPage() {
     const supabase = createClient();
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: { redirectTo: getCallbackUrl() },
     });
   };
 
@@ -240,7 +256,7 @@ export default function SignUpPage() {
     const supabase = createClient();
     await supabase.auth.signInWithOAuth({
       provider: 'github',
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: { redirectTo: getCallbackUrl() },
     });
   };
 
@@ -250,7 +266,7 @@ export default function SignUpPage() {
       provider: 'azure',
       options: {
         scopes: 'email',
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: getCallbackUrl(),
       },
     });
   };
@@ -403,5 +419,13 @@ export default function SignUpPage() {
         </Link>
       </p>
     </AuthLayout>
+  );
+}
+
+export default function SignUpPage() {
+  return (
+    <Suspense>
+      <SignUpContent />
+    </Suspense>
   );
 }

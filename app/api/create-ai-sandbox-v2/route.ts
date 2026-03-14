@@ -88,9 +88,9 @@ export async function POST(request: Request) {
     // Create new sandbox using factory
     const provider = SandboxFactory.create();
 
-    // Timeout sandbox creation at 30 seconds
+    // Timeout sandbox creation at 60 seconds
     const creationTimeout = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Sandbox creation timed out after 30 seconds')), 30_000)
+      setTimeout(() => reject(new Error('Sandbox creation timed out after 60 seconds')), 60_000)
     );
     const sandboxInfo = await Promise.race([provider.createSandbox(), creationTimeout]);
 

@@ -71,13 +71,13 @@ function StatusBadge({ status }: { status: string }) {
 
 function SkeletonItem() {
   return (
-    <div className="px-4 py-3 border-b border-zinc-800/50 animate-pulse">
+    <div className="px-4 py-3 border-b border-[var(--editor-border-faint)] animate-pulse">
       <div className="flex items-center justify-between mb-2">
-        <div className="h-3 w-8 bg-zinc-700 rounded" />
-        <div className="h-4 w-16 bg-zinc-800 rounded" />
+        <div className="h-3 w-8 bg-[var(--editor-bg-hover)] rounded" />
+        <div className="h-4 w-16 bg-[var(--editor-bg-card)] rounded" />
       </div>
-      <div className="h-3 w-3/4 bg-zinc-800 rounded mb-1" />
-      <div className="h-2 w-1/2 bg-zinc-800 rounded" />
+      <div className="h-3 w-3/4 bg-[var(--editor-bg-card)] rounded mb-1" />
+      <div className="h-2 w-1/2 bg-[var(--editor-bg-card)] rounded" />
     </div>
   );
 }
@@ -164,17 +164,17 @@ export default function VersionHistoryPanel({
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: '100%', opacity: 0 }}
             transition={{ type: 'spring', damping: 28, stiffness: 300, duration: 0.2 }}
-            className="fixed right-0 top-0 h-full w-[340px] bg-[#0A0A0A] border-l border-zinc-800 z-50 flex flex-col shadow-2xl"
+            className="fixed right-0 top-0 h-full w-[340px] bg-[var(--editor-bg-base)] border-l border-[var(--editor-border)] z-50 flex flex-col shadow-2xl shadow-black/50"
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-4 h-12 border-b border-zinc-800 flex-shrink-0">
+            <div className="flex items-center justify-between px-4 h-12 border-b border-[var(--editor-border)] flex-shrink-0">
               <div className="flex items-center gap-2">
-                <History className="w-3.5 h-3.5 text-[#FA4500]" />
-                <span className="text-sm font-mono text-white tracking-tight">Version History</span>
+                <History className="w-3.5 h-3.5 text-[var(--editor-accent)]" />
+                <span className="text-sm font-sans text-white tracking-tight">Version History</span>
               </div>
               <button
                 onClick={onClose}
-                className="text-zinc-500 hover:text-white transition-colors p-1 rounded"
+                className="text-[var(--editor-fg-dim)] hover:text-white transition-colors p-1 rounded"
                 aria-label="Close version history"
               >
                 <X className="w-4 h-4" />
@@ -182,7 +182,7 @@ export default function VersionHistoryPanel({
             </div>
 
             {/* Save Checkpoint */}
-            <div className="px-4 py-3 border-b border-zinc-800/50 flex-shrink-0">
+            <div className="px-4 py-3 border-b border-[var(--editor-border-faint)] flex-shrink-0">
               <AnimatePresence mode="wait">
                 {checkpointMode ? (
                   <motion.div
@@ -206,12 +206,12 @@ export default function VersionHistoryPanel({
                         }
                       }}
                       placeholder="Checkpoint name…"
-                      className="flex-1 bg-zinc-900 border border-zinc-700 rounded px-2.5 py-1.5 text-xs font-mono text-white placeholder-zinc-500 focus:outline-none focus:border-[#FA4500] transition-colors"
+                      className="flex-1 bg-[var(--editor-bg-surface)] border border-[var(--editor-border)] rounded px-2.5 py-1.5 text-xs font-sans text-white placeholder-[var(--editor-fg-dim)] focus:outline-none focus:border-[var(--editor-accent)] transition-colors"
                     />
                     <button
                       onClick={handleSaveCheckpoint}
                       disabled={savingCheckpoint || !checkpointName.trim()}
-                      className="px-2.5 py-1.5 rounded bg-[#FA4500] hover:bg-[#E63F00] disabled:opacity-50 text-white text-xs font-mono transition-colors flex items-center gap-1"
+                      className="px-2.5 py-1.5 rounded bg-[var(--editor-accent)] hover:bg-[var(--editor-accent-hover)] disabled:opacity-50 text-white text-xs font-sans transition-colors flex items-center gap-1"
                     >
                       {savingCheckpoint ? (
                         <Loader2 className="w-3 h-3 animate-spin" />
@@ -222,7 +222,7 @@ export default function VersionHistoryPanel({
                     </button>
                     <button
                       onClick={() => { setCheckpointMode(false); setCheckpointName(''); }}
-                      className="px-2 py-1.5 rounded border border-zinc-700 text-zinc-400 hover:text-white text-xs font-mono transition-colors"
+                      className="px-2 py-1.5 rounded border border-[var(--editor-border)] text-[var(--editor-fg-tertiary)] hover:text-white text-xs font-sans transition-colors"
                     >
                       <X className="w-3 h-3" />
                     </button>
@@ -235,9 +235,9 @@ export default function VersionHistoryPanel({
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.15 }}
                     onClick={() => setCheckpointMode(true)}
-                    className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded border border-zinc-700 hover:border-[#FA4500]/50 text-zinc-400 hover:text-white text-xs font-mono transition-colors group"
+                    className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded border border-[var(--editor-border)] hover:border-[var(--editor-accent-50)] text-[var(--editor-fg-tertiary)] hover:text-white text-xs font-sans transition-colors group"
                   >
-                    <Bookmark className="w-3 h-3 group-hover:text-[#FA4500] transition-colors" />
+                    <Bookmark className="w-3 h-3 group-hover:text-[var(--editor-accent)] transition-colors" />
                     {checkpointSaved ? (
                       <span className="text-emerald-400">Checkpoint saved!</span>
                     ) : (
@@ -258,9 +258,9 @@ export default function VersionHistoryPanel({
                 </>
               ) : builds.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full gap-3 text-center px-6">
-                  <History className="w-8 h-8 text-zinc-700" />
-                  <p className="text-zinc-500 text-xs font-mono">No builds yet.</p>
-                  <p className="text-zinc-600 text-[11px] font-mono">
+                  <History className="w-8 h-8 text-[var(--editor-fg-ghost)]" />
+                  <p className="text-[var(--editor-fg-dim)] text-xs font-sans">No builds yet.</p>
+                  <p className="text-[var(--editor-fg-tertiary)] text-[11px] font-sans">
                     Each time you generate a new version it will appear here.
                   </p>
                 </div>
@@ -271,25 +271,25 @@ export default function VersionHistoryPanel({
                     return (
                       <li
                         key={build.id}
-                        className={`px-4 py-3 border-b border-zinc-800/50 transition-colors ${
+                        className={`px-4 py-3 border-b border-[var(--editor-border-faint)] transition-colors ${
                           isCurrent
-                            ? 'bg-[#FA4500]/5 border-l-2 border-l-[#FA4500]'
-                            : 'hover:bg-zinc-900/60 border-l-2 border-l-transparent'
+                            ? 'bg-[var(--editor-accent-5)] border-l-2 border-l-[var(--editor-accent)]'
+                            : 'hover:bg-[var(--editor-bg-surface)] border-l-2 border-l-transparent'
                         }`}
                       >
                         {/* Row 1: version + status + time */}
                         <div className="flex items-center gap-2 mb-1.5">
-                          <span className="text-[#FA4500] font-mono text-xs font-semibold flex-shrink-0">
+                          <span className="text-[var(--editor-accent)] font-mono text-xs font-semibold flex-shrink-0">
                             #{build.version_number}
                           </span>
                           <StatusBadge status={build.status} />
                           {isCurrent && (
-                            <span className="ml-auto text-[10px] font-mono text-[#FA4500] bg-[#FA4500]/10 border border-[#FA4500]/20 px-1.5 py-0.5 rounded uppercase tracking-wider flex-shrink-0">
+                            <span className="ml-auto text-[10px] font-sans text-[var(--editor-accent)] bg-[var(--editor-accent-10)] border border-[var(--editor-accent-20)] px-1.5 py-0.5 rounded uppercase tracking-wider flex-shrink-0">
                               Current
                             </span>
                           )}
                           {!isCurrent && (
-                            <span className="ml-auto text-[10px] font-mono text-zinc-500 flex-shrink-0">
+                            <span className="ml-auto text-[10px] font-mono text-[var(--editor-fg-dim)] flex-shrink-0">
                               {timeAgo(build.created_at)}
                             </span>
                           )}
@@ -298,12 +298,12 @@ export default function VersionHistoryPanel({
                         {/* Row 2: model + time (for current) */}
                         <div className="flex items-center gap-2 mb-1.5">
                           {build.model && (
-                            <span className="text-[10px] font-mono text-zinc-500 bg-zinc-800/60 px-1.5 py-0.5 rounded border border-zinc-700/50">
+                            <span className="text-[10px] font-mono text-[var(--editor-fg-dim)] bg-[var(--editor-bg-card)] px-1.5 py-0.5 rounded border border-[var(--editor-border-faint)]">
                               {build.model}
                             </span>
                           )}
                           {isCurrent && (
-                            <span className="text-[10px] font-mono text-zinc-500 ml-auto">
+                            <span className="text-[10px] font-mono text-[var(--editor-fg-dim)] ml-auto">
                               {timeAgo(build.created_at)}
                             </span>
                           )}
@@ -311,7 +311,7 @@ export default function VersionHistoryPanel({
 
                         {/* Row 3: title preview */}
                         {build.title && (
-                          <p className="text-[11px] font-mono text-zinc-400 line-clamp-1 mb-2">
+                          <p className="text-[11px] font-sans text-[var(--editor-fg-tertiary)] line-clamp-1 mb-2">
                             {build.title.slice(0, 60)}
                             {build.title.length > 60 ? '…' : ''}
                           </p>
@@ -321,7 +321,7 @@ export default function VersionHistoryPanel({
                         {!isCurrent && (
                           <button
                             onClick={() => onSelectVersion(build.id)}
-                            className="text-[11px] font-mono text-zinc-400 hover:text-white border border-zinc-700/60 hover:border-zinc-500 px-2.5 py-1 rounded transition-colors"
+                            className="text-[11px] font-sans text-[var(--editor-fg-tertiary)] hover:text-white border border-[var(--editor-border)] hover:border-[var(--editor-border-hover)] px-2.5 py-1 rounded transition-colors"
                           >
                             Restore
                           </button>

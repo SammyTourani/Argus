@@ -122,17 +122,17 @@ export default function TemplateLibrary({ onSelectTemplate }: TemplateLibraryPro
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: i * 0.03 }}
           onClick={() => onSelectTemplate(template)}
-          className="group text-left rounded-xl border border-zinc-800 overflow-hidden hover:border-[#FA4500]/50 transition-all duration-200 bg-[#0D0D0D]"
+          className="group text-left rounded-xl border border-[var(--editor-border)] overflow-hidden hover:border-[var(--editor-accent-50)] transition-all duration-200 bg-[var(--editor-bg-base)]"
         >
           {/* Thumbnail gradient */}
           <div className={cn('h-16 w-full bg-gradient-to-br opacity-80', template.gradient)} />
           {/* Info */}
           <div className="p-3">
-            <p className="text-[13px] font-semibold text-white group-hover:text-[#FA4500] transition-colors">{template.name}</p>
-            <p className="text-[11px] text-[#666] mt-0.5 line-clamp-1">{template.description}</p>
+            <p className="text-[13px] font-sans font-semibold text-white group-hover:text-[var(--editor-accent)] transition-colors">{template.name}</p>
+            <p className="text-[11px] font-sans text-[var(--editor-fg-tertiary)] mt-0.5 line-clamp-1">{template.description}</p>
             <div className="flex flex-wrap gap-1 mt-2">
               {template.tags.slice(0, 2).map(tag => (
-                <span key={tag} className="text-[9px] font-mono text-[#555] bg-[#161616] border border-[rgba(255,255,255,0.05)] px-1.5 py-0.5 rounded">
+                <span key={tag} className="text-[9px] font-mono text-[var(--editor-fg-dim)] bg-[var(--editor-bg-elevated)] border border-[var(--editor-border-faint)] px-1.5 py-0.5 rounded">
                   {tag}
                 </span>
               ))}

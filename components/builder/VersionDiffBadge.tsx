@@ -21,11 +21,11 @@ export default function VersionDiffBadge({ count, onClick }: VersionDiffBadgePro
     >
       {/* Pulse ring when count > 1 */}
       {count > 1 && (
-        <span className="absolute inset-0 rounded-full bg-[#FA4500]/30 animate-ping" />
+        <span className="absolute inset-0 rounded-full bg-[var(--editor-accent-30)] animate-ping" />
       )}
 
-      <span className="relative inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#FA4500]/15 border border-[#FA4500]/40 hover:bg-[#FA4500]/25 hover:border-[#FA4500]/60 transition-colors">
-        <span className="text-[10px] font-mono font-semibold text-[#FA4500] tracking-wider">
+      <span className="relative inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[var(--editor-accent-15)] border border-[var(--editor-accent-40)] hover:bg-[var(--editor-accent-25)] hover:border-[var(--editor-accent-60)] transition-colors">
+        <span className="text-[10px] font-mono font-semibold text-[var(--editor-accent)] tracking-wider">
           v{count}
         </span>
       </span>

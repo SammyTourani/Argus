@@ -8,6 +8,19 @@ import SearchModal from './SearchModal';
 import ReferralModal from './ReferralModal';
 
 export default function WorkspaceApp() {
+  // ===== Claim pending referral from localStorage (if any) =====
+  useEffect(() => {
+    const ref = localStorage.getItem('argus_ref_code');
+    if (!ref) return;
+    // Clear immediately to prevent duplicate attempts
+    localStorage.removeItem('argus_ref_code');
+    fetch('/api/user/referrals', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ referral_code: ref }),
+    }).catch(() => { /* best effort */ });
+  }, []);
+
   // ===== initMobileMenu =====
   useEffect(() => {
     var btn = document.getElementById('mobileMenuBtn');

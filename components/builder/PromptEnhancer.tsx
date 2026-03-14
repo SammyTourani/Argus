@@ -105,8 +105,8 @@ export default function PromptEnhancer({
         title="Enhance prompt with AI"
         className={`flex items-center justify-center w-7 h-7 rounded-md transition-colors ${
           isLoading
-            ? 'bg-[#FA4500]/20 text-[#FA4500] cursor-wait'
-            : 'bg-transparent text-[#555] hover:text-[#FA4500] hover:bg-[#FA4500]/10'
+            ? 'bg-[var(--editor-accent-20)] text-[var(--editor-accent)] cursor-wait'
+            : 'bg-transparent text-[var(--editor-fg-dim)] hover:text-[var(--editor-accent)] hover:bg-[var(--editor-accent-10)]'
         } ${disabled || !prompt.trim() ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
       >
         {isLoading ? (
@@ -120,13 +120,13 @@ export default function PromptEnhancer({
       {showPopover && (
         <div
           ref={popoverRef}
-          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-[360px] max-h-[400px] overflow-y-auto bg-[#1A1A1A] border border-[rgba(255,255,255,0.08)] rounded-xl shadow-2xl z-50"
+          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-[360px] max-h-[400px] overflow-y-auto bg-[var(--editor-bg-card)] border border-[var(--editor-border)] rounded-xl shadow-2xl shadow-black/50 z-50"
         >
           <div className="p-3">
             {/* Header */}
             <div className="flex items-center gap-2 mb-3">
-              <Sparkles className="w-3.5 h-3.5 text-[#FA4500]" />
-              <span className="text-xs font-mono text-[#888] font-medium">
+              <Sparkles className="w-3.5 h-3.5 text-[var(--editor-accent)]" />
+              <span className="text-xs font-sans text-[var(--editor-fg-muted)] font-medium">
                 Prompt Enhancer
               </span>
             </div>
@@ -134,8 +134,8 @@ export default function PromptEnhancer({
             {/* Loading state */}
             {isLoading && (
               <div className="flex items-center gap-2 py-4 justify-center">
-                <Loader2 className="w-4 h-4 text-[#FA4500] animate-spin" />
-                <span className="text-xs font-mono text-[#666]">
+                <Loader2 className="w-4 h-4 text-[var(--editor-accent)] animate-spin" />
+                <span className="text-xs font-sans text-[var(--editor-fg-tertiary)]">
                   Enhancing your prompt...
                 </span>
               </div>
@@ -144,10 +144,10 @@ export default function PromptEnhancer({
             {/* Error state */}
             {error && (
               <div className="py-2">
-                <p className="text-xs font-mono text-red-400 mb-3">{error}</p>
+                <p className="text-xs font-sans text-red-400 mb-3">{error}</p>
                 <button
                   onClick={handleDismiss}
-                  className="w-full px-3 py-1.5 rounded-md bg-[#0E0E0E] text-[#888] text-xs font-mono hover:text-white transition-colors"
+                  className="w-full px-3 py-1.5 rounded-md bg-[var(--editor-bg-surface)] text-[var(--editor-fg-muted)] text-xs font-sans hover:text-white transition-colors"
                 >
                   Dismiss
                 </button>
@@ -159,10 +159,10 @@ export default function PromptEnhancer({
               <>
                 {/* Enhanced prompt */}
                 <div className="mb-3">
-                  <p className="text-[10px] font-mono text-[#555] uppercase tracking-wide mb-1.5">
+                  <p className="text-[10px] font-sans text-[var(--editor-fg-dim)] uppercase tracking-wide mb-1.5">
                     Enhanced Prompt
                   </p>
-                  <div className="bg-[#0E0E0E] rounded-lg p-2.5 text-sm text-white font-mono leading-relaxed border border-[rgba(255,255,255,0.04)]">
+                  <div className="bg-[var(--editor-bg-surface)] rounded-lg p-2.5 text-sm text-white font-sans leading-relaxed border border-[var(--editor-border-faint)]">
                     {result.enhanced}
                   </div>
                 </div>
@@ -170,16 +170,16 @@ export default function PromptEnhancer({
                 {/* Changes list */}
                 {result.changes.length > 0 && (
                   <div className="mb-3">
-                    <p className="text-[10px] font-mono text-[#555] uppercase tracking-wide mb-1.5">
+                    <p className="text-[10px] font-sans text-[var(--editor-fg-dim)] uppercase tracking-wide mb-1.5">
                       Changes Made
                     </p>
                     <ul className="space-y-1">
                       {result.changes.map((change, i) => (
                         <li
                           key={i}
-                          className="flex items-start gap-1.5 text-xs font-mono text-[#888]"
+                          className="flex items-start gap-1.5 text-xs font-sans text-[var(--editor-fg-muted)]"
                         >
-                          <span className="text-[#FA4500] mt-0.5 flex-shrink-0">
+                          <span className="text-[var(--editor-accent)] mt-0.5 flex-shrink-0">
                             +
                           </span>
                           {change}
@@ -193,14 +193,14 @@ export default function PromptEnhancer({
                 <div className="flex gap-2">
                   <button
                     onClick={handleAccept}
-                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md bg-[#FA4500] hover:bg-[#E63F00] text-white text-xs font-mono font-medium transition-colors"
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md bg-[var(--editor-accent)] hover:bg-[var(--editor-accent-hover)] text-white text-xs font-sans font-medium transition-colors"
                   >
                     <Check className="w-3 h-3" />
                     Use Enhanced
                   </button>
                   <button
                     onClick={handleDismiss}
-                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md bg-[#0E0E0E] hover:bg-[#2A2A2A] text-[#888] hover:text-white text-xs font-mono transition-colors"
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md bg-[var(--editor-bg-surface)] hover:bg-[var(--editor-bg-hover)] text-[var(--editor-fg-muted)] hover:text-white text-xs font-sans transition-colors"
                   >
                     <X className="w-3 h-3" />
                     Keep Original

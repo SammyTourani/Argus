@@ -35,15 +35,15 @@ export async function updateSession(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  // Backward compat redirects: /dashboard and /app → /workspace
-  if (pathname === '/dashboard' || pathname === '/app') {
+  // Backward compat redirects: /dashboard, /app, /generation → /workspace
+  if (pathname === '/dashboard' || pathname === '/app' || pathname === '/generation') {
     const url = request.nextUrl.clone();
     url.pathname = '/workspace';
     return NextResponse.redirect(url);
   }
 
   // Protected routes — require auth
-  if (!user && (pathname.startsWith('/workspace') || pathname.startsWith('/app') || pathname.startsWith('/dashboard') || pathname.startsWith('/generation'))) {
+  if (!user && (pathname.startsWith('/workspace') || pathname.startsWith('/resources') || pathname.startsWith('/upgrade') || pathname.startsWith('/account'))) {
     const url = request.nextUrl.clone();
     url.pathname = '/sign-in';
     url.searchParams.set('redirect', pathname);

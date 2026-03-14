@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 
 const resend = process.env.RESEND_API_KEY
@@ -9,6 +10,7 @@ const resend = process.env.RESEND_API_KEY
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
+  const ref = searchParams.get('ref');
   const redirect = searchParams.get('redirect') || '/workspace';
 
   if (code) {
@@ -52,6 +54,49 @@ export async function GET(request: Request) {
       } catch (emailError) {
         // Don't block auth flow if email fails
         console.error('[auth/callback] Failed to send welcome email:', emailError);
+      }
+
+      // Claim referral if ref code is present
+      if (ref) {
+        try {
+          const { data: { user: currentUser } } = await supabase.auth.getUser();
+          if (currentUser) {
+            const admin = createServiceClient(
+              process.env.NEXT_PUBLIC_SUPABASE_URL!,
+              process.env.SUPABASE_SERVICE_ROLE_KEY!,
+            );
+
+            // Look up referrer by code
+            const { data: referrer } = await admin
+              .from('profiles')
+              .select('id')
+              .eq('referral_code', ref.toUpperCase())
+              .maybeSingle();
+
+            if (referrer && referrer.id !== currentUser.id) {
+              // Check not already referred
+              const { data: existing } = await admin
+                .from('referrals')
+                .select('id')
+                .eq('referred_user_id', currentUser.id)
+                .maybeSingle();
+
+              if (!existing) {
+                await admin.from('referrals').insert({
+                  referrer_id: referrer.id,
+                  referred_user_id: currentUser.id,
+                  referred_email: currentUser.email,
+                  referral_code: ref.toUpperCase(),
+                  status: 'signed_up',
+                  signed_up_at: new Date().toISOString(),
+                });
+                console.log('[auth/callback] Referral claimed:', ref, '→', currentUser.id);
+              }
+            }
+          }
+        } catch (refError) {
+          console.error('[auth/callback] Failed to claim referral:', refError);
+        }
       }
 
       return NextResponse.redirect(`${origin}${redirect}`);

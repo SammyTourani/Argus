@@ -5,7 +5,7 @@
  * Full testing requires authenticated sessions — these are structural
  * smoke tests that validate the workspace UI renders.
  *
- * TODO: Add authenticated workspace tests when test auth setup is available.
+ * Authenticated workspace tests are deferred until a test auth fixture is set up.
  */
 
 import { test, expect } from '@playwright/test';
@@ -32,6 +32,24 @@ test.describe('Workspace', () => {
 
   test('marketplace route exists and responds', async ({ page }) => {
     const response = await page.goto('/marketplace');
+    expect(response).toBeTruthy();
+    expect(response!.status()).toBeLessThan(500);
+  });
+
+  test('generation route redirects (does not 500)', async ({ page }) => {
+    const response = await page.goto('/generation');
+    expect(response).toBeTruthy();
+    expect(response!.status()).toBeLessThan(500);
+  });
+
+  test('resources route exists and responds', async ({ page }) => {
+    const response = await page.goto('/resources');
+    expect(response).toBeTruthy();
+    expect(response!.status()).toBeLessThan(500);
+  });
+
+  test('upgrade route exists and responds', async ({ page }) => {
+    const response = await page.goto('/upgrade');
     expect(response).toBeTruthy();
     expect(response!.status()).toBeLessThan(500);
   });

@@ -3,6 +3,7 @@
 
 import { useEffect } from 'react';
 import { CONFIG, state, validateUrl, isURL, showToast } from './workspace-state';
+import { searchWeb, createProject, createBuild } from './workspace-api';
 
 export default function ChatBox() {
   // ===== Chat input handling, URL detection, options panel, style grid, model select, submit =====
@@ -27,6 +28,14 @@ export default function ChatBox() {
     var toggleRow = document.getElementById('toggleRow');
 
     if (!chatInput || !submitBtn || !styleGrid || !modelSelect) return;
+
+    var cancelled = false;
+    var pendingTimeouts: ReturnType<typeof setTimeout>[] = [];
+    function safeTimeout(fn: Function, ms: number) {
+      var id = setTimeout(fn, ms);
+      pendingTimeouts.push(id);
+      return id;
+    }
 
     // SVG templates
     var ICON_SEARCH = '<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" stroke-width="1.5"/><path d="M12.5 12.5L16.5 16.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
@@ -75,7 +84,7 @@ export default function ChatBox() {
         var btns = styleGrid!.querySelectorAll('.style-btn');
         btns.forEach(function(btn, i) {
           (btn as HTMLElement).style.transitionDelay = (150 + i * 35) + 'ms';
-          setTimeout(function() { btn.classList.add('visible'); }, 10);
+          safeTimeout(function() { btn.classList.add('visible'); }, 10);
         });
       } else {
         optionsPanel!.classList.remove('visible');
@@ -152,7 +161,7 @@ export default function ChatBox() {
     function handleSearchAgain() {
       state.isFadingOut = true;
       carouselSection!.classList.add('fading');
-      searchAgainTimeoutId = setTimeout(function() {
+      searchAgainTimeoutId = safeTimeout(function() {
         state.searchResults = [];
         state.hasSearched = false;
         state.showSearchTiles = false;
@@ -170,7 +179,7 @@ export default function ChatBox() {
     }
     if (searchAgainBtn) searchAgainBtn.addEventListener('click', handleSearchAgain);
 
-    // ===== PERFORM SEARCH (MOCK) =====
+    // ===== PERFORM SEARCH =====
     async function performSearch(query: string) {
       if (!query.trim() || isURL(query)) {
         state.searchResults = [];
@@ -186,18 +195,21 @@ export default function ChatBox() {
       updateCarouselLayout();
       renderCarousel(); // shows skeletons
 
-      // Simulate network delay
-      await new Promise(function(r) { setTimeout(r, 1500); });
-
-      state.searchResults = CONFIG.mockResults.map(function(r) {
-        return Object.assign({}, r);
-      });
+      try {
+        var results = await searchWeb(query);
+        if (cancelled) return;
+        state.searchResults = results;
+      } catch (e) {
+        if (cancelled) return;
+        state.searchResults = [];
+      }
       state.isSearching = false;
       submitBtn!.classList.remove('disabled');
       updateInputMode();
       renderCarousel();
 
-      setTimeout(function() {
+      safeTimeout(function() {
+        if (cancelled) return;
         carouselSection!.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }, 300);
     }
@@ -271,10 +283,18 @@ export default function ChatBox() {
     }
 
     // ===== CAROUSEL EVENTS (event delegation) =====
+    // Named handlers so we can remove before re-adding (prevents listener accumulation)
+    var carouselClickHandler: ((e: Event) => void) | null = null;
+    var carouselInputHandler: ((e: Event) => void) | null = null;
+
     function attachCarouselEvents() {
       if (!carouselInner) return;
 
-      carouselInner.addEventListener('click', function(e) {
+      // Remove previous listeners to prevent accumulation across multiple renderCarousel() calls
+      if (carouselClickHandler) carouselInner.removeEventListener('click', carouselClickHandler);
+      if (carouselInputHandler) carouselInner.removeEventListener('input', carouselInputHandler);
+
+      carouselClickHandler = function(e) {
         var btn = (e.target as HTMLElement).closest('[data-action]') as HTMLElement | null;
         if (!btn) return;
 
@@ -316,10 +336,11 @@ export default function ChatBox() {
             handleSubmit(state.searchResults[idx]);
           }
         }
-      });
+      };
+      carouselInner.addEventListener('click', carouselClickHandler);
 
       // Update apply button state on textarea input
-      carouselInner.addEventListener('input', function(e) {
+      carouselInputHandler = function(e) {
         var target = e.target as HTMLElement;
         if (target.matches('[data-instr-textarea]')) {
           var idxAttr = (target as HTMLTextAreaElement).dataset.instrTextarea;
@@ -328,9 +349,10 @@ export default function ChatBox() {
             btn.classList.toggle('active', hasText);
           });
         }
-      });
+      };
+      carouselInner.addEventListener('input', carouselInputHandler);
 
-      // Reset instructions on mouseleave
+      // Reset instructions on mouseleave (on child cards — destroyed on innerHTML replacement, no accumulation)
       carouselInner.querySelectorAll('.result-card').forEach(function(card) {
         card.addEventListener('mouseleave', function() {
           if (state.showInstructionsForIndex !== null) {
@@ -358,24 +380,50 @@ export default function ChatBox() {
         return;
       }
 
-      // Search result selected — fade out and store
+      // Search result selected — fade out, create project, navigate
       if (selectedResult) {
         state.isFadingOut = true;
         carouselSection!.classList.add('fading');
-        setTimeout(function() {
+        safeTimeout(function() {
+          if (cancelled) return;
           sessionStorage.setItem('targetUrl', selectedResult.url);
           sessionStorage.setItem('selectedStyle', state.selectedStyle);
           sessionStorage.setItem('selectedModel', state.selectedModel);
           sessionStorage.setItem('autoStart', 'true');
           if (selectedResult.markdown) sessionStorage.setItem('siteMarkdown', selectedResult.markdown);
           showToast('Cloning ' + selectedResult.title + '...', '');
-          console.log('Navigate to /generation with:', { url: selectedResult.url, style: state.selectedStyle, model: state.selectedModel });
+          createProject({
+            name: selectedResult.title || 'Untitled',
+            source_url: selectedResult.url,
+            default_model: state.selectedModel,
+            default_style: state.selectedStyle,
+          }).then(function(project) {
+            if (cancelled) return;
+            return createBuild(project.id, {
+              source_url: selectedResult.url,
+              prompt: 'Clone ' + (selectedResult.title || selectedResult.url),
+            }).then(function(build) {
+              window.location.href = '/workspace/' + project.id + '/build/' + build.id;
+            });
+          }).catch(function() {
+            if (cancelled) return;
+            showToast('Failed to create project', 'error');
+            state.isFadingOut = false;
+            carouselSection!.classList.remove('fading');
+          });
         }, 500);
         return;
       }
 
       // URL submitted
       if (isURL(inputValue)) {
+        var projectData: any = {
+          name: inputValue.replace(/^https?:\/\//, '').split('/')[0],
+          source_url: inputValue.indexOf('://') === -1 ? 'https://' + inputValue : inputValue,
+          default_model: state.selectedModel,
+          default_style: state.selectedStyle,
+        };
+
         if (state.extendBrandStyles) {
           sessionStorage.setItem('targetUrl', inputValue);
           sessionStorage.setItem('selectedModel', state.selectedModel);
@@ -383,7 +431,6 @@ export default function ChatBox() {
           sessionStorage.setItem('brandExtensionMode', 'true');
           sessionStorage.setItem('brandExtensionPrompt', (document.getElementById('brandTextarea') as HTMLTextAreaElement)?.value || '');
           showToast('Extracting brand styles from ' + inputValue + '...', '');
-          console.log('Navigate to /generation (brand extension):', { url: inputValue, model: state.selectedModel });
         } else {
           sessionStorage.setItem('targetUrl', inputValue);
           sessionStorage.setItem('selectedStyle', state.selectedStyle);
@@ -391,8 +438,23 @@ export default function ChatBox() {
           sessionStorage.setItem('autoStart', 'true');
           if (instrInput!.value.trim()) sessionStorage.setItem('additionalInstructions', instrInput!.value.trim());
           showToast('Scraping ' + inputValue + '...', '');
-          console.log('Navigate to /generation:', { url: inputValue, style: state.selectedStyle, model: state.selectedModel });
         }
+
+        createProject(projectData).then(function(project) {
+          if (cancelled) return;
+          var sourceUrl = projectData.source_url || inputValue;
+          return createBuild(project.id, {
+            source_url: sourceUrl,
+            prompt: state.extendBrandStyles
+              ? 'Extend brand styles from ' + sourceUrl
+              : 'Clone ' + sourceUrl,
+          }).then(function(build) {
+            window.location.href = '/workspace/' + project.id + '/build/' + build.id;
+          });
+        }).catch(function() {
+          if (cancelled) return;
+          showToast('Failed to create project', 'error');
+        });
         return;
       }
 
@@ -400,7 +462,8 @@ export default function ChatBox() {
       if (state.hasSearched && state.searchResults.length > 0) {
         state.isFadingOut = true;
         carouselSection!.classList.add('fading');
-        setTimeout(async function() {
+        safeTimeout(async function() {
+          if (cancelled) return;
           state.searchResults = [];
           state.isFadingOut = false;
           carouselSection!.classList.remove('fading');
@@ -412,13 +475,16 @@ export default function ChatBox() {
     }
 
     return () => {
+      cancelled = true;
       chatInput!.removeEventListener('input', handleInput);
       chatInput!.removeEventListener('keydown', handleKeydown as EventListener);
       submitBtn!.removeEventListener('click', handleSubmitClick);
       modelSelect!.removeEventListener('change', handleModelChange);
       if (toggleRow) toggleRow.removeEventListener('click', handleToggleClick);
       if (searchAgainBtn) searchAgainBtn.removeEventListener('click', handleSearchAgain);
-      if (searchAgainTimeoutId) clearTimeout(searchAgainTimeoutId);
+      if (carouselInner && carouselClickHandler) carouselInner.removeEventListener('click', carouselClickHandler);
+      if (carouselInner && carouselInputHandler) carouselInner.removeEventListener('input', carouselInputHandler);
+      pendingTimeouts.forEach(function(id) { clearTimeout(id); });
     };
   }, []);
 

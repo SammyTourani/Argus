@@ -2,20 +2,13 @@
 'use client';
 
 import { useEffect } from 'react';
+import { fetchCurrentUser, fetchProjects, patchProject, deleteProject, invalidateProjectsCache, mapProjectToDisplay } from './workspace-api';
 
 export default function ProjectsDashboard() {
   // ===== initProjectsDashboard =====
   useEffect(() => {
-    var PROJECTS = [
-      { id: 1, name: 'Intern Insider', type: 'project', status: 'active', owner: 'sammytourani@gmail.com', ownerInitial: 'S', editedAt: '2 hours ago', starred: true, shared: false, gradient: 'linear-gradient(135deg, #ff4801 0%, #ff9a6c 50%, #ffd4b8 100%)' },
-      { id: 2, name: 'argus-landing-page', type: 'project', status: 'deployed', owner: 'sammytourani@gmail.com', ownerInitial: 'S', editedAt: '5 hours ago', starred: true, shared: false, gradient: 'linear-gradient(135deg, #521000 0%, #ff4801 60%, #ff7038 100%)' },
-      { id: 3, name: 'AI Resume Builder', type: 'project', status: 'active', owner: 'sammytourani@gmail.com', ownerInitial: 'S', editedAt: '1 day ago', starred: false, shared: false, gradient: 'linear-gradient(135deg, #0a0a0a 0%, #ff4801 40%, #ff7038 100%)' },
-      { id: 4, name: 'Dashboard Pro', type: 'project', status: 'draft', owner: 'sammytourani@gmail.com', ownerInitial: 'S', editedAt: '3 days ago', starred: false, shared: false, gradient: 'linear-gradient(160deg, #fffdfb 0%, #ebd5c1 30%, #ff7038 70%, #ff4801 100%)' },
-      { id: 5, name: 'McMaster Events App', type: 'project', status: 'active', owner: 'sammytourani@gmail.com', ownerInitial: 'S', editedAt: '6 hours ago', starred: false, shared: true, gradient: 'linear-gradient(135deg, #ff7038 0%, #ffb088 50%, #ffd4b8 100%)' },
-      { id: 6, name: 'alyssas-matcha-dreams', type: 'project', status: 'deployed', owner: 'alyssa@gmail.com', ownerInitial: 'A', editedAt: '13 hours ago', starred: true, shared: true, gradient: 'linear-gradient(135deg, #3ecf8e 0%, #1a9f68 100%)' },
-      { id: 7, name: 'OpenClaw Docs Site', type: 'folder', status: 'draft', owner: 'sammytourani@gmail.com', ownerInitial: 'S', editedAt: '1 week ago', starred: false, shared: false, gradient: 'linear-gradient(135deg, #7a3a1a 0%, #b08060 100%)' },
-      { id: 8, name: 'Chatbase Widget Clone', type: 'project', status: 'active', owner: 'dev@team.co', ownerInitial: 'D', editedAt: '30 minutes ago', starred: false, shared: true, gradient: 'linear-gradient(135deg, #5e6ad2 0%, #8b5cf6 100%)' }
-    ];
+    var PROJECTS = [];
+    var currentUser = null;
 
     var dashboard = document.getElementById('projectsDashboard');
     var centerContent = document.getElementById('centerContent');
@@ -50,7 +43,7 @@ export default function ProjectsDashboard() {
     function filterProjects() {
       var list = PROJECTS.slice();
       if (pdState.activeView === 'starred') list = list.filter(function(p) { return p.starred; });
-      else if (pdState.activeView === 'created') list = list.filter(function(p) { return p.owner === 'sammytourani@gmail.com'; });
+      else if (pdState.activeView === 'created') list = list.filter(function(p) { return currentUser && p.owner === currentUser.email; });
       else if (pdState.activeView === 'shared') list = list.filter(function(p) { return p.shared; });
 
       if (pdState.statusFilter !== 'all') list = list.filter(function(p) { return p.status === pdState.statusFilter; });
@@ -126,8 +119,12 @@ export default function ProjectsDashboard() {
     }
 
     function render() {
+      if (!dataLoaded && pdState.activeView !== 'home') {
+        dashboard!.innerHTML = renderLoadingSkeleton();
+        return;
+      }
       var projects = filterProjects();
-      var isFirstTime = PROJECTS.length === 0 && pdState.activeView === 'all';
+      var isFirstTime = dataLoaded && PROJECTS.length === 0 && pdState.activeView === 'all';
       var hasFilters = pdState.searchQuery !== '' || pdState.statusFilter !== 'all';
       var html = '';
 
@@ -219,9 +216,17 @@ export default function ProjectsDashboard() {
 
       var starBtn = target.closest('.pd-card-star');
       if (starBtn) {
-        var sid = parseInt(starBtn.getAttribute('data-star') || '0');
+        var sid = starBtn.getAttribute('data-star') || '';
         var proj = PROJECTS.find(function(p) { return p.id === sid; });
-        if (proj) { proj.starred = !proj.starred; render(); }
+        if (proj) {
+          var prev = proj.starred;
+          proj.starred = !prev;
+          render();
+          patchProject(sid, { is_starred: !prev }).catch(function() {
+            proj.starred = prev;
+            render();
+          });
+        }
         return;
       }
 
@@ -233,12 +238,24 @@ export default function ProjectsDashboard() {
 
       var card = target.closest('.pd-card');
       if (card && !target.closest('.pd-card-star') && !target.closest('.pd-card-menu')) {
-        console.log('Open project:', card.getAttribute('data-project-id'));
+        var pid = card.getAttribute('data-project-id');
+        if (pid) window.location.href = '/workspace/' + pid;
         return;
       }
 
       var menuBtn = target.closest('.pd-card-menu');
-      if (menuBtn) { e.stopPropagation(); console.log('Context menu for:', menuBtn.getAttribute('data-menu')); return; }
+      if (menuBtn) {
+        e.stopPropagation();
+        var menuId = menuBtn.getAttribute('data-menu') || '';
+        if (confirm('Delete this project?')) {
+          deleteProject(menuId).then(function() {
+            PROJECTS = PROJECTS.filter(function(p) { return p.id !== menuId; });
+            invalidateProjectsCache();
+            render();
+          }).catch(function() { /* ignore */ });
+        }
+        return;
+      }
     }
     dashboard.addEventListener('click', handleDashboardClick);
 
@@ -322,12 +339,55 @@ export default function ProjectsDashboard() {
       browseAllBtn.addEventListener('click', handleBrowseAll);
     }
 
-    // Handle URL params from cross-page navigation
+    // Loading skeleton while data fetches
+    var dataLoaded = false;
+    function renderLoadingSkeleton() {
+      var html = '<div class="pd-header"><div class="pd-title-group">';
+      html += '<h2 class="pd-title">' + (titles[pdState.activeView] || 'All Projects') + '</h2></div></div>';
+      html += '<div class="pd-grid">';
+      for (var i = 0; i < 6; i++) {
+        html += '<div class="pd-card" style="opacity:0.4;pointer-events:none;animation-delay:' + (i * 50) + 'ms">';
+        html += '<div class="pd-card-thumb"><div class="pd-card-thumb-inner" style="background:linear-gradient(135deg,rgba(255,255,255,0.04) 0%,rgba(255,255,255,0.08) 100%)"></div></div>';
+        html += '<div class="pd-card-info"><div class="pd-card-avatar" style="background:rgba(255,255,255,0.06)"></div>';
+        html += '<div class="pd-card-info-text"><div class="pd-card-name" style="width:60%;height:14px;background:rgba(255,255,255,0.06);border-radius:4px"></div>';
+        html += '<div class="pd-card-meta" style="width:40%;height:10px;background:rgba(255,255,255,0.04);border-radius:4px;margin-top:6px"></div></div></div></div>';
+      }
+      html += '</div>';
+      return html;
+    }
+
+    // Handle URL params from cross-page navigation (before data loads)
     var urlParams = new URLSearchParams(window.location.search);
     var viewParam = urlParams.get('view');
     if (viewParam && ['all', 'starred', 'created', 'shared'].indexOf(viewParam) !== -1) {
-      switchView(viewParam);
+      pdState.activeView = viewParam;
+      if (centerContent) centerContent.style.display = 'none';
+      if (carouselSection) carouselSection.style.display = 'none';
+      if (bottomSection) bottomSection.style.display = 'none';
+      var switcher = document.getElementById('templateSwitcher');
+      if (switcher) switcher.style.display = 'none';
+      dashboard!.classList.add('active');
+      dashboard!.innerHTML = renderLoadingSkeleton();
+      updateNavActive(viewParam);
     }
+
+    // Async data load
+    var cancelled = false;
+    (function loadData() {
+      Promise.all([fetchCurrentUser(), fetchProjects()]).then(function(results) {
+        if (cancelled) return;
+        dataLoaded = true;
+        currentUser = results[0];
+        var apiProjects = results[1] || [];
+        PROJECTS = apiProjects.map(function(p) { return mapProjectToDisplay(p, currentUser); });
+        render();
+      }).catch(function() {
+        if (cancelled) return;
+        dataLoaded = true;
+        PROJECTS = [];
+        render();
+      });
+    })();
 
     // Test hook
     (window as any).__pdTest = function(mode: string) {
@@ -336,6 +396,7 @@ export default function ProjectsDashboard() {
     };
 
     return () => {
+      cancelled = true;
       dashboard!.removeEventListener('click', handleDashboardClick);
       document.removeEventListener('keydown', handleKeydown as EventListener);
       navClickHandlers.forEach(function(entry) {

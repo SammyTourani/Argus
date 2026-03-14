@@ -7,6 +7,7 @@ import { startMatrixAnimation, stopMatrixAnimation } from './HeroBackground';
 import ChatBox from './ChatBox';
 import FireCrawlCarousel from './FireCrawlCarousel';
 import ProjectsDashboard from './ProjectsDashboard';
+import { fetchCurrentUser, fetchProjects, fetchTemplates, fetchRecents, generateGradient, formatRelativeTime, escapeHtml } from './workspace-api';
 
 export default function HomePage() {
   const matrixBarAnimRef = useRef<number>(0);
@@ -216,6 +217,95 @@ export default function HomePage() {
     };
   }, []);
 
+  // ===== Fetch real user name and projects =====
+  useEffect(() => {
+    var cancelled = false;
+
+    // Update hero greeting with real name
+    fetchCurrentUser().then(function(user) {
+      if (cancelled || !user) return;
+      var accent = document.querySelector('.hero-heading .accent');
+      if (accent) accent.textContent = user.name.split(' ')[0];
+    }).catch(function() {});
+
+    // Populate "Recently viewed" tab with real recents
+    fetchRecents().then(function(recents) {
+      if (cancelled) return;
+      var recentPanel = document.querySelector('.tab-panel[data-panel="recent"] .template-grid');
+      if (!recentPanel) return;
+      if (!recents || recents.length === 0) {
+        recentPanel.innerHTML = '<div style="padding:24px;text-align:center;color:var(--fg-muted);font-size:13px">No recently viewed projects</div>';
+        return;
+      }
+      var html = '';
+      var display = recents.slice(0, 4);
+      display.forEach(function(r) {
+        html += '<div class="template-card" data-project-id="' + r.project_id + '" style="cursor:pointer">';
+        html += '<div class="template-preview"><div class="template-preview-inner" style="background:' + generateGradient(r.project_id) + '"></div></div>';
+        html += '<div class="template-info"><div class="template-name">' + escapeHtml(r.project_name || 'Untitled') + '</div>';
+        html += '<div class="template-desc">' + formatRelativeTime(r.viewed_at) + '</div></div></div>';
+      });
+      recentPanel.innerHTML = html;
+      recentPanel.querySelectorAll('.template-card[data-project-id]').forEach(function(card) {
+        card.addEventListener('click', function() {
+          var pid = card.getAttribute('data-project-id');
+          if (pid) window.location.href = '/workspace/' + pid;
+        });
+      });
+    }).catch(function() {});
+
+    // Populate "My projects" tab with real projects
+    fetchProjects().then(function(apiProjects) {
+      if (cancelled) return;
+      var projectsPanel = document.querySelector('.tab-panel[data-panel="projects"] .template-grid');
+      if (!projectsPanel) return;
+      if (!apiProjects || apiProjects.length === 0) {
+        projectsPanel.innerHTML = '<div style="padding:24px;text-align:center;color:var(--fg-muted);font-size:13px">No projects yet</div>';
+        return;
+      }
+      var html = '';
+      var display = apiProjects.slice(0, 4);
+      display.forEach(function(p) {
+        html += '<div class="template-card" data-project-id="' + p.id + '" style="cursor:pointer">';
+        html += '<div class="template-preview"><div class="template-preview-inner" style="background:' + generateGradient(p.id) + '"></div></div>';
+        html += '<div class="template-info"><div class="template-name">' + escapeHtml(p.name) + '</div>';
+        html += '<div class="template-desc">' + formatRelativeTime(p.updated_at) + '</div></div></div>';
+      });
+      projectsPanel.innerHTML = html;
+
+      // Wire click handlers
+      projectsPanel.querySelectorAll('.template-card[data-project-id]').forEach(function(card) {
+        card.addEventListener('click', function() {
+          var pid = card.getAttribute('data-project-id');
+          if (pid) window.location.href = '/workspace/' + pid;
+        });
+      });
+    }).catch(function() {});
+
+    // Populate "Templates" tab with marketplace data
+    fetchTemplates().then(function(listings) {
+      if (cancelled) return;
+      var templatesPanel = document.querySelector('.tab-panel[data-panel="templates"] .template-grid');
+      if (!templatesPanel) return;
+      if (!listings || listings.length === 0) {
+        templatesPanel.innerHTML = '<div style="padding:24px;text-align:center;color:var(--fg-muted);font-size:13px">No templates available</div>';
+        return;
+      }
+      var html = '';
+      var display = listings.slice(0, 4);
+      display.forEach(function(t) {
+        var grad = t.gradient || generateGradient(t.id);
+        html += '<div class="template-card">';
+        html += '<div class="template-preview"><div class="template-preview-inner" style="background:' + grad + '"></div></div>';
+        html += '<div class="template-info"><div class="template-name">' + escapeHtml(t.title || '') + '</div>';
+        html += '<div class="template-desc">' + escapeHtml(t.description || '') + '</div></div></div>';
+      });
+      templatesPanel.innerHTML = html;
+    }).catch(function() {});
+
+    return () => { cancelled = true; };
+  }, []);
+
   return (
     <main className="main" id="mainArea">
       <HeroBackground />
@@ -231,7 +321,7 @@ export default function HomePage() {
       </button>
 
       <div className="center-content" id="centerContent">
-        <h1 className="hero-heading">Ready to build, <span className="accent">Sammy</span>?</h1>
+        <h1 className="hero-heading">Ready to build, <span className="accent">&nbsp;</span>?</h1>
 
         <ChatBox />
       </div>
@@ -254,118 +344,43 @@ export default function HomePage() {
         </div>
 
         <div className="bottom-content">
-          {/* Recently viewed panel */}
+          {/* Recently viewed panel — populated by useEffect */}
           <div className="tab-panel" data-panel="recent">
             <div className="template-grid">
-              <div className="template-card">
+              <div className="template-card" style={{ opacity: 0.4 }}>
                 <div className="template-preview">
-                  <div className="template-preview-inner" style={{ background: 'linear-gradient(135deg, #ff4801 0%, #ff9a6c 50%, #ffd4b8 100%)' }}></div>
+                  <div className="template-preview-inner" style={{ background: 'var(--bg-tertiary)' }}></div>
                 </div>
                 <div className="template-info">
-                  <div className="template-name">Shopify Clone</div>
-                  <div className="template-desc">E-commerce storefront built with modern stack</div>
-                </div>
-              </div>
-              <div className="template-card">
-                <div className="template-preview">
-                  <div className="template-preview-inner" style={{ background: 'linear-gradient(135deg, #521000 0%, #ff4801 60%, #ff7038 100%)' }}></div>
-                </div>
-                <div className="template-info">
-                  <div className="template-name">alyssas-matcha-dreams</div>
-                  <div className="template-desc">Brand website with custom design system</div>
-                </div>
-              </div>
-              <div className="template-card">
-                <div className="template-preview">
-                  <div className="template-preview-inner" style={{ background: 'linear-gradient(135deg, #0a0a0a 0%, #ff4801 40%, #ff7038 100%)' }}></div>
-                </div>
-                <div className="template-info">
-                  <div className="template-name">AI Chat Agent</div>
-                  <div className="template-desc">Full-stack conversational AI with streaming responses</div>
-                </div>
-              </div>
-              <div className="template-card">
-                <div className="template-preview">
-                  <div className="template-preview-inner" style={{ background: 'linear-gradient(160deg, #fffdfb 0%, #ebd5c1 30%, #ff7038 70%, #ff4801 100%)' }}></div>
-                </div>
-                <div className="template-info">
-                  <div className="template-name">Dashboard Pro</div>
-                  <div className="template-desc">Analytics dashboard with charts and real-time data</div>
+                  <div className="template-name" style={{ color: 'var(--fg-muted)' }}>Loading...</div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* My projects panel */}
+          {/* My projects panel — populated by useEffect */}
           <div className="tab-panel" data-panel="projects">
             <div className="template-grid">
-              <div className="template-card">
+              <div className="template-card" style={{ opacity: 0.4 }}>
                 <div className="template-preview">
-                  <div className="template-preview-inner" style={{ background: 'linear-gradient(135deg, #ff4801 0%, #ff9a6c 50%, #ffd4b8 100%)' }}></div>
+                  <div className="template-preview-inner" style={{ background: 'var(--bg-tertiary)' }}></div>
                 </div>
                 <div className="template-info">
-                  <div className="template-name">Shopify Clone</div>
-                  <div className="template-desc">E-commerce storefront with cart and checkout</div>
-                </div>
-              </div>
-              <div className="template-card">
-                <div className="template-preview">
-                  <div className="template-preview-inner" style={{ background: 'linear-gradient(135deg, #521000 0%, #ff4801 60%, #ff7038 100%)' }}></div>
-                </div>
-                <div className="template-info">
-                  <div className="template-name">alyssas-matcha-dreams</div>
-                  <div className="template-desc">Brand website with custom design system</div>
-                </div>
-              </div>
-              <div className="template-card">
-                <div className="template-preview">
-                  <div className="template-preview-inner" style={{ background: 'linear-gradient(135deg, #0a0a0a 0%, #ff4801 40%, #ff7038 100%)' }}></div>
-                </div>
-                <div className="template-info">
-                  <div className="template-name">Marketing Site</div>
-                  <div className="template-desc">Modern startup landing with animations and CTA sections</div>
+                  <div className="template-name" style={{ color: 'var(--fg-muted)' }}>Loading...</div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Templates panel (active by default) */}
+          {/* Templates panel (active by default) — populated by useEffect */}
           <div className="tab-panel active" data-panel="templates">
             <div className="template-grid">
-              <div className="template-card">
+              <div className="template-card" style={{ opacity: 0.4 }}>
                 <div className="template-preview">
-                  <div className="template-preview-inner" style={{ background: 'linear-gradient(135deg, #ff4801 0%, #ff9a6c 50%, #ffd4b8 100%)' }}></div>
+                  <div className="template-preview-inner" style={{ background: 'var(--bg-tertiary)' }}></div>
                 </div>
                 <div className="template-info">
-                  <div className="template-name">AI Chat Interface</div>
-                  <div className="template-desc">Full-stack conversational AI with streaming responses</div>
-                </div>
-              </div>
-              <div className="template-card">
-                <div className="template-preview">
-                  <div className="template-preview-inner" style={{ background: 'linear-gradient(135deg, #521000 0%, #ff4801 60%, #ff7038 100%)' }}></div>
-                </div>
-                <div className="template-info">
-                  <div className="template-name">SaaS Dashboard</div>
-                  <div className="template-desc">Analytics dashboard with charts, tables, and real-time data</div>
-                </div>
-              </div>
-              <div className="template-card">
-                <div className="template-preview">
-                  <div className="template-preview-inner" style={{ background: 'linear-gradient(135deg, #0a0a0a 0%, #ff4801 40%, #ff7038 100%)' }}></div>
-                </div>
-                <div className="template-info">
-                  <div className="template-name">Landing Page</div>
-                  <div className="template-desc">Modern startup landing with animations and CTA sections</div>
-                </div>
-              </div>
-              <div className="template-card">
-                <div className="template-preview">
-                  <div className="template-preview-inner" style={{ background: 'linear-gradient(160deg, #fffdfb 0%, #ebd5c1 30%, #ff7038 70%, #ff4801 100%)' }}></div>
-                </div>
-                <div className="template-info">
-                  <div className="template-name">E-Commerce Store</div>
-                  <div className="template-desc">Product catalog with cart, checkout, and payment integration</div>
+                  <div className="template-name" style={{ color: 'var(--fg-muted)' }}>Loading...</div>
                 </div>
               </div>
             </div>

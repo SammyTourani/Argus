@@ -12,9 +12,8 @@
     "test:watch": "vitest",
     "test:unit": "vitest run tests/unit",
     "test:e2e": "playwright test",
-    "test:api": "node tests/api-endpoints.test.js",
-    "test:code": "node tests/code-execution.test.js",
-    "test:all": "vitest run && npm run test:api && npm run test:code"
+    "test:api": "vitest run tests/unit/api-*.test.ts",
+    "test:all": "vitest run"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.1",

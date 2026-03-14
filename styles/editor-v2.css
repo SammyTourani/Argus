@@ -1,0 +1,58 @@
+/* ===== Editor Design Token Bridge ===== */
+/* Always-dark tokens for the builder/editor pages.                        */
+/* Uses hardcoded dark values because the editor must remain dark even     */
+/* when the workspace home page is in light mode.                         */
+/* Accent colors inherit from workspace-v2 (same in both modes).          */
+
+.editor-root {
+  /* Background layers (fine-grained dark scale) */
+  --editor-bg-deep: #080808;
+  --editor-bg-base: #0f0f0f;
+  --editor-bg-surface: #0e0e0e;
+  --editor-bg-elevated: #161616;
+  --editor-bg-card: #1e1e1e;
+  --editor-bg-hover: #2a2a2a;
+
+  /* Text layers */
+  --editor-fg-primary: #f5f5f5;
+  --editor-fg-secondary: #d0d0d0;
+  --editor-fg-tertiary: #a8a8a8;
+  --editor-fg-muted: #808080;
+  --editor-fg-dim: #555;
+  --editor-fg-ghost: #444;
+
+  /* Borders */
+  --editor-border: #3a3a3a;
+  --editor-border-faint: rgba(255, 255, 255, 0.06);
+  --editor-border-hover: #4a4a4a;
+
+  /* Accent (inherits from workspace-v2 — identical in light & dark) */
+  --editor-accent: var(--accent-100, #ff4801);
+  --editor-accent-hover: var(--accent-200, #ff7038);
+  --editor-accent-glow: var(--accent-glow, rgba(255, 72, 1, 0.3));
+
+  /* Accent at specific opacities — needed because Tailwind v3 cannot apply  */
+  /* the /opacity modifier to arbitrary CSS variable values at compile time.  */
+  --editor-accent-5: rgba(255, 72, 1, 0.05);
+  --editor-accent-8: rgba(255, 72, 1, 0.08);
+  --editor-accent-10: rgba(255, 72, 1, 0.10);
+  --editor-accent-15: rgba(255, 72, 1, 0.15);
+  --editor-accent-20: rgba(255, 72, 1, 0.20);
+  --editor-accent-25: rgba(255, 72, 1, 0.25);
+  --editor-accent-30: rgba(255, 72, 1, 0.30);
+  --editor-accent-40: rgba(255, 72, 1, 0.40);
+  --editor-accent-50: rgba(255, 72, 1, 0.50);
+  --editor-accent-60: rgba(255, 72, 1, 0.60);
+
+  /* Status colors */
+  --editor-success: #22c55e;
+  --editor-error: #ef4444;
+  --editor-warning: #f59e0b;
+  --editor-info: #3b82f6;
+
+  /* Fonts (inherits workspace-v2 via .workspace-root ancestor) */
+  font-family: var(--font-sans, 'Geist Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif);
+
+  /* Force dark color scheme for native UI (scrollbars, form controls) */
+  color-scheme: dark;
+}

@@ -18,3 +18,4 @@ process.env.GEMINI_API_KEY = 'test-gemini-key';
 process.env.GROQ_API_KEY = 'gsk_test_groq';
 process.env.ADMIN_EMAIL = 'admin@argus.dev';
 process.env.NEXT_PUBLIC_APP_URL = 'http://localhost:3000';
+process.env.ENCRYPTION_KEY = 'a'.repeat(64);

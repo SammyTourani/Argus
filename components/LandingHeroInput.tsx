@@ -17,7 +17,7 @@ export default function LandingHeroInput() {
       setPhase(p);
       await new Promise(r => setTimeout(r, 500));
     }
-    // Create project via API then redirect to new build page
+    // Create project + build via API then redirect to editor with auto-start
     try {
       const res = await fetch('/api/projects', {
         method: 'POST',
@@ -29,7 +29,24 @@ export default function LandingHeroInput() {
       });
       const data = await res.json();
       if (res.ok && data.project?.id) {
-        router.push(`/workspace/${data.project.id}/build/new?url=${encodeURIComponent(target)}`);
+        // Create a build for this project
+        const buildRes = await fetch(`/api/projects/${data.project.id}/builds`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ source_url: target, prompt: 'Clone ' + target }),
+        });
+        const buildData = await buildRes.json();
+        if (buildRes.ok && buildData.build?.id) {
+          // Set auto-start so editor begins generation immediately
+          sessionStorage.setItem('autoStart', 'true');
+          sessionStorage.setItem('targetUrl', target);
+          router.push(`/workspace/${data.project.id}/build/${buildData.build.id}`);
+        } else {
+          // Fallback: navigate to project with latest build
+          sessionStorage.setItem('autoStart', 'true');
+          sessionStorage.setItem('targetUrl', target);
+          router.push(`/workspace/${data.project.id}/build/latest`);
+        }
       } else {
         // Not logged in — redirect to sign-up with return URL
         router.push(`/sign-up?redirect=/workspace`);

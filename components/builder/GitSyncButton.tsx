@@ -452,15 +452,15 @@ export default function GitSyncButton({
           onClick={handleQuickSync}
           disabled={isBusy}
           className={cn(
-            'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono border transition-colors',
+            'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-sans border transition-colors',
             syncState === 'idle-not-connected' &&
-              'text-[#888] hover:text-white border-[rgba(255,255,255,0.08)] hover:border-[rgba(255,255,255,0.15)]',
+              'text-[var(--editor-fg-muted)] hover:text-white border-[var(--editor-border)] hover:border-[var(--editor-border-hover)]',
             syncState === 'idle-connected' &&
-              'text-white border-[rgba(255,255,255,0.12)] hover:border-[rgba(255,255,255,0.25)] bg-[#1A2A1A]',
+              'text-white border-[var(--editor-border)] hover:border-[var(--editor-border-hover)] bg-[#1A2A1A]',
             syncState === 'syncing' &&
-              'text-[#888] border-[rgba(255,255,255,0.08)] cursor-not-allowed',
+              'text-[var(--editor-fg-muted)] border-[var(--editor-border)] cursor-not-allowed',
             syncState === 'pulling' &&
-              'text-[#888] border-[rgba(255,255,255,0.08)] cursor-not-allowed',
+              'text-[var(--editor-fg-muted)] border-[var(--editor-border)] cursor-not-allowed',
             syncState === 'success' &&
               'text-green-400 border-green-900 bg-[#0F1F0F] cursor-not-allowed',
             syncState === 'error' &&
@@ -477,8 +477,8 @@ export default function GitSyncButton({
           className={cn(
             'flex items-center px-1.5 py-1.5 rounded-lg text-xs border transition-colors',
             isBusy
-              ? 'border-[rgba(255,255,255,0.06)] text-[#444] cursor-not-allowed'
-              : 'border-[rgba(255,255,255,0.08)] text-[#666] hover:text-white hover:border-[rgba(255,255,255,0.15)]'
+              ? 'border-[var(--editor-border-faint)] text-[var(--editor-fg-ghost)] cursor-not-allowed'
+              : 'border-[var(--editor-border)] text-[var(--editor-fg-tertiary)] hover:text-white hover:border-[var(--editor-border-hover)]'
           )}
         >
           <ChevronDown size={11} className={cn('transition-transform', popoverOpen && 'rotate-180')} />
@@ -487,7 +487,7 @@ export default function GitSyncButton({
 
       {/* Last sync indicator */}
       {lastSyncTs && syncState === 'idle-connected' && (
-        <div className="absolute right-0 top-full mt-0.5 flex items-center gap-1 text-[10px] font-mono text-[#444]">
+        <div className="absolute right-0 top-full mt-0.5 flex items-center gap-1 text-[10px] font-mono text-[var(--editor-fg-ghost)]">
           <Clock size={8} />
           {formatTimestamp(lastSyncTs)}
         </div>
@@ -495,17 +495,17 @@ export default function GitSyncButton({
 
       {/* Enhanced popover */}
       {popoverOpen && (
-        <div className="absolute right-0 top-full mt-2 w-[360px] rounded-xl border border-[rgba(255,255,255,0.1)] bg-[#111] shadow-2xl z-50">
+        <div className="absolute right-0 top-full mt-2 w-[360px] rounded-xl border border-[var(--editor-border)] bg-[var(--editor-bg-elevated)] shadow-2xl shadow-black/50 z-50">
           {/* Header with tabs */}
-          <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.06)] px-4 pt-4 pb-0">
+          <div className="flex items-center justify-between border-b border-[var(--editor-border-faint)] px-4 pt-4 pb-0">
             <div className="flex items-center gap-1">
               <button
                 onClick={() => { setActiveTab('push'); setConnectError(''); setConnectStatus('idle'); }}
                 className={cn(
-                  'flex items-center gap-1.5 px-3 py-2 text-xs font-mono font-medium rounded-t-lg border-b-2 transition-colors',
+                  'flex items-center gap-1.5 px-3 py-2 text-xs font-sans font-medium rounded-t-lg border-b-2 transition-colors',
                   activeTab === 'push'
-                    ? 'text-white border-[#FA4500]'
-                    : 'text-[#666] border-transparent hover:text-[#888]'
+                    ? 'text-white border-[var(--editor-accent)]'
+                    : 'text-[var(--editor-fg-tertiary)] border-transparent hover:text-[var(--editor-fg-muted)]'
                 )}
               >
                 <ArrowUpFromLine size={12} />
@@ -514,10 +514,10 @@ export default function GitSyncButton({
               <button
                 onClick={() => { setActiveTab('pull'); setConnectError(''); setConnectStatus('idle'); }}
                 className={cn(
-                  'flex items-center gap-1.5 px-3 py-2 text-xs font-mono font-medium rounded-t-lg border-b-2 transition-colors',
+                  'flex items-center gap-1.5 px-3 py-2 text-xs font-sans font-medium rounded-t-lg border-b-2 transition-colors',
                   activeTab === 'pull'
-                    ? 'text-white border-[#FA4500]'
-                    : 'text-[#666] border-transparent hover:text-[#888]'
+                    ? 'text-white border-[var(--editor-accent)]'
+                    : 'text-[var(--editor-fg-tertiary)] border-transparent hover:text-[var(--editor-fg-muted)]'
                 )}
               >
                 <ArrowDownToLine size={12} />
@@ -526,7 +526,7 @@ export default function GitSyncButton({
             </div>
             <button
               onClick={() => setPopoverOpen(false)}
-              className="rounded p-1 text-[#666] hover:text-white hover:bg-[#222] transition-colors mb-2"
+              className="rounded p-1 text-[var(--editor-fg-tertiary)] hover:text-white hover:bg-[var(--editor-bg-hover)] transition-colors mb-2"
             >
               <X size={13} />
             </button>
@@ -535,12 +535,12 @@ export default function GitSyncButton({
           <div className="p-4 space-y-3">
             {/* GitHub connection status */}
             {!github.connected && !github.loading && (
-              <div className="flex items-center gap-2 rounded-lg bg-[#1A1200] border border-[rgba(250,69,0,0.2)] px-3 py-2">
-                <AlertCircle size={12} className="text-[#FA4500] flex-shrink-0" />
-                <p className="text-xs font-mono text-[#FA4500] flex-1">GitHub not connected</p>
+              <div className="flex items-center gap-2 rounded-lg bg-[#1A1200] border border-[var(--editor-accent-20)] px-3 py-2">
+                <AlertCircle size={12} className="text-[var(--editor-accent)] flex-shrink-0" />
+                <p className="text-xs font-sans text-[var(--editor-accent)] flex-1">GitHub not connected</p>
                 <button
                   onClick={github.reconnect}
-                  className="text-xs font-mono font-semibold text-[#FA4500] hover:text-white transition-colors"
+                  className="text-xs font-sans font-semibold text-[var(--editor-accent)] hover:text-white transition-colors"
                 >
                   Connect
                 </button>
@@ -549,7 +549,7 @@ export default function GitSyncButton({
 
             {/* Repo selector */}
             <div>
-              <label className="block text-xs font-mono text-[#888] mb-1.5">
+              <label className="block text-xs font-sans text-[var(--editor-fg-muted)] mb-1.5">
                 Repository
               </label>
               {createNewMode ? (
@@ -559,11 +559,11 @@ export default function GitSyncButton({
                     value={newRepoName}
                     onChange={(e) => setNewRepoName(e.target.value)}
                     placeholder="my-new-repo"
-                    className="flex-1 rounded-lg border border-[rgba(255,255,255,0.1)] bg-[#1A1A1A] px-3 py-2 text-xs text-white placeholder-[#555] font-mono focus:border-[rgba(255,255,255,0.25)] focus:outline-none transition-colors"
+                    className="flex-1 rounded-lg border border-[var(--editor-border)] bg-[var(--editor-bg-card)] px-3 py-2 text-xs text-white placeholder-[var(--editor-fg-dim)] font-mono focus:border-[var(--editor-border-hover)] focus:outline-none transition-colors"
                   />
                   <button
                     onClick={() => { setCreateNewMode(false); setNewRepoName(''); }}
-                    className="rounded p-1.5 text-[#666] hover:text-white hover:bg-[#222] transition-colors"
+                    className="rounded p-1.5 text-[var(--editor-fg-tertiary)] hover:text-white hover:bg-[var(--editor-bg-hover)] transition-colors"
                     title="Cancel"
                   >
                     <X size={12} />
@@ -584,7 +584,7 @@ export default function GitSyncButton({
             {/* Branch selector */}
             {(selectedRepo || repoUrl) && !createNewMode && (
               <div>
-                <label className="block text-xs font-mono text-[#888] mb-1.5">
+                <label className="block text-xs font-sans text-[var(--editor-fg-muted)] mb-1.5">
                   Branch
                 </label>
                 <div className="relative" ref={branchRef}>
@@ -595,15 +595,15 @@ export default function GitSyncButton({
                     className={cn(
                       'flex items-center gap-2 w-full rounded-lg border px-3 py-2 text-xs font-mono transition-colors',
                       branchesLoading
-                        ? 'border-[rgba(255,255,255,0.06)] bg-[#0E0E0E] text-[#555]'
-                        : 'border-[rgba(255,255,255,0.1)] bg-[#1A1A1A] text-white hover:border-[rgba(255,255,255,0.2)]'
+                        ? 'border-[var(--editor-border-faint)] bg-[var(--editor-bg-surface)] text-[var(--editor-fg-dim)]'
+                        : 'border-[var(--editor-border)] bg-[var(--editor-bg-card)] text-white hover:border-[var(--editor-border-hover)]'
                     )}
                   >
-                    <GitBranch size={12} className="flex-shrink-0 text-[#888]" />
+                    <GitBranch size={12} className="flex-shrink-0 text-[var(--editor-fg-muted)]" />
                     {branchesLoading ? (
                       <>
                         <Loader2 size={10} className="animate-spin" />
-                        <span className="text-[#555]">Loading...</span>
+                        <span className="text-[var(--editor-fg-dim)]">Loading...</span>
                       </>
                     ) : (
                       <>
@@ -611,18 +611,18 @@ export default function GitSyncButton({
                           {selectedBranch || defaultBranch}
                         </span>
                         {selectedBranch === defaultBranch && (
-                          <span className="text-[10px] text-[#555] flex-shrink-0">default</span>
+                          <span className="text-[10px] text-[var(--editor-fg-dim)] flex-shrink-0">default</span>
                         )}
                       </>
                     )}
                     <ChevronDown size={10} className={cn(
-                      'flex-shrink-0 text-[#555] transition-transform',
+                      'flex-shrink-0 text-[var(--editor-fg-dim)] transition-transform',
                       branchDropdownOpen && 'rotate-180'
                     )} />
                   </button>
 
                   {branchDropdownOpen && branches.length > 0 && (
-                    <div className="absolute left-0 right-0 top-full mt-1 rounded-lg border border-[rgba(255,255,255,0.1)] bg-[#111] shadow-xl z-50 max-h-[160px] overflow-y-auto">
+                    <div className="absolute left-0 right-0 top-full mt-1 rounded-lg border border-[var(--editor-border)] bg-[var(--editor-bg-elevated)] shadow-xl z-50 max-h-[160px] overflow-y-auto">
                       {branches.map((b) => (
                         <button
                           key={b.name}
@@ -632,14 +632,14 @@ export default function GitSyncButton({
                             setBranchDropdownOpen(false);
                           }}
                           className={cn(
-                            'flex items-center gap-2 w-full px-3 py-2 text-xs font-mono transition-colors hover:bg-[#1A1A1A]',
-                            selectedBranch === b.name ? 'text-white bg-[#1A1A1A]' : 'text-[#888]'
+                            'flex items-center gap-2 w-full px-3 py-2 text-xs font-mono transition-colors hover:bg-[var(--editor-bg-card)]',
+                            selectedBranch === b.name ? 'text-white bg-[var(--editor-bg-card)]' : 'text-[var(--editor-fg-muted)]'
                           )}
                         >
                           <GitBranch size={10} className="flex-shrink-0" />
                           <span className="flex-1 text-left truncate">{b.name}</span>
                           {b.name === defaultBranch && (
-                            <span className="text-[10px] text-[#555]">default</span>
+                            <span className="text-[10px] text-[var(--editor-fg-dim)]">default</span>
                           )}
                           {b.protected && (
                             <span className="text-[10px] text-yellow-500/70">protected</span>
@@ -656,7 +656,7 @@ export default function GitSyncButton({
             {activeTab === 'push' && (
               <>
                 <div>
-                  <label className="block text-xs font-mono text-[#888] mb-1.5">
+                  <label className="block text-xs font-sans text-[var(--editor-fg-muted)] mb-1.5">
                     Commit message
                   </label>
                   <input
@@ -664,16 +664,16 @@ export default function GitSyncButton({
                     value={commitMessage}
                     onChange={(e) => setCommitMessage(e.target.value)}
                     placeholder={defaultCommitMsg}
-                    className="w-full rounded-lg border border-[rgba(255,255,255,0.1)] bg-[#1A1A1A] px-3 py-2 text-xs text-white placeholder-[#555] font-mono focus:border-[rgba(255,255,255,0.25)] focus:outline-none transition-colors"
+                    className="w-full rounded-lg border border-[var(--editor-border)] bg-[var(--editor-bg-card)] px-3 py-2 text-xs text-white placeholder-[var(--editor-fg-dim)] font-mono focus:border-[var(--editor-border-hover)] focus:outline-none transition-colors"
                   />
                 </div>
 
                 {/* File count indicator */}
-                <div className="flex items-center gap-2 text-[10px] font-mono text-[#555]">
+                <div className="flex items-center gap-2 text-[10px] font-mono text-[var(--editor-fg-dim)]">
                   <span>{files.length} file{files.length !== 1 ? 's' : ''} to push</span>
                   {lastSyncTs && (
                     <>
-                      <span className="text-[#333]">|</span>
+                      <span className="text-[var(--editor-fg-ghost)]">|</span>
                       <span className="flex items-center gap-1">
                         <Clock size={8} />
                         Last sync {formatTimestamp(lastSyncTs)}
@@ -686,15 +686,15 @@ export default function GitSyncButton({
 
             {/* Pull tab content */}
             {activeTab === 'pull' && (
-              <div className="rounded-lg bg-[#0E0E0E] border border-[rgba(255,255,255,0.06)] px-3 py-2.5">
-                <p className="text-xs font-mono text-[#888]">
+              <div className="rounded-lg bg-[var(--editor-bg-surface)] border border-[var(--editor-border-faint)] px-3 py-2.5">
+                <p className="text-xs font-sans text-[var(--editor-fg-muted)]">
                   Pull the latest files from{' '}
-                  <span className="text-white">
+                  <span className="text-white font-mono">
                     {selectedRepo?.full_name ?? (repoUrl ? parseOwnerRepo(repoUrl) : 'GitHub')}
                   </span>
                   {selectedBranch && (
                     <>
-                      {' '}on branch <span className="text-white">{selectedBranch}</span>
+                      {' '}on branch <span className="text-white font-mono">{selectedBranch}</span>
                     </>
                   )}
                   . This will replace your current builder files.
@@ -704,7 +704,7 @@ export default function GitSyncButton({
 
             {/* Error / Success messages */}
             {connectStatus === 'error' && (
-              <div className="flex items-start gap-2 text-xs text-red-400 bg-red-950/30 border border-red-900/50 rounded-lg px-3 py-2 font-mono">
+              <div className="flex items-start gap-2 text-xs text-red-400 bg-red-950/30 border border-red-900/50 rounded-lg px-3 py-2 font-sans">
                 <AlertCircle size={12} className="flex-shrink-0 mt-0.5" />
                 <div>
                   <p>{connectError}</p>
@@ -721,7 +721,7 @@ export default function GitSyncButton({
             )}
 
             {connectStatus === 'success' && (
-              <p className="text-xs text-green-400 bg-green-950/30 border border-green-900/50 rounded-lg px-3 py-2 font-mono flex items-center gap-2">
+              <p className="text-xs text-green-400 bg-green-950/30 border border-green-900/50 rounded-lg px-3 py-2 font-sans flex items-center gap-2">
                 <CheckCircle2 size={12} />
                 {activeTab === 'push' ? 'Pushed successfully!' : 'Pulled successfully!'}
               </p>
@@ -733,9 +733,9 @@ export default function GitSyncButton({
                 onClick={handlePush}
                 disabled={connectStatus === 'pushing' || connectStatus === 'success' || (!selectedRepo && !createNewMode)}
                 className={cn(
-                  'w-full flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-xs font-mono font-semibold transition-colors',
+                  'w-full flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-xs font-sans font-semibold transition-colors',
                   connectStatus === 'pushing' || connectStatus === 'success' || (!selectedRepo && !createNewMode)
-                    ? 'bg-[#222] text-[#555] cursor-not-allowed'
+                    ? 'bg-[var(--editor-bg-hover)] text-[var(--editor-fg-dim)] cursor-not-allowed'
                     : 'bg-white text-black hover:bg-zinc-200'
                 )}
               >
@@ -761,9 +761,9 @@ export default function GitSyncButton({
                 onClick={handlePull}
                 disabled={connectStatus === 'pulling' || connectStatus === 'success' || (!selectedRepo && !repoUrl)}
                 className={cn(
-                  'w-full flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-xs font-mono font-semibold transition-colors',
+                  'w-full flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-xs font-sans font-semibold transition-colors',
                   connectStatus === 'pulling' || connectStatus === 'success' || (!selectedRepo && !repoUrl)
-                    ? 'bg-[#222] text-[#555] cursor-not-allowed'
+                    ? 'bg-[var(--editor-bg-hover)] text-[var(--editor-fg-dim)] cursor-not-allowed'
                     : 'bg-white text-black hover:bg-zinc-200'
                 )}
               >
@@ -792,7 +792,7 @@ export default function GitSyncButton({
                 onClick={() => {
                   github.refresh();
                 }}
-                className="flex items-center gap-1.5 text-[10px] font-mono text-[#444] hover:text-[#888] transition-colors mx-auto"
+                className="flex items-center gap-1.5 text-[10px] font-sans text-[var(--editor-fg-ghost)] hover:text-[var(--editor-fg-muted)] transition-colors mx-auto"
               >
                 <RefreshCw size={8} />
                 Refresh connection

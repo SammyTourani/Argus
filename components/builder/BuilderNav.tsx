@@ -62,29 +62,29 @@ export default function BuilderNav({
   }, []);
 
   return (
-    <nav className="h-12 bg-[#0A0A0A] border-b border-[rgba(255,255,255,0.06)] flex items-center justify-between px-4 flex-shrink-0 relative z-10">
+    <nav className="h-12 bg-[var(--editor-bg-base)] border-b border-[var(--editor-border-faint)] flex items-center justify-between px-4 flex-shrink-0 relative z-10">
       {/* Left: Breadcrumb */}
       <div className="flex items-center gap-2 min-w-0">
         <Link
           href="/workspace"
-          className="flex items-center gap-1.5 text-[#666] hover:text-white transition-colors text-sm font-mono flex-shrink-0"
+          className="flex items-center gap-1.5 text-[var(--editor-fg-tertiary)] hover:text-white transition-colors text-sm font-sans flex-shrink-0"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">Projects</span>
         </Link>
-        <span className="text-[#333] font-mono">/</span>
-        <span className="text-white text-sm font-mono truncate max-w-[160px]">
+        <span className="text-[var(--editor-fg-ghost)] font-mono">/</span>
+        <span className="text-white text-sm font-sans truncate max-w-[160px]">
           {projectName}
         </span>
 
         {/* Panel toggles */}
-        <div className="flex items-center gap-1 ml-3 border-l border-[rgba(255,255,255,0.06)] pl-3">
+        <div className="flex items-center gap-1 ml-3 border-l border-[var(--editor-border-faint)] pl-3">
           <button
             onClick={onToggleLeft}
-            className={`px-2 py-1 rounded text-[10px] font-mono uppercase tracking-wider transition-colors ${
+            className={`px-2 py-1 rounded text-[10px] font-sans uppercase tracking-wider transition-colors ${
               leftPanelVisible
-                ? 'bg-[#2A2A2A] text-white'
-                : 'text-[#555] hover:text-white'
+                ? 'bg-[var(--editor-bg-hover)] text-white'
+                : 'text-[var(--editor-fg-dim)] hover:text-white'
             }`}
             title="Toggle chat panel"
           >
@@ -92,10 +92,10 @@ export default function BuilderNav({
           </button>
           <button
             onClick={onToggleRight}
-            className={`px-2 py-1 rounded text-[10px] font-mono uppercase tracking-wider transition-colors ${
+            className={`px-2 py-1 rounded text-[10px] font-sans uppercase tracking-wider transition-colors ${
               rightPanelVisible
-                ? 'bg-[#2A2A2A] text-white'
-                : 'text-[#555] hover:text-white'
+                ? 'bg-[var(--editor-bg-hover)] text-white'
+                : 'text-[var(--editor-fg-dim)] hover:text-white'
             }`}
             title="Toggle code panel"
           >
@@ -119,7 +119,7 @@ export default function BuilderNav({
         {extraActions}
         <button
           onClick={handleShare}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono text-[#888] hover:text-white border border-[rgba(255,255,255,0.08)] hover:border-[rgba(255,255,255,0.15)] transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-sans text-[var(--editor-fg-muted)] hover:text-white border border-[var(--editor-border)] hover:border-[var(--editor-border-hover)] transition-colors"
         >
           <Share2 className="w-3.5 h-3.5" />
           Share
@@ -129,7 +129,7 @@ export default function BuilderNav({
           <button
             onClick={onPublish}
             disabled={isPublishing}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono text-white bg-[#FA4500] hover:bg-[#E63F00] disabled:opacity-50 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-sans text-white bg-[var(--editor-accent)] hover:bg-[var(--editor-accent-hover)] disabled:opacity-50 transition-colors"
           >
             <Rocket className="w-3.5 h-3.5" />
             {isPublishing ? 'Publishing...' : 'Publish'}
@@ -137,14 +137,14 @@ export default function BuilderNav({
         )}
 
         {/* User avatar */}
-        <div className="w-7 h-7 rounded-full bg-[#2A2A2A] border border-[rgba(255,255,255,0.08)] flex items-center justify-center text-[11px] font-mono text-[#888]">
+        <div className="w-7 h-7 rounded-full bg-[var(--editor-bg-hover)] border border-[var(--editor-border)] flex items-center justify-center text-[11px] font-sans text-[var(--editor-fg-muted)]">
           {userInitial || '?'}
         </div>
       </div>
 
       {/* Share toast */}
       {showShareToast && (
-        <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-[#2A2A2A] text-white text-xs font-mono px-3 py-2 rounded-lg border border-[rgba(255,255,255,0.1)] shadow-lg z-50 animate-in fade-in slide-in-from-top-1">
+        <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-[var(--editor-bg-hover)] text-white text-xs font-sans px-3 py-2 rounded-lg border border-[var(--editor-border-hover)] shadow-lg z-50 animate-in fade-in slide-in-from-top-1">
           Link copied!
         </div>
       )}

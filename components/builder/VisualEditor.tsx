@@ -135,7 +135,7 @@ const INSPECTOR_SCRIPT = `
 
   // Cursor style
   document.body.style.cursor = 'crosshair';
-  
+
   window.addEventListener('message', function(e) {
     if (e.data?.type === 'argus_inspector_off') {
       window.__argusInspectorActive = false;
@@ -238,10 +238,10 @@ export default function VisualEditor({ isActive, onToggle, iframeRef, onGenerate
       <button
         onClick={onToggle}
         className={cn(
-          'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono border transition-colors',
+          'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-sans border transition-colors',
           isActive
-            ? 'bg-[#FA4500] text-white border-[#FA4500]'
-            : 'text-[#888] hover:text-white border-[rgba(255,255,255,0.08)] hover:border-[rgba(255,255,255,0.15)]'
+            ? 'bg-[var(--editor-accent)] text-white border-[var(--editor-accent)]'
+            : 'text-[var(--editor-fg-muted)] hover:text-white border-[var(--editor-border)] hover:border-[var(--editor-border-hover)]'
         )}
         title="Visual editor — click any element to edit it"
       >
@@ -257,25 +257,25 @@ export default function VisualEditor({ isActive, onToggle, iframeRef, onGenerate
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 20 }}
             transition={{ duration: 0.2 }}
-            className="absolute right-0 top-12 bottom-0 w-72 bg-[#0D0D0D] border-l border-[rgba(255,255,255,0.08)] z-20 flex flex-col overflow-hidden"
+            className="absolute right-0 top-12 bottom-0 w-72 bg-[var(--editor-bg-base)] border-l border-[var(--editor-border)] z-20 flex flex-col overflow-hidden"
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[rgba(255,255,255,0.06)]">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--editor-border-faint)]">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-mono text-[#FA4500] uppercase tracking-wider">
+                <span className="text-xs font-mono text-[var(--editor-accent)] uppercase tracking-wider">
                   {selectedElement.tagName.toLowerCase()}
                 </span>
               </div>
               <button
                 onClick={() => setSelectedElement(null)}
-                className="text-[#666] hover:text-white transition-colors"
+                className="text-[var(--editor-fg-tertiary)] hover:text-white transition-colors"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
 
             {/* Tabs */}
-            <div className="flex border-b border-[rgba(255,255,255,0.06)]">
+            <div className="flex border-b border-[var(--editor-border-faint)]">
               {([
                 { id: 'text' as EditTab, icon: Type, label: 'Text' },
                 { id: 'style' as EditTab, icon: Palette, label: 'Style' },
@@ -285,8 +285,8 @@ export default function VisualEditor({ isActive, onToggle, iframeRef, onGenerate
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={cn(
-                    'flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-mono transition-colors',
-                    activeTab === tab.id ? 'text-[#FA4500] border-b-2 border-[#FA4500]' : 'text-[#666] hover:text-white'
+                    'flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-sans transition-colors',
+                    activeTab === tab.id ? 'text-[var(--editor-accent)] border-b-2 border-[var(--editor-accent)]' : 'text-[var(--editor-fg-tertiary)] hover:text-white'
                   )}
                 >
                   <tab.icon className="w-3 h-3" />
@@ -300,17 +300,17 @@ export default function VisualEditor({ isActive, onToggle, iframeRef, onGenerate
               {activeTab === 'text' && (
                 <>
                   <div>
-                    <label className="block text-[10px] font-mono text-[#666] uppercase tracking-wider mb-1.5">Content</label>
+                    <label className="block text-[10px] font-sans text-[var(--editor-fg-tertiary)] uppercase tracking-wider mb-1.5">Content</label>
                     <textarea
                       value={editText}
                       onChange={e => setEditText(e.target.value)}
                       rows={4}
-                      className="w-full bg-[#161616] border border-[rgba(255,255,255,0.08)] rounded-lg px-3 py-2 text-xs text-white font-mono focus:border-[#FA4500] outline-none resize-none"
+                      className="w-full bg-[var(--editor-bg-elevated)] border border-[var(--editor-border)] rounded-lg px-3 py-2 text-xs text-white font-sans focus:border-[var(--editor-accent)] outline-none resize-none"
                     />
                   </div>
                   <button
                     onClick={handleApplyTextChange}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#FA4500] hover:bg-[#E63F00] text-white text-xs font-mono rounded-lg transition-colors"
+                    className="w-full flex items-center justify-center gap-2 py-2.5 bg-[var(--editor-accent)] hover:bg-[var(--editor-accent-hover)] text-white text-xs font-sans rounded-lg transition-colors"
                   >
                     Apply with AI <ChevronRight className="w-3.5 h-3.5" />
                   </button>
@@ -325,7 +325,7 @@ export default function VisualEditor({ isActive, onToggle, iframeRef, onGenerate
                   <NumberField label="Border radius (px)" value={editBorderRadius} onChange={setEditBorderRadius} />
                   <button
                     onClick={handleApplyStyleChange}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#FA4500] hover:bg-[#E63F00] text-white text-xs font-mono rounded-lg transition-colors"
+                    className="w-full flex items-center justify-center gap-2 py-2.5 bg-[var(--editor-accent)] hover:bg-[var(--editor-accent-hover)] text-white text-xs font-sans rounded-lg transition-colors"
                   >
                     Apply with AI <ChevronRight className="w-3.5 h-3.5" />
                   </button>
@@ -334,7 +334,7 @@ export default function VisualEditor({ isActive, onToggle, iframeRef, onGenerate
 
               {activeTab === 'layout' && (
                 <div className="space-y-3">
-                  <div className="text-[10px] font-mono text-[#555] uppercase tracking-wider">Computed</div>
+                  <div className="text-[10px] font-sans text-[var(--editor-fg-dim)] uppercase tracking-wider">Computed</div>
                   {Object.entries({
                     Padding: selectedElement.computedStyles.padding,
                     Margin: selectedElement.computedStyles.margin,
@@ -342,8 +342,8 @@ export default function VisualEditor({ isActive, onToggle, iframeRef, onGenerate
                     Size: `${Math.round(selectedElement.rect.width)}×${Math.round(selectedElement.rect.height)}px`,
                   }).map(([k, v]) => (
                     <div key={k} className="flex items-center justify-between">
-                      <span className="text-[11px] font-mono text-[#666]">{k}</span>
-                      <span className="text-[11px] font-mono text-[#aaa]">{v}</span>
+                      <span className="text-[11px] font-sans text-[var(--editor-fg-tertiary)]">{k}</span>
+                      <span className="text-[11px] font-mono text-[var(--editor-fg-tertiary)]">{v}</span>
                     </div>
                   ))}
                 </div>
@@ -359,19 +359,19 @@ export default function VisualEditor({ isActive, onToggle, iframeRef, onGenerate
 function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <div>
-      <label className="block text-[10px] font-mono text-[#666] uppercase tracking-wider mb-1.5">{label}</label>
+      <label className="block text-[10px] font-sans text-[var(--editor-fg-tertiary)] uppercase tracking-wider mb-1.5">{label}</label>
       <div className="flex items-center gap-2">
         <input
           type="color"
           value={value || '#000000'}
           onChange={e => onChange(e.target.value)}
-          className="w-8 h-8 rounded border border-[rgba(255,255,255,0.08)] bg-transparent cursor-pointer"
+          className="w-8 h-8 rounded border border-[var(--editor-border)] bg-transparent cursor-pointer"
         />
         <input
           type="text"
           value={value}
           onChange={e => onChange(e.target.value)}
-          className="flex-1 bg-[#161616] border border-[rgba(255,255,255,0.08)] rounded px-2 py-1.5 text-xs text-white font-mono focus:border-[#FA4500] outline-none"
+          className="flex-1 bg-[var(--editor-bg-elevated)] border border-[var(--editor-border)] rounded px-2 py-1.5 text-xs text-white font-mono focus:border-[var(--editor-accent)] outline-none"
         />
       </div>
     </div>
@@ -381,12 +381,12 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
 function NumberField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <div>
-      <label className="block text-[10px] font-mono text-[#666] uppercase tracking-wider mb-1.5">{label}</label>
+      <label className="block text-[10px] font-sans text-[var(--editor-fg-tertiary)] uppercase tracking-wider mb-1.5">{label}</label>
       <input
         type="number"
         value={value}
         onChange={e => onChange(e.target.value)}
-        className="w-full bg-[#161616] border border-[rgba(255,255,255,0.08)] rounded px-2 py-1.5 text-xs text-white font-mono focus:border-[#FA4500] outline-none"
+        className="w-full bg-[var(--editor-bg-elevated)] border border-[var(--editor-border)] rounded px-2 py-1.5 text-xs text-white font-mono focus:border-[var(--editor-accent)] outline-none"
       />
     </div>
   );

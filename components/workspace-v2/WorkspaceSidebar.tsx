@@ -3,6 +3,7 @@
 
 import { useEffect } from 'react';
 import WorkspaceDropdown from './WorkspaceDropdown';
+import { fetchCurrentUser, fetchRecents, escapeHtml } from './workspace-api';
 
 export default function WorkspaceSidebar() {
   // ===== Upgrade to Pro button handler =====
@@ -11,12 +12,40 @@ export default function WorkspaceSidebar() {
     if (!upgradeBtn) return;
 
     function handleUpgradeClick() {
-      window.location.href = 'upgrade.html';
+      window.location.href = '/upgrade';
     }
 
     upgradeBtn.addEventListener('click', handleUpgradeClick);
 
+    // Fetch user data to update sidebar
+    var cancelled = false;
+    fetchCurrentUser().then(function(user) {
+      if (cancelled || !user) return;
+      var logo = document.querySelector('.sidebar-logo');
+      var title = document.querySelector('.sidebar-title');
+      if (logo) logo.textContent = user.initial;
+      if (title) title.innerHTML = escapeHtml(user.name) + '\'s Workspace <svg class="sidebar-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 6l3 3 3-3"/></svg>';
+    }).catch(function() {});
+
+    // Fetch recently viewed projects
+    var docSvg = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h12v12H4z" /><path d="M8 8h4M8 11h2" /></svg>';
+    fetchRecents().then(function(recents) {
+      if (cancelled) return;
+      var recentsContainer = document.getElementById('sidebarRecents');
+      if (!recentsContainer) return;
+      if (!recents || recents.length === 0) {
+        recentsContainer.innerHTML = '<div class="nav-item" style="color:var(--fg-muted);font-size:12px;pointer-events:none">No recent projects</div>';
+        return;
+      }
+      var html = '';
+      recents.slice(0, 5).forEach(function(r) {
+        html += '<a class="nav-item" href="/workspace/' + encodeURIComponent(r.project_id) + '" style="text-decoration:none">' + docSvg + ' ' + escapeHtml(r.project_name || 'Untitled') + '</a>';
+      });
+      recentsContainer.innerHTML = html;
+    }).catch(function() {});
+
     return () => {
+      cancelled = true;
       upgradeBtn!.removeEventListener('click', handleUpgradeClick);
     };
   }, []);
@@ -25,7 +54,7 @@ export default function WorkspaceSidebar() {
     <aside className="sidebar" id="sidebar">
       <div className="sidebar-header">
         <div className="sidebar-logo">A</div>
-        <div className="sidebar-title">Sammy&apos;s Workspace <svg className="sidebar-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M5 6l3 3 3-3" /></svg></div>
+        <div className="sidebar-title">Workspace <svg className="sidebar-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M5 6l3 3 3-3" /></svg></div>
       </div>
 
       {/* Workspace Dropdown */}
@@ -40,7 +69,7 @@ export default function WorkspaceSidebar() {
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="9" cy="9" r="5.5" /><path d="M13.5 13.5L17 17" /></svg>
           Search
         </div>
-        <a className="nav-item" href="resources.html" style={{ textDecoration: 'none' }}>
+        <a className="nav-item" href="/resources" style={{ textDecoration: 'none' }}>
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 4h5v5H4zM11 4h5v5h-5zM4 11h5v5H4zM11 11h5v5h-5z" /></svg>
           Resources
         </a>
@@ -67,15 +96,8 @@ export default function WorkspaceSidebar() {
       </div>
 
       <div className="nav-section-label">Recents</div>
-      <div style={{ padding: '0 8px 12px' }}>
-        <div className="nav-item">
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 4h12v12H4z" /><path d="M8 8h4M8 11h2" /></svg>
-          AI Chat Agent
-        </div>
-        <div className="nav-item">
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 4h12v12H4z" /><path d="M8 8h4M8 11h2" /></svg>
-          Dashboard Pro
-        </div>
+      <div style={{ padding: '0 8px 12px' }} id="sidebarRecents">
+        <div className="nav-item" style={{ color: 'var(--fg-muted)', fontSize: '12px', pointerEvents: 'none' }}>Loading...</div>
       </div>
 
       <div className="sidebar-footer">

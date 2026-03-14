@@ -2,6 +2,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { fetchCurrentUser, fetchSubscription, fetchTeams, createTeam, escapeHtml } from './workspace-api';
 
 export default function WorkspaceDropdown() {
   // ===== initWorkspaceDropdown =====
@@ -43,9 +44,40 @@ export default function WorkspaceDropdown() {
       var actionBtn = (e.target as HTMLElement).closest('[data-ws-action]');
       if (actionBtn) {
         var action = actionBtn.getAttribute('data-ws-action');
-        console.log('Workspace action:', action);
-        if (action === 'upgrade') { window.location.href = 'upgrade.html'; return; }
-        if (action === 'create') close();
+        if (action === 'upgrade') { window.location.href = '/upgrade'; return; }
+        if (action === 'create') {
+          var teamName = prompt('Enter a name for the new workspace:');
+          if (teamName && teamName.trim()) {
+            actionBtn.setAttribute('disabled', 'true');
+            actionBtn.textContent = 'Creating...';
+            createTeam(teamName.trim()).then(function(team) {
+              if (team) {
+                // Re-fetch teams to update the list
+                fetchTeams().then(function(updatedTeams) {
+                  var wsList = dropdown!.querySelector('.ws-workspace-list');
+                  if (wsList && updatedTeams) {
+                    var checkSvg = '<svg class="ws-ws-check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8.5l3.5 3.5L13 5" /></svg>';
+                    var existingHtml = wsList.innerHTML;
+                    var newInitial = (team.name || 'T').charAt(0).toUpperCase();
+                    existingHtml += '<div class="ws-workspace-item" data-ws-id="' + team.id + '">' +
+                      '<div class="ws-ws-avatar">' + newInitial + '</div>' +
+                      '<span class="ws-ws-name">' + escapeHtml(team.name) + '</span>' +
+                      '<span class="ws-ws-badge">FREE</span>' +
+                      checkSvg + '</div>';
+                    wsList.innerHTML = existingHtml;
+                  }
+                }).catch(function() {});
+              }
+              actionBtn.removeAttribute('disabled');
+              actionBtn.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 3v10M3 8h10" /></svg> Create new workspace';
+            }).catch(function(err) {
+              alert(err.message || 'Failed to create workspace');
+              actionBtn.removeAttribute('disabled');
+              actionBtn.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 3v10M3 8h10" /></svg> Create new workspace';
+            });
+          }
+          return;
+        }
         return;
       }
 
@@ -57,7 +89,6 @@ export default function WorkspaceDropdown() {
         var name = wsItem.querySelector('.ws-ws-name')!.textContent;
         document.querySelector('.sidebar-title')!.innerHTML = name + ' <svg class="sidebar-chevron open" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 6l3 3 3-3"/></svg>';
         chevron = document.querySelector('.sidebar-chevron');
-        console.log('Switched workspace to:', name);
       }
     }
 
@@ -66,7 +97,58 @@ export default function WorkspaceDropdown() {
     document.addEventListener('keydown', handleKeydown);
     dropdown.addEventListener('click', handleDropdownClick);
 
+    // Fetch user + subscription + teams to populate dropdown
+    var cancelled = false;
+    Promise.all([fetchCurrentUser(), fetchSubscription(), fetchTeams()]).then(function(results) {
+      if (cancelled) return;
+      var user = results[0];
+      var sub = results[1];
+      var teams = results[2];
+      if (user) {
+        var avatar = dropdown!.querySelector('.ws-avatar');
+        if (avatar) avatar.textContent = user.initial;
+        var name = dropdown!.querySelector('.ws-current-name');
+        if (name) name.textContent = user.name + "'s Workspace";
+      }
+      if (sub) {
+        var planBadge = dropdown!.querySelector('.ws-plan-badge');
+        if (planBadge) planBadge.textContent = (sub.tier || 'Free').charAt(0).toUpperCase() + (sub.tier || 'free').slice(1) + ' Plan';
+        var creditsCount = dropdown!.querySelector('.ws-credits-count');
+        if (creditsCount) creditsCount.textContent = (sub.buildsRemaining || 0) + ' left \u203A';
+        var progressFill = dropdown!.querySelector('.ws-progress-fill') as HTMLElement;
+        if (progressFill && sub.maxBuilds > 0) {
+          progressFill.style.width = Math.round((sub.buildsRemaining / sub.maxBuilds) * 100) + '%';
+        }
+        var creditsHelp = dropdown!.querySelector('.ws-credits-help');
+        if (creditsHelp) creditsHelp.textContent = sub.maxBuilds + ' ' + sub.tier + ' builds reset monthly';
+      }
+      // Render workspace list dynamically
+      var wsList = dropdown!.querySelector('.ws-workspace-list');
+      if (wsList && user) {
+        var checkSvg = '<svg class="ws-ws-check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8.5l3.5 3.5L13 5" /></svg>';
+        var tierLabel = (sub && sub.tier) ? sub.tier.toUpperCase() : 'FREE';
+        var html = '<div class="ws-workspace-item active" data-ws-id="personal">' +
+          '<div class="ws-ws-avatar">' + user.initial + '</div>' +
+          '<span class="ws-ws-name">' + escapeHtml(user.name) + '\'s Workspace</span>' +
+          '<span class="ws-ws-badge">' + tierLabel + '</span>' +
+          checkSvg + '</div>';
+        if (teams && teams.length > 0) {
+          teams.forEach(function(t) {
+            var initial = (t.name || 'T').charAt(0).toUpperCase();
+            var badge = (t.plan || 'free').toUpperCase();
+            html += '<div class="ws-workspace-item" data-ws-id="' + t.id + '">' +
+              '<div class="ws-ws-avatar">' + initial + '</div>' +
+              '<span class="ws-ws-name">' + escapeHtml(t.name || 'Team') + '</span>' +
+              '<span class="ws-ws-badge">' + badge + '</span>' +
+              checkSvg + '</div>';
+          });
+        }
+        wsList.innerHTML = html;
+      }
+    }).catch(function() {});
+
     return () => {
+      cancelled = true;
       header!.removeEventListener('click', handleHeaderClick);
       backdrop!.removeEventListener('click', handleBackdropClick);
       document.removeEventListener('keydown', handleKeydown);
@@ -78,9 +160,9 @@ export default function WorkspaceDropdown() {
     <>
       <div className="workspace-dropdown" id="workspaceDropdown">
         <div className="ws-current">
-          <div className="ws-avatar">S</div>
+          <div className="ws-avatar">&nbsp;</div>
           <div className="ws-current-info">
-            <div className="ws-current-name">Sammy&apos;s Lovable</div>
+            <div className="ws-current-name">Loading...</div>
             <div className="ws-current-meta"><span className="ws-plan-badge">Free Plan</span> &bull; 1 member</div>
           </div>
         </div>
@@ -114,18 +196,7 @@ export default function WorkspaceDropdown() {
         <div className="ws-divider"></div>
         <div className="ws-section-label-dd">All workspaces</div>
         <div className="ws-workspace-list">
-          <div className="ws-workspace-item active" data-ws-id="sammys">
-            <div className="ws-ws-avatar">S</div>
-            <span className="ws-ws-name">Sammy&apos;s Lovable</span>
-            <span className="ws-ws-badge">FREE</span>
-            <svg className="ws-ws-check" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8.5l3.5 3.5L13 5" /></svg>
-          </div>
-          <div className="ws-workspace-item" data-ws-id="alyssas">
-            <div className="ws-ws-avatar">A</div>
-            <span className="ws-ws-name">alyssas-matcha-dreams</span>
-            <span className="ws-ws-badge">FREE</span>
-            <svg className="ws-ws-check" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8.5l3.5 3.5L13 5" /></svg>
-          </div>
+          {/* Populated dynamically by useEffect */}
         </div>
         <button className="ws-create-btn" data-ws-action="create">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8 3v10M3 8h10" /></svg>

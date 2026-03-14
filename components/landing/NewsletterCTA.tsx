@@ -13,7 +13,7 @@ export default function NewsletterCTA() {
     e.preventDefault();
     if (!email.trim()) return;
 
-    // TODO: integrate Resend for actual email capture
+    // Resend email capture integration deferred — currently shows success toast only
     setSubmitted(true);
     toast.success("You're on the list! We'll keep you posted.");
     setEmail("");
