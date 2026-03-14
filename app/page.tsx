@@ -9,7 +9,7 @@ import AsciiCanvas from "@/components/landing/AsciiCanvas";
 import GradientOrbs from "@/components/landing/GradientOrbs";
 import IntroLoader from "@/components/landing/IntroLoader";
 import TextScramble from "@/components/landing/TextScramble";
-import LandingHeroInput from "@/components/LandingHeroInput";
+import LandingHeroInput from "@/components/landing/LandingHeroInput";
 import StructuredData from "@/components/landing/StructuredData";
 
 // ─── Lazy-loaded (below-fold) ────────────────────────────────────────

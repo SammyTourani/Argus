@@ -1,25 +1,6 @@
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { checkRateLimit } from '@/lib/ratelimit';
-
-async function createSupabaseServer() {
-  const cookieStore = await cookies();
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (cookiesToSet) => {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
-          );
-        },
-      },
-    }
-  );
-}
 
 interface RollbackRequestBody {
   projectId: string;
@@ -30,7 +11,7 @@ interface RollbackRequestBody {
 // Re-deploys a previous build's code snapshot
 export async function POST(request: Request) {
   try {
-    const supabase = await createSupabaseServer();
+    const supabase = await createClient();
 
     // Authenticate user
     const {

@@ -1,24 +1,5 @@
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
-
-async function createSupabaseServer() {
-  const cookieStore = await cookies();
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (cookiesToSet) => {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
-          );
-        },
-      },
-    }
-  );
-}
 
 const SKIP_DIRS = ['node_modules', '.git', 'dist', '.next', '.nuxt', 'build', 'out', '.vercel'];
 const MAX_FILE_SIZE = 100 * 1024; // 100KB
@@ -75,7 +56,7 @@ interface PullRequestBody {
 // POST /api/github/pull — pull latest files from connected GitHub repo
 export async function POST(request: Request) {
   try {
-    const supabase = await createSupabaseServer();
+    const supabase = await createClient();
 
     const {
       data: { user },

@@ -1,26 +1,7 @@
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { checkRateLimit } from '@/lib/ratelimit';
 import { getUserSubscriptionGate } from '@/lib/subscription/gate';
-
-async function createSupabaseServer() {
-  const cookieStore = await cookies();
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (cookiesToSet) => {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
-          );
-        },
-      },
-    }
-  );
-}
 
 interface FileEntry {
   path: string;
@@ -37,7 +18,7 @@ interface DeployRequestBody {
 // POST /api/deploy — Deploy a build to Vercel as a static site
 export async function POST(request: Request) {
   try {
-    const supabase = await createSupabaseServer();
+    const supabase = await createClient();
 
     // Authenticate user
     const {
