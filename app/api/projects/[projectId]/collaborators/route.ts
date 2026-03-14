@@ -82,7 +82,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       .from('project_collaborators')
       .select('id, status')
       .eq('project_id', projectId)
-      .eq('invite_email', email)
+      .eq('email', email)
       .single();
 
     if (existing && existing.status === 'accepted') {
@@ -98,12 +98,12 @@ export async function POST(request: Request, { params }: RouteParams) {
         {
           project_id: projectId,
           invited_by: user.id,
-          invite_email: email,
+          email,
           role,
           status: 'pending',
           invite_token: inviteToken,
         },
-        { onConflict: 'project_id,invite_email' }
+        { onConflict: 'project_id,email' }
       )
       .select()
       .single();
@@ -111,7 +111,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     if (inviteError) return NextResponse.json({ error: inviteError.message }, { status: 500 });
 
     // Send invite email via Resend
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://argus-six-omega.vercel.app';
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://buildargus.dev';
     const inviteUrl = `${appUrl}/workspace/invite/${inviteToken}`;
     const inviterName = user.user_metadata?.full_name ?? user.email ?? 'Someone';
     const projectName = (project as { name: string }).name;
