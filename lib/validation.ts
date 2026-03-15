@@ -136,10 +136,14 @@ export function validateProjectDescription(input: unknown): string | null {
 }
 
 /**
- * Validate an AI generation prompt: string, max 10,000 chars, strip HTML.
+ * Validate an AI generation prompt: string, max 200,000 chars.
+ * No HTML stripping — prompts may contain scraped site data that includes HTML.
+ * XSS is not a concern since prompts are sent to AI models, not rendered in browsers.
  */
 export function validatePrompt(input: unknown): string {
-  const prompt = sanitizeString(input, 10_000);
+  if (typeof input !== 'string') throw new Error('Expected string');
+  const prompt = input.trim();
   if (prompt.length < 1) throw new Error('Prompt cannot be empty');
+  if (prompt.length > 200_000) throw new Error('Input too long (max 200,000 characters)');
   return prompt;
 }
