@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
+import { checkRateLimit } from '@/lib/ratelimit';
 
 const SKIP_DIRS = ['node_modules', '.git', 'dist', '.next', '.nuxt', 'build', 'out', '.vercel'];
 const MAX_FILE_SIZE = 100 * 1024; // 100KB
@@ -65,6 +66,23 @@ export async function POST(request: Request) {
 
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Rate limit: 60 pulls per minute per user
+    const rateLimit = await checkRateLimit(`user:${user.id}`, 'generic');
+    if (!rateLimit.allowed) {
+      const resetIn = Math.ceil((rateLimit.resetAt - Date.now()) / 1000);
+      return NextResponse.json(
+        { error: 'Rate limit exceeded. Try again later.' },
+        {
+          status: 429,
+          headers: {
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': String(rateLimit.resetAt),
+            'Retry-After': String(resetIn),
+          },
+        }
+      );
     }
 
     const {

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { checkRateLimit, getClientIp } from '@/lib/ratelimit';
 
 // Function to sanitize smart quotes and other problematic characters
 function sanitizeQuotes(text: string): string {
@@ -18,6 +19,24 @@ function sanitizeQuotes(text: string): string {
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit by IP (public route — no auth required)
+    const ip = getClientIp(request);
+    const rateLimit = await checkRateLimit(ip, 'scrape');
+    if (!rateLimit.allowed) {
+      const resetIn = Math.ceil((rateLimit.resetAt - Date.now()) / 1000);
+      return NextResponse.json(
+        { success: false, error: 'Rate limit exceeded. Try again later.' },
+        {
+          status: 429,
+          headers: {
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': String(rateLimit.resetAt),
+            'Retry-After': String(resetIn),
+          },
+        }
+      );
+    }
+
     const { url } = await request.json();
     
     if (!url) {

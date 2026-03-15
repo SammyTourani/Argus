@@ -56,25 +56,38 @@ describe('AI Fallback Chain', () => {
     );
   });
 
-  it('throws immediately on 401 auth error (no retry)', async () => {
+  it('skips retries on 401 but still tries fallback models', async () => {
     const buildStreamFn = vi.fn().mockRejectedValue(makeError(401, 'Unauthorized'));
 
     await expect(
       streamWithFallback(fastConfig, buildStreamFn),
     ).rejects.toThrow('Unauthorized');
 
-    // Should only call once — no retries, no fallback
-    expect(buildStreamFn).toHaveBeenCalledTimes(1);
+    // 3 models x 1 attempt each (no retries for auth errors)
+    expect(buildStreamFn).toHaveBeenCalledTimes(3);
   });
 
-  it('throws immediately on 403 forbidden error (no retry)', async () => {
+  it('skips retries on 403 but still tries fallback models', async () => {
     const buildStreamFn = vi.fn().mockRejectedValue(makeError(403, 'Forbidden'));
 
     await expect(
       streamWithFallback(fastConfig, buildStreamFn),
     ).rejects.toThrow('Forbidden');
 
-    expect(buildStreamFn).toHaveBeenCalledTimes(1);
+    // 3 models x 1 attempt each (no retries for auth errors)
+    expect(buildStreamFn).toHaveBeenCalledTimes(3);
+  });
+
+  it('falls back to working model on 401 from first provider', async () => {
+    const mockStream = new ReadableStream();
+    const buildStreamFn = vi.fn()
+      .mockRejectedValueOnce(makeError(401, 'Unauthorized'))
+      .mockResolvedValueOnce(mockStream);
+
+    const result = await streamWithFallback(fastConfig, buildStreamFn);
+
+    expect(result.usedModel).toBe('openai/gpt-4o');
+    expect(buildStreamFn).toHaveBeenCalledTimes(2);
   });
 
   it('throws after all models fail', async () => {

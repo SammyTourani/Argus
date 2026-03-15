@@ -4,7 +4,7 @@ import { sandboxManager } from '@/lib/sandbox/sandbox-manager';
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 import { createClient } from '@/lib/supabase/server';
-import { getSandbox, setSandbox, cleanupStale } from '@/lib/sandbox/registry';
+import { getSandbox, setSandbox, removeSandbox, cleanupStale } from '@/lib/sandbox/registry';
 
 const ratelimit = process.env.UPSTASH_REDIS_REST_URL
   ? new Ratelimit({
@@ -24,6 +24,7 @@ async function getUserTier(userId: string): Promise<string> {
 }
 
 export async function POST(request: Request) {
+  let userId: string | null = null;
   try {
     // Auth — require authenticated user for sandbox isolation
     const supabaseAuth = await createClient();
@@ -33,7 +34,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const userId = user.id;
+    userId = user.id;
 
     if (ratelimit) {
       const tier = await getUserTier(userId);
@@ -67,23 +68,12 @@ export async function POST(request: Request) {
 
     console.log(`[create-ai-sandbox-v2] Creating sandbox for user ${userId}...`);
 
+    // Clean up only THIS user's existing sandbox (not other users')
+    console.log('[create-ai-sandbox-v2] Cleaning up existing sandbox for user', userId);
+    removeSandbox(userId);
+
+    // Get a fresh entry after cleanup
     const entry = getSandbox(userId);
-
-    // Clean up existing sandbox for this user
-    console.log('[create-ai-sandbox-v2] Cleaning up existing sandboxes...');
-    await sandboxManager.terminateAll();
-
-    // Also clean up this user's legacy state
-    if (entry.provider) {
-      try {
-        await entry.provider.terminate();
-      } catch (e) {
-        console.error('Failed to terminate legacy user sandbox:', e);
-      }
-    }
-
-    // Clear existing files tracking
-    entry.existingFiles.clear();
 
     // Create new sandbox using factory
     const provider = SandboxFactory.create();
@@ -137,8 +127,10 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('[create-ai-sandbox-v2] Error:', error);
 
-    // Clean up on error
-    await sandboxManager.terminateAll();
+    // Clean up only this user's sandbox on error
+    if (userId) {
+      try { removeSandbox(userId); } catch { /* best-effort */ }
+    }
 
     return NextResponse.json(
       {

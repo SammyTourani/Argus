@@ -140,7 +140,9 @@ class SandboxManager {
   }
 
   /**
-   * Terminate all sandboxes
+   * @deprecated Use removeSandbox(userId) from registry.ts instead.
+   * This method kills ALL sandboxes globally, including other users'.
+   * Only safe to call during server shutdown, never during request handling.
    */
   async terminateAll(): Promise<void> {
     const promises = Array.from(this.sandboxes.values()).map(sandbox =>

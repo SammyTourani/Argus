@@ -472,7 +472,14 @@ Focus on the key sections and content, making it clean and modern.`;
             }
           } catch { /* fall through */ }
         }
-        if (!res.ok || !res.body) throw new Error('Generation failed');
+        if (!res.ok || !res.body) {
+          let msg = 'Generation failed';
+          try {
+            const errData = await res.json();
+            if (errData.error) msg = errData.error;
+          } catch { /* use default */ }
+          throw new Error(msg);
+        }
 
         const reader = res.body.getReader();
         const decoder = new TextDecoder();

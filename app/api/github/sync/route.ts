@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { checkRateLimit } from '@/lib/ratelimit';
 
 interface FileEntry {
   path: string;
@@ -64,6 +65,23 @@ export async function POST(request: Request) {
 
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Rate limit: 60 syncs per minute per user
+    const rateLimit = await checkRateLimit(`user:${user.id}`, 'generic');
+    if (!rateLimit.allowed) {
+      const resetIn = Math.ceil((rateLimit.resetAt - Date.now()) / 1000);
+      return NextResponse.json(
+        { error: 'Rate limit exceeded. Try again later.' },
+        {
+          status: 429,
+          headers: {
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': String(rateLimit.resetAt),
+            'Retry-After': String(resetIn),
+          },
+        }
+      );
     }
 
     // Get provider_token from session (GitHub OAuth token)

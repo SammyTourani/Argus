@@ -1,7 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { checkRateLimit, getClientIp } from '@/lib/ratelimit';
 
 export async function POST(req: NextRequest) {
   try {
+    // Rate limit by IP (public route — no auth required)
+    const ip = getClientIp(req);
+    const rateLimit = await checkRateLimit(ip, 'scrape');
+    if (!rateLimit.allowed) {
+      const resetIn = Math.ceil((rateLimit.resetAt - Date.now()) / 1000);
+      return NextResponse.json(
+        { error: 'Rate limit exceeded. Try again later.' },
+        {
+          status: 429,
+          headers: {
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': String(rateLimit.resetAt),
+            'Retry-After': String(resetIn),
+          },
+        }
+      );
+    }
+
     const { query } = await req.json();
     
     if (!query) {

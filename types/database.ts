@@ -246,6 +246,14 @@ export interface Build {
   created_at: string;
 }
 
+// ─── Webhook Idempotency ───────────────────────────────────────────────────
+
+export interface WebhookEvent {
+  event_id: string;
+  event_type: string;
+  processed_at: string;
+}
+
 // ─── Composite Types ────────────────────────────────────────────────────────
 
 export interface ProjectWithCollaborators extends Project {

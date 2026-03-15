@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { nanoid } from 'nanoid';
 import { createClient } from '@/lib/supabase/server';
+import { checkRateLimit } from '@/lib/ratelimit';
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
@@ -36,6 +37,23 @@ export async function POST(request: Request, { params }: RouteParams) {
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    // Rate limit: 60 invites per minute per user
+    const rateLimit = await checkRateLimit(`user:${user.id}`, 'generic');
+    if (!rateLimit.allowed) {
+      const resetIn = Math.ceil((rateLimit.resetAt - Date.now()) / 1000);
+      return NextResponse.json(
+        { error: 'Rate limit exceeded. Try again later.' },
+        {
+          status: 429,
+          headers: {
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': String(rateLimit.resetAt),
+            'Retry-After': String(resetIn),
+          },
+        }
+      );
+    }
 
     const body = await request.json();
     const { email, role = 'editor' } = body;

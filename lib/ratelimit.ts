@@ -56,6 +56,13 @@ if (
         analytics: true,
         prefix: 'argus:generic',
       }),
+      /** Scrape: 10 requests per minute per IP (public Firecrawl routes) */
+      scrape: new Ratelimit({
+        redis: upstashRedis,
+        limiter: Ratelimit.slidingWindow(10, '1 m'),
+        analytics: true,
+        prefix: 'argus:scrape',
+      }),
     };
 
     console.log('[ratelimit] Upstash Redis rate limiting enabled');
@@ -114,13 +121,14 @@ export function checkRateLimitInMemory(
 
 // ─── Unified API ─────────────────────────────────────────────────────────────
 
-export type RateLimitType = 'aiGenerate' | 'deploy' | 'projectCreate' | 'generic';
+export type RateLimitType = 'aiGenerate' | 'deploy' | 'projectCreate' | 'generic' | 'scrape';
 
 const IN_MEMORY_CONFIG: Record<RateLimitType, { limit: number; windowMs: number }> = {
   aiGenerate:    { limit: 10,  windowMs: 60 * 1000 },       // 10/min
   deploy:        { limit: 3,   windowMs: 60 * 60 * 1000 },  // 3/hr
   projectCreate: { limit: 20,  windowMs: 60 * 60 * 1000 },  // 20/hr
   generic:       { limit: 60,  windowMs: 60 * 1000 },       // 60/min
+  scrape:        { limit: 10,  windowMs: 60 * 1000 },       // 10/min per IP
 };
 
 export interface RateLimitResult {

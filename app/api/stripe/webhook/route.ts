@@ -30,6 +30,25 @@ export async function POST(request: Request) {
 
   const supabaseAdmin = getSupabaseAdmin();
 
+  // ── Idempotency guard: skip already-processed events ──────────────────
+  const { data: existing } = await supabaseAdmin
+    .from('webhook_events')
+    .select('event_id')
+    .eq('event_id', event.id)
+    .single();
+
+  if (existing) {
+    return NextResponse.json({ received: true });
+  }
+
+  // Record the event before processing (at-least-once delivery)
+  await supabaseAdmin.from('webhook_events').insert({
+    event_id: event.id,
+    event_type: event.type,
+  });
+
+  // ── Event handlers ────────────────────────────────────────────────────
+
   switch (event.type) {
     case 'checkout.session.completed': {
       const session = event.data.object as Stripe.Checkout.Session;
@@ -41,7 +60,7 @@ export async function POST(request: Request) {
           subscription_id: session.subscription as string,
           updated_at: new Date().toISOString(),
         }).eq('id', userId);
-        
+
         // Send subscription confirmed email
         try {
           const { data: profile } = await supabaseAdmin
@@ -71,7 +90,7 @@ export async function POST(request: Request) {
           subscription_id: null,
           updated_at: new Date().toISOString(),
         }).eq('id', profile.id);
-        
+
         // Send cancellation email
         try {
           if (profile.email) {
@@ -91,16 +110,22 @@ export async function POST(request: Request) {
       const subscription = event.data.object as Stripe.Subscription;
       const customerId = subscription.customer as string;
       const status = subscription.status === 'active' ? 'pro' : 'free';
+      const eventTime = new Date(event.created * 1000).toISOString();
+
       const { data: profile } = await supabaseAdmin
         .from('profiles')
-        .select('id')
+        .select('id, updated_at')
         .eq('stripe_customer_id', customerId)
         .single();
+
       if (profile) {
-        await supabaseAdmin.from('profiles').update({
-          subscription_status: status,
-          updated_at: new Date().toISOString(),
-        }).eq('id', profile.id);
+        // Guard against out-of-order events: only apply if this event is newer
+        if (!profile.updated_at || eventTime > profile.updated_at) {
+          await supabaseAdmin.from('profiles').update({
+            subscription_status: status,
+            updated_at: eventTime,
+          }).eq('id', profile.id);
+        }
       }
       break;
     }

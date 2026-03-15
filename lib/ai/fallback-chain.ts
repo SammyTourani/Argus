@@ -104,9 +104,9 @@ export async function streamWithFallback(
         const err = error instanceof Error ? error : new Error(String(error));
         lastError = err;
 
-        // Non-retryable errors (401/403) — skip retries, skip remaining models
+        // Non-retryable errors (401/403) — skip retries for this model, try next
         if (isNonRetryable(error)) {
-          throw err;
+          break;
         }
 
         // If it's not a retryable error type, don't bother retrying this model

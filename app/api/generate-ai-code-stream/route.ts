@@ -1920,9 +1920,10 @@ Provide the complete file content without any truncation. Include all necessary 
         'Transfer-Encoding': 'chunked',
         'Content-Encoding': 'none', // Prevent compression that can break streaming
         'X-Accel-Buffering': 'no', // Disable nginx buffering
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Origin': process.env.NEXT_PUBLIC_APP_URL || 'https://buildargus.dev',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Allow-Credentials': 'true',
       },
     });
     
