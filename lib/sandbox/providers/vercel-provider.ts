@@ -29,14 +29,17 @@ export class VercelProvider extends SandboxProvider {
         ports: [5173] // Vite port
       };
 
-      // Add authentication based on environment variables
+      // Add authentication based on environment variables.
+      // The @vercel/sandbox SDK's getCredentials() reads VERCEL_OIDC_TOKEN
+      // automatically when running on Vercel, so we only need to pass explicit
+      // credentials when using a PAT (non-OIDC) setup.
       if (process.env.VERCEL_TOKEN && process.env.VERCEL_TEAM_ID && process.env.VERCEL_PROJECT_ID) {
+        sandboxConfig.token = process.env.VERCEL_TOKEN;
         sandboxConfig.teamId = process.env.VERCEL_TEAM_ID;
         sandboxConfig.projectId = process.env.VERCEL_PROJECT_ID;
-        sandboxConfig.token = process.env.VERCEL_TOKEN;
-      } else if (process.env.VERCEL_OIDC_TOKEN) {
-        sandboxConfig.oidcToken = process.env.VERCEL_OIDC_TOKEN;
       }
+      // When VERCEL_OIDC_TOKEN is set (auto-injected on Vercel), the SDK
+      // reads it from the environment — no explicit config needed.
 
       this.sandbox = await Sandbox.create(sandboxConfig);
       

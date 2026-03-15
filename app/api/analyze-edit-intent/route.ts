@@ -3,8 +3,7 @@ import { generateObject } from 'ai';
 import { z } from 'zod';
 import { getProviderForModel } from '@/lib/ai/provider-manager';
 import { getUserApiKey } from '@/lib/ai/user-key-resolver';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/ratelimit';
 
 // Schema for the AI's search plan - not file selection!
@@ -38,21 +37,7 @@ const searchPlanSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     // Auth check
-    const cookieStore = await cookies();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll: () => cookieStore.getAll(),
-          setAll: (cookiesToSet) => {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          },
-        },
-      }
-    );
+    const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

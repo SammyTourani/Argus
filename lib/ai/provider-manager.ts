@@ -90,10 +90,12 @@ export function getProviderForModel(
     return { client, actualModel: model };
   }
 
-  // 2) Fallback logic based on prefixes and special cases
+  // 2) Handle prefixed model IDs (e.g. "anthropic/claude-sonnet-4-6")
   const isAnthropic = modelId.startsWith('anthropic/');
   const isOpenAI = modelId.startsWith('openai/');
   const isGoogle = modelId.startsWith('google/');
+  const isGroqPrefixed = modelId.startsWith('groq/');
+  const isCerebras = modelId.startsWith('cerebras/');
   const isKimiGroq = modelId === 'moonshotai/kimi-k2-instruct-0905';
 
   if (isKimiGroq) {
@@ -116,7 +118,50 @@ export function getProviderForModel(
     return { client, actualModel: modelId.replace('google/', '') };
   }
 
-  // Default: use Groq with modelId as-is
+  if (isGroqPrefixed) {
+    const client = getOrCreateClient('groq', userApiKey);
+    return { client, actualModel: modelId.replace('groq/', '') };
+  }
+
+  if (isCerebras) {
+    const client = getOrCreateClient('groq', userApiKey);
+    return { client, actualModel: modelId.replace('cerebras/', '') };
+  }
+
+  // 3) Handle UNPREFIXED model IDs from the UI (e.g. "claude-sonnet-4-6", "gpt-4o")
+  //    Map well-known model names to their correct providers.
+  if (modelId.startsWith('claude-')) {
+    const client = getOrCreateClient('anthropic', userApiKey);
+    return { client, actualModel: modelId };
+  }
+
+  if (modelId.startsWith('gpt-')) {
+    const client = getOrCreateClient('openai', userApiKey);
+    return { client, actualModel: modelId };
+  }
+
+  if (modelId.startsWith('gemini-')) {
+    const client = getOrCreateClient('google', userApiKey);
+    return { client, actualModel: modelId };
+  }
+
+  if (modelId.startsWith('deepseek-')) {
+    // DeepSeek models are accessed via Groq
+    const client = getOrCreateClient('groq', userApiKey);
+    return { client, actualModel: modelId };
+  }
+
+  if (modelId.startsWith('mistral-')) {
+    const client = getOrCreateClient('groq', userApiKey);
+    return { client, actualModel: modelId };
+  }
+
+  if (modelId.startsWith('qwen-')) {
+    const client = getOrCreateClient('groq', userApiKey);
+    return { client, actualModel: modelId };
+  }
+
+  // Default: use Groq with modelId as-is (covers llama, etc.)
   const client = getOrCreateClient('groq', userApiKey);
   return { client, actualModel: modelId };
 }

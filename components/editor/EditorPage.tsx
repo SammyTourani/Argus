@@ -132,6 +132,7 @@ export default function EditorPage({ projectId, buildId }: EditorPageProps) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const sandboxIdRef = useRef<string | undefined>(undefined);
   const sandboxCreationRef = useRef(false);
+  const sandboxPromiseRef = useRef<Promise<SandboxData | null> | null>(null);
 
   /* ─── Helpers ─── */
   const addChatMessage = useCallback(
@@ -211,7 +212,8 @@ export default function EditorPage({ projectId, buildId }: EditorPageProps) {
 
   /* ─── Sandbox init + cleanup ─── */
   useEffect(() => {
-    createSandbox();
+    // Store the promise so auto-start can await sandbox readiness
+    sandboxPromiseRef.current = createSandbox();
     return () => {
       const id = sandboxIdRef.current;
       if (id) {
@@ -225,36 +227,74 @@ export default function EditorPage({ projectId, buildId }: EditorPageProps) {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ─── Auto-start from sessionStorage ─── */
+  // Use a ref to survive React strict mode double-mount: the first mount reads
+  // sessionStorage and saves values to the ref, then clears storage. The cleanup
+  // cancels the timer, but the second mount can still read from the ref.
+  const autoStartRef = useRef<{
+    url: string;
+    model: string | null;
+    style: string | null;
+    consumed: boolean;
+  } | null>(null);
+
   useEffect(() => {
-    const autoStart = sessionStorage.getItem('autoStart');
-    const targetUrl = sessionStorage.getItem('targetUrl');
-    if (autoStart !== 'true' || !targetUrl) return;
+    // On first mount, read from sessionStorage and stash in the ref
+    if (!autoStartRef.current) {
+      const autoStart = sessionStorage.getItem('autoStart');
+      const targetUrl = sessionStorage.getItem('targetUrl');
+      if (autoStart !== 'true' || !targetUrl) return;
 
-    // Clear all sessionStorage items
-    sessionStorage.removeItem('autoStart');
-    sessionStorage.removeItem('targetUrl');
-    const storedModel = sessionStorage.getItem('selectedModel');
-    const storedStyle = sessionStorage.getItem('selectedStyle');
-    sessionStorage.removeItem('selectedModel');
-    sessionStorage.removeItem('selectedStyle');
-    sessionStorage.removeItem('additionalInstructions');
-    sessionStorage.removeItem('siteMarkdown');
-    sessionStorage.removeItem('brandExtensionMode');
-    sessionStorage.removeItem('brandExtensionPrompt');
+      autoStartRef.current = {
+        url: targetUrl,
+        model: sessionStorage.getItem('selectedModel'),
+        style: sessionStorage.getItem('selectedStyle'),
+        consumed: false,
+      };
 
-    if (storedModel) setSelectedModelId(storedModel);
+      // Clear sessionStorage immediately so it doesn't re-trigger on page refresh
+      sessionStorage.removeItem('autoStart');
+      sessionStorage.removeItem('targetUrl');
+      sessionStorage.removeItem('selectedModel');
+      sessionStorage.removeItem('selectedStyle');
+      sessionStorage.removeItem('additionalInstructions');
+      sessionStorage.removeItem('siteMarkdown');
+      sessionStorage.removeItem('brandExtensionMode');
+      sessionStorage.removeItem('brandExtensionPrompt');
+    }
 
-    // Capture screenshot and start generation
-    const url = targetUrl.match(/^https?:\/\//i) ? targetUrl : `https://${targetUrl}`;
+    // Skip if already consumed (prevents duplicate generation)
+    const saved = autoStartRef.current;
+    if (!saved || saved.consumed) return;
+    saved.consumed = true;
+
+    if (saved.model) setSelectedModelId(saved.model);
+
+    const url = saved.url.match(/^https?:\/\//i) ? saved.url : `https://${saved.url}`;
     const cleanUrl = url.replace(/^https?:\/\//i, '');
 
     addChatMessage(`Starting to clone ${cleanUrl}...`, 'system');
     captureUrlScreenshot(url);
 
-    // Start generation after sandbox is ready
-    const timer = setTimeout(async () => {
-      // Scrape website
+    // Wait for sandbox to be ready, then scrape + generate in parallel
+    let cancelled = false;
+    (async () => {
       try {
+        // Wait for sandbox creation to complete (started in the other useEffect)
+        addChatMessage('Preparing sandbox...', 'system');
+        const sandboxResult = await sandboxPromiseRef.current;
+        if (cancelled) return;
+        if (!sandboxResult) {
+          addChatMessage('Sandbox creation failed — retrying...', 'system');
+          const retry = await createSandbox();
+          if (cancelled) return;
+          if (!retry) {
+            addChatMessage('Could not create sandbox. Please try again.', 'error');
+            setIsPreparingDesign(false);
+            setUrlScreenshot(null);
+            return;
+          }
+        }
+
         addChatMessage('Scraping website content...', 'system');
         const scrapeRes = await fetch('/api/scrape-url-enhanced', {
           method: 'POST',
@@ -264,13 +304,15 @@ export default function EditorPage({ projectId, buildId }: EditorPageProps) {
         const scrapeData = await scrapeRes.json();
         if (!scrapeData.success) throw new Error(scrapeData.error || 'Scrape failed');
 
+        if (cancelled) return;
+
         setConversationContext((prev) => ({
           ...prev,
           scrapedWebsites: [...prev.scrapedWebsites, { url, content: scrapeData, timestamp: new Date() }],
           currentProject: `${url} Clone`,
         }));
 
-        const storedInstructions = storedStyle ? `Style: ${storedStyle}` : '';
+        const storedInstructions = saved.style ? `Style: ${saved.style}` : '';
         const prompt = `I want to recreate the ${url} website as a complete React application based on the scraped content below.
 
 ${JSON.stringify(scrapeData, null, 2)}
@@ -291,13 +333,14 @@ Focus on the key sections and content, making it clean and modern.`;
 
         await generateCode(prompt);
       } catch (err: any) {
+        if (cancelled) return;
         addChatMessage(`Failed to clone website: ${err.message}`, 'error');
         setIsPreparingDesign(false);
         setUrlScreenshot(null);
       }
-    }, 2000);
+    })();
 
-    return () => clearTimeout(timer);
+    return () => { cancelled = true; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ─── Screenshot capture ─── */
