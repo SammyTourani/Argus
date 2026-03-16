@@ -3,8 +3,6 @@
 import { useState, useCallback, type KeyboardEvent } from 'react';
 import { motion } from 'framer-motion';
 import { fadeUp } from '@/components/onboarding/animations';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import type { CreateWorkspaceData } from './types';
 
 interface StepNameProps {
@@ -50,15 +48,21 @@ export default function StepName({ data, onUpdate, onNext, onBack }: StepNamePro
         variants={fadeUp}
         initial="hidden"
         animate="visible"
-        className="mb-8"
+        style={{ marginBottom: '20px' }}
       >
         <div
-          className="w-32 h-32 rounded-12 flex items-center justify-center"
           style={{
+            width: '56px',
+            height: '56px',
+            borderRadius: 'var(--radius-xl)',
             background: 'linear-gradient(135deg, #ff4801, #ff7038)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 16px rgba(255, 72, 1, 0.25)',
           }}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 2L2 7l10 5 10-5-10-5z" />
             <path d="M2 17l10 5 10-5" />
             <path d="M2 12l10 5 10-5" />
@@ -72,8 +76,15 @@ export default function StepName({ data, onUpdate, onNext, onBack }: StepNamePro
         variants={fadeUp}
         initial="hidden"
         animate="visible"
-        className="text-2xl font-bold font-mono mb-2 text-center"
-        style={{ color: 'var(--fg-100)' }}
+        style={{
+          fontSize: '34px',
+          fontWeight: 800,
+          color: 'var(--fg-100)',
+          letterSpacing: '-0.03em',
+          marginBottom: '10px',
+          textAlign: 'center',
+          fontFamily: 'var(--font-sans)',
+        }}
       >
         Create a Workspace
       </motion.h1>
@@ -83,8 +94,14 @@ export default function StepName({ data, onUpdate, onNext, onBack }: StepNamePro
         variants={fadeUp}
         initial="hidden"
         animate="visible"
-        className="text-sm mb-24 text-center max-w-sm"
-        style={{ color: 'var(--fg-300)' }}
+        style={{
+          fontSize: '16px',
+          color: 'var(--fg-300)',
+          fontFamily: 'var(--font-mono)',
+          letterSpacing: '-0.01em',
+          textAlign: 'center',
+          marginBottom: '40px',
+        }}
       >
         Create a new place to make projects or collaborate with others.
       </motion.p>
@@ -95,15 +112,21 @@ export default function StepName({ data, onUpdate, onNext, onBack }: StepNamePro
         variants={fadeUp}
         initial="hidden"
         animate="visible"
-        className="w-full max-w-sm"
+        style={{ width: '100%', maxWidth: '440px' }}
       >
         <label
-          className="block font-mono text-[12px] tracking-[0.1em] uppercase mb-6"
-          style={{ color: 'var(--fg-200)' }}
+          style={{
+            display: 'block',
+            fontSize: '14px',
+            fontWeight: 600,
+            color: 'var(--fg-100)',
+            fontFamily: 'var(--font-sans)',
+            marginBottom: '8px',
+          }}
         >
           Workspace name
         </label>
-        <Input
+        <input
           type="text"
           placeholder="Enter workspace name"
           value={data.name}
@@ -114,17 +137,42 @@ export default function StepName({ data, onUpdate, onNext, onBack }: StepNamePro
           onKeyDown={handleKeyDown}
           maxLength={100}
           autoFocus
-          className="w-full"
+          style={{
+            width: '100%',
+            padding: '14px 18px',
+            borderRadius: 'var(--radius-lg)',
+            border: '1.5px solid var(--border-100)',
+            background: 'white',
+            fontSize: '16px',
+            fontFamily: 'var(--font-sans)',
+            color: 'var(--fg-100)',
+            outline: 'none',
+            transition: 'border-color 0.2s, box-shadow 0.2s',
+            boxSizing: 'border-box',
+          }}
+          onFocus={(e) => {
+            e.currentTarget.style.borderColor = 'rgba(255, 72, 1, 0.4)';
+            e.currentTarget.style.boxShadow = '0 0 0 3px rgba(255, 72, 1, 0.08)';
+          }}
+          onBlur={(e) => {
+            e.currentTarget.style.borderColor = 'var(--border-100)';
+            e.currentTarget.style.boxShadow = 'none';
+          }}
         />
 
         {/* Slug preview */}
         {slug && (
           <p
-            className="mt-6 font-mono text-[11px]"
-            style={{ color: 'var(--fg-muted)' }}
+            style={{
+              marginTop: '10px',
+              fontSize: '13px',
+              fontFamily: 'var(--font-mono)',
+              color: 'var(--fg-muted)',
+              letterSpacing: '-0.01em',
+            }}
           >
             Slug: <span style={{ color: 'var(--accent-100)' }}>{slug}</span>
-            <span style={{ opacity: 0.5 }}>-xxxx</span>
+            <span style={{ opacity: 0.4 }}>-xxxx</span>
           </p>
         )}
       </motion.div>
@@ -135,22 +183,53 @@ export default function StepName({ data, onUpdate, onNext, onBack }: StepNamePro
         variants={fadeUp}
         initial="hidden"
         animate="visible"
-        className="flex items-center justify-between w-full max-w-sm mt-24"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          width: '100%',
+          maxWidth: '440px',
+          marginTop: '32px',
+        }}
       >
         <button
           onClick={onBack}
-          className="font-mono text-[13px] transition-colors hover:opacity-70"
-          style={{ color: 'var(--fg-300)' }}
+          style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: 500,
+            fontFamily: 'var(--font-sans)',
+            color: 'var(--fg-300)',
+            padding: '10px 0',
+            transition: 'color 0.2s',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--fg-100)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--fg-300)'; }}
         >
           Go back
         </button>
-        <Button
-          variant="orange"
+        <button
           onClick={handleNext}
           disabled={!isValid}
+          style={{
+            padding: '12px 28px',
+            borderRadius: 'var(--radius-lg)',
+            border: 'none',
+            background: isValid ? 'var(--accent-100)' : 'rgba(0,0,0,0.06)',
+            color: isValid ? 'white' : 'var(--fg-muted)',
+            fontSize: '15px',
+            fontWeight: 700,
+            fontFamily: 'var(--font-sans)',
+            cursor: isValid ? 'pointer' : 'not-allowed',
+            transition: 'all 0.2s',
+          }}
+          onMouseEnter={(e) => { if (isValid) { e.currentTarget.style.background = 'var(--accent-200)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(255, 72, 1, 0.25)'; } }}
+          onMouseLeave={(e) => { if (isValid) { e.currentTarget.style.background = 'var(--accent-100)'; e.currentTarget.style.boxShadow = 'none'; } }}
         >
           Continue
-        </Button>
+        </button>
       </motion.div>
     </div>
   );

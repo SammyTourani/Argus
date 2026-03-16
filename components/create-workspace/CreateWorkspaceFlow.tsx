@@ -49,7 +49,10 @@ export default function CreateWorkspaceFlow() {
       <WizardProgress currentStep={step} totalSteps={2} />
 
       {/* Content area */}
-      <div className="relative z-10 flex items-center justify-center h-full px-16 pt-48 pb-16">
+      <div
+        className="relative z-10 flex items-center justify-center h-full"
+        style={{ padding: '80px 24px 40px' }}
+      >
         <AnimatePresence mode="wait" custom={direction}>
           <motion.div
             key={step}
@@ -58,7 +61,7 @@ export default function CreateWorkspaceFlow() {
             initial="enter"
             animate="center"
             exit="exit"
-            className="w-full max-w-2xl"
+            style={{ width: '100%', maxWidth: step === 1 ? '1060px' : '640px' }}
           >
             {step === 0 && (
               <StepName
