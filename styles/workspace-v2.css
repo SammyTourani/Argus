@@ -2504,9 +2504,9 @@
       visibility: hidden;
       transition: opacity 0.2s, visibility 0.2s;
       display: flex;
-      align-items: flex-start;
+      align-items: center;
       justify-content: center;
-      padding-top: 12vh;
+      padding: 2vh 0;
     }
     .referral-backdrop.active {
       opacity: 1;
