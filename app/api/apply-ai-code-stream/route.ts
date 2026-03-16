@@ -482,7 +482,42 @@ export async function POST(request: NextRequest) {
           return !configFiles.includes(fileName);
         });
 
-        // SAFETY NET: Auto-generate App.jsx if the AI forgot to include it
+        // SAFETY NET 1: Fix truncated component files that are missing default exports
+        // AI sometimes runs out of tokens mid-file, leaving components without export default
+        for (const file of filteredFiles) {
+          if ((file.path.endsWith('.jsx') || file.path.endsWith('.tsx')) &&
+              !file.path.toLowerCase().includes('main.') &&
+              !file.path.toLowerCase().includes('index.')) {
+            const content = file.content || '';
+            const hasDefaultExport = /export\s+default\s+/.test(content) ||
+                                     /export\s*\{[^}]*\bdefault\b/.test(content);
+            if (!hasDefaultExport && content.length > 0) {
+              // Try to find a function/const component name to export
+              const funcMatch = content.match(/(?:function|const)\s+([A-Z]\w+)/);
+              const componentName = funcMatch?.[1] ||
+                (file.path.split('/').pop() || '').replace(/\.(jsx|tsx)$/, '');
+
+              if (componentName) {
+                // Check if it looks truncated (no closing brace balance)
+                const opens = (content.match(/\{/g) || []).length;
+                const closes = (content.match(/\}/g) || []).length;
+                if (opens > closes) {
+                  // Truncated — close all open braces and add export
+                  const missing = opens - closes;
+                  file.content = content + '\n' + '}\n'.repeat(missing) +
+                    `\nexport default ${componentName};\n`;
+                  console.log(`[apply-ai-code-stream] Fixed truncated file ${file.path}: added ${missing} closing braces + default export`);
+                } else {
+                  // Has balanced braces but no export — just add export
+                  file.content = content + `\n\nexport default ${componentName};\n`;
+                  console.log(`[apply-ai-code-stream] Added missing default export to ${file.path}`);
+                }
+              }
+            }
+          }
+        }
+
+        // SAFETY NET 2: Auto-generate App.jsx if the AI forgot to include it
         // This prevents the "Sandbox Ready" dead screen when components were generated but App.jsx was not
         if (!isEdit) {
           const hasAppFile = filteredFiles.some(f => {
@@ -502,20 +537,16 @@ export async function POST(request: NextRequest) {
               console.log(`[apply-ai-code-stream] App.jsx missing! Auto-generating from ${componentFiles.length} component files`);
               await sendProgress({ type: 'info', message: 'App.jsx was missing — auto-generating entry point...' });
 
-              // Build import statements and component usage
               const imports: string[] = [];
               const components: string[] = [];
 
               for (const file of componentFiles) {
-                // Extract component name from file path
                 const fileName = (file.path || '').split('/').pop() || '';
                 const componentName = fileName.replace(/\.(jsx|tsx)$/, '');
 
-                // Build relative import path
                 let importPath = file.path;
                 if (importPath.startsWith('src/')) importPath = importPath.slice(4);
                 if (!importPath.startsWith('./') && !importPath.startsWith('/')) importPath = './' + importPath;
-                // Remove extension for import
                 importPath = importPath.replace(/\.(jsx|tsx)$/, '');
 
                 imports.push(`import ${componentName} from '${importPath}';`);
