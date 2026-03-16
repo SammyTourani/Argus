@@ -482,6 +482,65 @@ export async function POST(request: NextRequest) {
           return !configFiles.includes(fileName);
         });
 
+        // SAFETY NET: Auto-generate App.jsx if the AI forgot to include it
+        // This prevents the "Sandbox Ready" dead screen when components were generated but App.jsx was not
+        if (!isEdit) {
+          const hasAppFile = filteredFiles.some(f => {
+            const p = (f.path || '').toLowerCase();
+            return p === 'app.jsx' || p === 'src/app.jsx' || p === 'app.tsx' || p === 'src/app.tsx';
+          });
+
+          if (!hasAppFile && filteredFiles.length > 0) {
+            // Find all component .jsx/.tsx files (not index.css, not config)
+            const componentFiles = filteredFiles.filter(f => {
+              const p = (f.path || '').toLowerCase();
+              return (p.endsWith('.jsx') || p.endsWith('.tsx')) &&
+                !p.includes('main.') && !p.includes('index.');
+            });
+
+            if (componentFiles.length > 0) {
+              console.log(`[apply-ai-code-stream] App.jsx missing! Auto-generating from ${componentFiles.length} component files`);
+              await sendProgress({ type: 'info', message: 'App.jsx was missing — auto-generating entry point...' });
+
+              // Build import statements and component usage
+              const imports: string[] = [];
+              const components: string[] = [];
+
+              for (const file of componentFiles) {
+                // Extract component name from file path
+                const fileName = (file.path || '').split('/').pop() || '';
+                const componentName = fileName.replace(/\.(jsx|tsx)$/, '');
+
+                // Build relative import path
+                let importPath = file.path;
+                if (importPath.startsWith('src/')) importPath = importPath.slice(4);
+                if (!importPath.startsWith('./') && !importPath.startsWith('/')) importPath = './' + importPath;
+                // Remove extension for import
+                importPath = importPath.replace(/\.(jsx|tsx)$/, '');
+
+                imports.push(`import ${componentName} from '${importPath}';`);
+                components.push(`      <${componentName} />`);
+              }
+
+              const appJsxContent = `import React from 'react';
+${imports.join('\n')}
+
+function App() {
+  return (
+    <div className="min-h-screen">
+${components.join('\n')}
+    </div>
+  );
+}
+
+export default App;
+`;
+              filteredFiles.push({ path: 'src/App.jsx', content: appJsxContent });
+              console.log(`[apply-ai-code-stream] Auto-generated App.jsx with imports: ${componentFiles.map(f => f.path).join(', ')}`);
+            }
+          }
+        }
+
         // If Morph is enabled and we have edits, apply them before file writes
         const morphUpdatedPaths = new Set<string>();
         if (morphEnabled && morphEdits.length > 0) {

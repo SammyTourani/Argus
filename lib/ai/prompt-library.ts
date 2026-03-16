@@ -400,6 +400,13 @@ Pay close attention to EVERY visual property and match it exactly:
 - If you are running low on space, generate fewer sections but keep App.jsx consistent with what was generated
 - Aim for 3-6 component files for a typical landing page. Do NOT plan more than you can complete.
 
+## App.jsx IS MANDATORY (DO NOT SKIP):
+- You MUST ALWAYS generate a <file path="src/App.jsx"> as your FINAL file
+- Without App.jsx, NOTHING renders — the entire app is broken
+- App.jsx imports and renders the components you generated above, in order
+- If you only have space for one more file, that file MUST be App.jsx
+- NEVER end your response without generating App.jsx
+
 ## STYLING RULES:
 - Use ONLY Tailwind CSS classes. No inline styles, no CSS-in-JS, no component CSS files.
 - ONLY create src/index.css with @tailwind directives and custom properties
