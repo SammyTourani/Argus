@@ -391,18 +391,20 @@ export default function ProjectsDashboard() {
       });
     })();
 
-    // Re-fetch when workspace switches
+    // Re-fetch when workspace switches (generation counter prevents stale data from rapid switching)
+    var wsFetchGen = 0;
     var removeWsListener = onWorkspaceChange(function(ws) {
       if (cancelled) return;
+      var gen = ++wsFetchGen;
       dataLoaded = false;
       dashboard!.innerHTML = renderLoadingSkeleton();
       fetchProjects(ws.id).then(function(apiProjects) {
-        if (cancelled) return;
+        if (cancelled || gen !== wsFetchGen) return;
         dataLoaded = true;
         PROJECTS = (apiProjects || []).map(function(p) { return mapProjectToDisplay(p, currentUser); });
         render();
       }).catch(function() {
-        if (cancelled) return;
+        if (cancelled || gen !== wsFetchGen) return;
         dataLoaded = true;
         PROJECTS = [];
         render();

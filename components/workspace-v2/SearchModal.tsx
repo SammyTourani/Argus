@@ -213,9 +213,11 @@ export default function SearchModal() {
     // Load real projects from API (scoped to active workspace)
     var cancelled = false;
     var searchUser = null;
+    var smFetchGen = 0;
     function loadSearchProjects(teamId) {
+      var gen = ++smFetchGen;
       Promise.all([fetchCurrentUser(), fetchProjects(teamId)]).then(function(results) {
-        if (cancelled) return;
+        if (cancelled || gen !== smFetchGen) return;
         searchUser = results[0];
         var apiProjects = results[1] || [];
         SEARCH_PROJECTS = apiProjects.map(function(p) {

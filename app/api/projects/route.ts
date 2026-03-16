@@ -121,6 +121,12 @@ export async function POST(request: Request) {
 
     // If team_id provided, verify user is a member of the team
     let validatedTeamId: string | null = null;
+    if (team_id && team_id !== 'personal' && !UUID_RE.test(team_id)) {
+      return NextResponse.json(
+        { error: 'Invalid workspace ID format' },
+        { status: 400 }
+      );
+    }
     if (team_id && team_id !== 'personal' && UUID_RE.test(team_id)) {
       const { data: membership } = await supabase
         .from('team_members')

@@ -17,15 +17,19 @@ export default function WorkspaceDropdown() {
     var chevron = document.querySelector('.sidebar-chevron');
     if (!header || !dropdown || !backdrop || !chevron) return;
 
+    // Re-query chevron each time since innerHTML replacement can detach the original reference
+    function getChevron() {
+      return document.querySelector('.sidebar-chevron');
+    }
     function open() {
       dropdown!.classList.add('active');
       backdrop!.classList.add('active');
-      chevron!.classList.add('open');
+      var c = getChevron(); if (c) c.classList.add('open');
     }
     function close() {
       dropdown!.classList.remove('active');
       backdrop!.classList.remove('active');
-      chevron!.classList.remove('open');
+      var c = getChevron(); if (c) c.classList.remove('open');
     }
     function toggle() {
       dropdown!.classList.contains('active') ? close() : open();
@@ -62,9 +66,8 @@ export default function WorkspaceDropdown() {
         var items = dropdown!.querySelectorAll('.ws-workspace-item');
         items.forEach(function(item) { item.classList.remove('active'); });
         wsItem.classList.add('active');
-        var wsName = wsItem.querySelector('.ws-ws-name')!.textContent;
-        document.querySelector('.sidebar-title')!.innerHTML = wsName + ' <svg class="sidebar-chevron open" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 6l3 3 3-3"/></svg>';
-        chevron = document.querySelector('.sidebar-chevron');
+        var wsName = wsItem.querySelector('.ws-ws-name')!.textContent || 'Workspace';
+        document.querySelector('.sidebar-title')!.innerHTML = escapeHtml(wsName) + ' <svg class="sidebar-chevron open" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 6l3 3 3-3"/></svg>';
 
         // Set active workspace state
         var wsId = wsItem.getAttribute('data-ws-id');

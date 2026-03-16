@@ -293,10 +293,12 @@ export default function HomePage() {
     }).catch(function() {});
 
     // Re-fetch when workspace switches
+    var hpFetchGen = 0;
     var removeWsListener = onWorkspaceChange(function(ws) {
       if (cancelled) return;
+      var gen = ++hpFetchGen;
       fetchProjects(ws.id).then(function(apiProjects) {
-        if (cancelled) return;
+        if (cancelled || gen !== hpFetchGen) return;
         renderProjectsTab(apiProjects);
       }).catch(function() {});
     });
