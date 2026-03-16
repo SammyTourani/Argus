@@ -28,9 +28,8 @@ class SandboxManager {
     try {
       const provider = SandboxFactory.create();
 
-      // For E2B provider, try to reconnect
-      if (provider.constructor.name === 'E2BProvider') {
-        // E2B sandboxes can be reconnected using the sandbox ID
+      // Try to reconnect for both E2B and Vercel providers
+      if (typeof (provider as any).reconnect === 'function') {
         const reconnected = await (provider as any).reconnect(sandboxId);
         if (reconnected) {
           this.sandboxes.set(sandboxId, {
@@ -40,11 +39,12 @@ class SandboxManager {
             lastAccessed: new Date()
           });
           this.activeSandboxId = sandboxId;
+          console.log(`[SandboxManager] Successfully reconnected to sandbox ${sandboxId}`);
           return provider;
         }
       }
 
-      // For Vercel or if reconnection failed, return the new provider
+      // If reconnection failed, return the new provider
       // The caller will need to handle creating a new sandbox
       return provider;
     } catch (error) {

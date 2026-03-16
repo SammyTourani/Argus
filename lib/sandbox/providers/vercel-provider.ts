@@ -5,6 +5,38 @@ import { SandboxProvider, SandboxInfo, CommandResult } from '../types';
 export class VercelProvider extends SandboxProvider {
   private existingFiles: Set<string> = new Set();
 
+  /**
+   * Reconnect to an existing Vercel sandbox by ID.
+   * Uses Sandbox.get(sandboxId) to re-attach to a still-running sandbox
+   * from a different serverless function invocation.
+   */
+  async reconnect(sandboxId: string): Promise<boolean> {
+    try {
+      const getOpts: any = { sandboxId };
+      if (process.env.VERCEL_TOKEN && process.env.VERCEL_TEAM_ID && process.env.VERCEL_PROJECT_ID) {
+        getOpts.token = process.env.VERCEL_TOKEN;
+        getOpts.teamId = process.env.VERCEL_TEAM_ID;
+        getOpts.projectId = process.env.VERCEL_PROJECT_ID;
+      }
+
+      this.sandbox = await Sandbox.get(getOpts);
+      const sandboxUrl = this.sandbox.domain(5173);
+
+      this.sandboxInfo = {
+        sandboxId,
+        url: sandboxUrl,
+        provider: 'vercel',
+        createdAt: new Date(),
+      };
+
+      console.log(`[VercelProvider] Successfully reconnected to sandbox ${sandboxId}`);
+      return true;
+    } catch (error) {
+      console.error(`[VercelProvider] Failed to reconnect to sandbox ${sandboxId}:`, error);
+      return false;
+    }
+  }
+
   async createSandbox(): Promise<SandboxInfo> {
     try {
       
