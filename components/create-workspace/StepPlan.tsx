@@ -128,7 +128,7 @@ export default function StepPlan({ data, onBack, onComplete }: StepPlanProps) {
           <div
             key={plan.id}
             style={{
-              background: 'var(--bg-100)',
+              background: 'var(--bg-200, #fffbf5)',
               border: plan.highlight
                 ? '1.5px solid rgba(255, 72, 1, 0.3)'
                 : '1.5px solid var(--border-100)',
@@ -201,8 +201,9 @@ export default function StepPlan({ data, onBack, onComplete }: StepPlanProps) {
                   fontFamily: 'var(--font-sans)',
                   cursor: 'default',
                   border: '1.5px solid var(--border-100)',
-                  background: 'transparent',
-                  color: 'var(--fg-200)',
+                  background: 'rgba(0, 0, 0, 0.03)',
+                  color: 'var(--fg-100)',
+                  textAlign: 'center',
                 }}
               >
                 Included in your plan
@@ -221,6 +222,7 @@ export default function StepPlan({ data, onBack, onComplete }: StepPlanProps) {
                   border: 'none',
                   background: 'var(--accent-100)',
                   color: 'white',
+                  textAlign: 'center',
                   opacity: 0.5,
                 }}
               >

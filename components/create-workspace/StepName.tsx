@@ -93,6 +93,22 @@ export default function StepName({ data, onUpdate, onNext, onBack }: StepNamePro
           </svg>
         )}
       </button>
+      <p
+        onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+        style={{
+          fontSize: '12px',
+          color: 'var(--fg-muted)',
+          fontFamily: 'var(--font-mono)',
+          marginTop: '-16px',
+          marginBottom: '20px',
+          cursor: 'pointer',
+          transition: 'color 0.2s',
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent-100)'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--fg-muted)'; }}
+      >
+        Click to change icon
+      </p>
 
       {/* Emoji picker dropdown */}
       {showEmojiPicker && (

@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { fetchCurrentUser, fetchSubscription, fetchTeams, escapeHtml } from './workspace-api';
+import { fetchCurrentUser, fetchSubscription, fetchTeams, deleteTeam, escapeHtml } from './workspace-api';
 import { getActiveWorkspace, setActiveWorkspace } from './workspace-active';
 import { useUser } from '@/components/providers/UserProvider';
 
@@ -58,6 +58,33 @@ export default function WorkspaceDropdown() {
           window.location.href = '/workspace/new';
           return;
         }
+        return;
+      }
+
+      // Delete workspace button
+      var deleteBtn = (e.target as HTMLElement).closest('.ws-delete-btn');
+      if (deleteBtn) {
+        e.stopPropagation();
+        var teamId = deleteBtn.getAttribute('data-team-id');
+        var teamName = deleteBtn.getAttribute('data-team-name') || 'this workspace';
+        if (!teamId) return;
+        if (!confirm('Delete "' + teamName + '"? All projects in this workspace will become personal projects. This cannot be undone.')) return;
+        deleteBtn.style.opacity = '0.3';
+        deleteBtn.style.pointerEvents = 'none';
+        deleteTeam(teamId).then(function() {
+          var item = deleteBtn.closest('.ws-workspace-item');
+          if (item) item.remove();
+          // If deleted workspace was active, switch to personal
+          var activeWs = getActiveWorkspace();
+          if (activeWs.id === teamId) {
+            setActiveWorkspace({ id: 'personal', name: 'Personal' });
+            window.location.reload();
+          }
+        }).catch(function(err) {
+          alert(err.message || 'Failed to delete workspace');
+          deleteBtn.style.opacity = '1';
+          deleteBtn.style.pointerEvents = 'auto';
+        });
         return;
       }
 
@@ -135,11 +162,12 @@ export default function WorkspaceDropdown() {
           teams.forEach(function(t) {
             var initial = (t.name || 'T').charAt(0).toUpperCase();
             var badge = (t.plan || 'free').toUpperCase();
-            html += '<div class="ws-workspace-item' + (activeWs.id === t.id ? ' active' : '') + '" data-ws-id="' + t.id + '">' +
+            var deleteSvg = '<button class="ws-delete-btn" data-team-id="' + t.id + '" data-team-name="' + escapeHtml(t.name || 'Team') + '" title="Delete workspace" style="background:none;border:none;cursor:pointer;padding:4px;opacity:0.3;transition:opacity 0.15s;display:flex;align-items:center;margin-left:auto;flex-shrink:0"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4h10M6 4V3h4v1M5 4v9h6V4"/></svg></button>';
+            html += '<div class="ws-workspace-item' + (activeWs.id === t.id ? ' active' : '') + '" data-ws-id="' + t.id + '" style="display:flex;align-items:center">' +
               '<div class="ws-ws-avatar">' + initial + '</div>' +
               '<span class="ws-ws-name">' + escapeHtml(t.name || 'Team') + '</span>' +
               '<span class="ws-ws-badge">' + badge + '</span>' +
-              checkSvg + '</div>';
+              checkSvg + deleteSvg + '</div>';
           });
         }
         wsList.innerHTML = html;

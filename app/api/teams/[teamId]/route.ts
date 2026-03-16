@@ -5,7 +5,15 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
+
+function getSupabaseAdmin() {
+  return createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 export async function GET(
   _request: NextRequest,
@@ -139,7 +147,9 @@ export async function DELETE(
       return NextResponse.json({ error: 'Only the team owner can delete a team' }, { status: 403 });
     }
 
-    const { error } = await supabase
+    // Use admin client to bypass RLS (auth already validated above)
+    const admin = getSupabaseAdmin();
+    const { error } = await admin
       .from('teams')
       .delete()
       .eq('id', teamId);

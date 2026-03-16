@@ -472,6 +472,18 @@ export async function createTeam(name: string): Promise<unknown> {
   return json.team;
 }
 
+export async function deleteTeam(teamId: string): Promise<void> {
+  const res = await fetch(`/api/teams/${teamId}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({}));
+    throw new Error(json.error || 'Failed to delete workspace');
+  }
+  _teamsCache = { data: null, ts: 0 };
+  invalidateProjectsCache();
+}
+
 // ===== HELPERS =====
 
 export function escapeHtml(str: string | null | undefined): string {
