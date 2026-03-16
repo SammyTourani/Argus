@@ -8,8 +8,10 @@ import ChatBox from './ChatBox';
 import FireCrawlCarousel from './FireCrawlCarousel';
 import ProjectsDashboard from './ProjectsDashboard';
 import { fetchCurrentUser, fetchProjects, fetchTemplates, fetchRecents, generateGradient, formatRelativeTime, escapeHtml } from './workspace-api';
+import { useUser } from '@/components/providers/UserProvider';
 
 export default function HomePage() {
+  const { user } = useUser();
   const matrixBarAnimRef = useRef<number>(0);
 
   // ===== initTemplateSwitcher =====
@@ -37,6 +39,11 @@ export default function HomePage() {
         wsRoot.classList.toggle('dark', name === 'matrix');
       }
       document.body.classList.toggle('dark-mode', name === 'matrix');
+      if (name === 'matrix') {
+        document.documentElement.setAttribute('data-argus-dark', 'true');
+      } else {
+        document.documentElement.removeAttribute('data-argus-dark');
+      }
       localStorage.setItem('argus-dark-mode', (name === 'matrix').toString());
       window.dispatchEvent(new CustomEvent('argus-dark-mode-change', { detail: { dark: name === 'matrix' } }));
 
@@ -321,7 +328,7 @@ export default function HomePage() {
       </button>
 
       <div className="center-content" id="centerContent">
-        <h1 className="hero-heading">Ready to build, <span className="accent">&nbsp;</span>?</h1>
+        <h1 className="hero-heading">Ready to build, <span className="accent">{user?.name?.split(' ')[0] || '\u00A0'}</span>?</h1>
 
         <ChatBox />
       </div>
@@ -349,10 +356,10 @@ export default function HomePage() {
             <div className="template-grid">
               <div className="template-card" style={{ opacity: 0.4 }}>
                 <div className="template-preview">
-                  <div className="template-preview-inner" style={{ background: 'var(--bg-tertiary)' }}></div>
+                  <div className="template-preview-inner skeleton-pulse" style={{ minHeight: '120px' }}></div>
                 </div>
                 <div className="template-info">
-                  <div className="template-name" style={{ color: 'var(--fg-muted)' }}>Loading...</div>
+                  <div className="template-name skeleton-pulse" style={{ width: '80px', height: '14px' }}>&nbsp;</div>
                 </div>
               </div>
             </div>
@@ -363,10 +370,10 @@ export default function HomePage() {
             <div className="template-grid">
               <div className="template-card" style={{ opacity: 0.4 }}>
                 <div className="template-preview">
-                  <div className="template-preview-inner" style={{ background: 'var(--bg-tertiary)' }}></div>
+                  <div className="template-preview-inner skeleton-pulse" style={{ minHeight: '120px' }}></div>
                 </div>
                 <div className="template-info">
-                  <div className="template-name" style={{ color: 'var(--fg-muted)' }}>Loading...</div>
+                  <div className="template-name skeleton-pulse" style={{ width: '80px', height: '14px' }}>&nbsp;</div>
                 </div>
               </div>
             </div>
@@ -377,10 +384,10 @@ export default function HomePage() {
             <div className="template-grid">
               <div className="template-card" style={{ opacity: 0.4 }}>
                 <div className="template-preview">
-                  <div className="template-preview-inner" style={{ background: 'var(--bg-tertiary)' }}></div>
+                  <div className="template-preview-inner skeleton-pulse" style={{ minHeight: '120px' }}></div>
                 </div>
                 <div className="template-info">
-                  <div className="template-name" style={{ color: 'var(--fg-muted)' }}>Loading...</div>
+                  <div className="template-name skeleton-pulse" style={{ width: '80px', height: '14px' }}>&nbsp;</div>
                 </div>
               </div>
             </div>

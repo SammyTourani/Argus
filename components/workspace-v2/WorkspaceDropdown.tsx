@@ -3,8 +3,11 @@
 
 import { useEffect } from 'react';
 import { fetchCurrentUser, fetchSubscription, fetchTeams, createTeam, escapeHtml } from './workspace-api';
+import { useUser } from '@/components/providers/UserProvider';
 
 export default function WorkspaceDropdown() {
+  const { user } = useUser();
+
   // ===== initWorkspaceDropdown =====
   useEffect(() => {
     var header = document.querySelector('.sidebar-header');
@@ -121,6 +124,27 @@ export default function WorkspaceDropdown() {
         }
         var creditsHelp = dropdown!.querySelector('.ws-credits-help');
         if (creditsHelp) creditsHelp.textContent = sub.maxBuilds + ' ' + sub.tier + ' builds reset monthly';
+
+        // Handle unlimited builds for paid tiers
+        if (sub.maxBuilds === null) {
+          if (creditsCount) creditsCount.textContent = 'Unlimited';
+          if (creditsHelp) creditsHelp.textContent = sub.tier.charAt(0).toUpperCase() + sub.tier.slice(1) + ' \u2014 unlimited builds';
+          if (progressFill) {
+            progressFill.style.width = '100%';
+            progressFill.style.background = 'var(--accent-100)';
+          }
+        }
+
+        // Conditional upgrade card based on tier
+        var upgradeCard = dropdown!.querySelector('.ws-upgrade-card');
+        if (upgradeCard) {
+          if (sub.tier === 'team' || sub.tier === 'enterprise') {
+            upgradeCard.style.display = 'none';
+          } else if (sub.tier === 'pro') {
+            var upgradeLeft = upgradeCard.querySelector('.ws-upgrade-left');
+            if (upgradeLeft) upgradeLeft.innerHTML = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M8.5 1L3 9h4.5v6L13 7H8.5V1z" /></svg> Go Team';
+          }
+        }
       }
       // Render workspace list dynamically
       var wsList = dropdown!.querySelector('.ws-workspace-list');
@@ -160,9 +184,9 @@ export default function WorkspaceDropdown() {
     <>
       <div className="workspace-dropdown" id="workspaceDropdown">
         <div className="ws-current">
-          <div className="ws-avatar">&nbsp;</div>
+          <div className="ws-avatar">{user?.initial || '\u00A0'}</div>
           <div className="ws-current-info">
-            <div className="ws-current-name">Loading...</div>
+            <div className="ws-current-name">{user ? `${user.name}'s Workspace` : 'Loading...'}</div>
             <div className="ws-current-meta"><span className="ws-plan-badge">Free Plan</span> &bull; 1 member</div>
           </div>
         </div>
