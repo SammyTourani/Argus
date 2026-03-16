@@ -273,9 +273,9 @@ export default function EditorPage({ projectId, buildId }: EditorPageProps) {
     const cleanUrl = url.replace(/^https?:\/\//i, '');
 
     addChatMessage(`Starting to clone ${cleanUrl}...`, 'system');
-    captureUrlScreenshot(url);
+    setIsPreparingDesign(true);
 
-    // Wait for sandbox to be ready, then scrape + generate in parallel
+    // Wait for sandbox to be ready, then scrape + generate
     let cancelled = false;
     (async () => {
       try {
@@ -295,6 +295,7 @@ export default function EditorPage({ projectId, buildId }: EditorPageProps) {
           }
         }
 
+        // Single Firecrawl call — returns markdown, rawHtml, branding, screenshot, images
         addChatMessage('Scraping website content...', 'system');
         const scrapeRes = await fetch('/api/scrape-url-enhanced', {
           method: 'POST',
@@ -306,6 +307,12 @@ export default function EditorPage({ projectId, buildId }: EditorPageProps) {
 
         if (cancelled) return;
 
+        // Use screenshot from scrape response for UI preview (no separate captureUrlScreenshot call)
+        if (scrapeData.screenshot) {
+          setIsScreenshotLoaded(false);
+          setUrlScreenshot(scrapeData.screenshot);
+        }
+
         setConversationContext((prev) => ({
           ...prev,
           scrapedWebsites: [...prev.scrapedWebsites, { url, content: scrapeData, timestamp: new Date() }],
@@ -313,25 +320,21 @@ export default function EditorPage({ projectId, buildId }: EditorPageProps) {
         }));
 
         const storedInstructions = saved.style ? `Style: ${saved.style}` : '';
-        const prompt = `I want to recreate the ${url} website as a complete React application based on the scraped content below.
+        // Clean intent-based prompt — structured data is passed separately via cloneData
+        const prompt = `Recreate this website as a pixel-perfect React clone: ${url}
 
-${JSON.stringify(scrapeData, null, 2)}
+=== TEXT CONTENT ===
+${scrapeData.content}
+${storedInstructions ? `\nADDITIONAL CONTEXT: ${storedInstructions}` : ''}`;
 
-${storedInstructions ? `ADDITIONAL CONTEXT: ${storedInstructions}` : ''}
-
-IMPORTANT INSTRUCTIONS:
-- Create a COMPLETE, working React application
-- Implement ALL sections and features from the original site
-- Use Tailwind CSS for all styling (no custom CSS files)
-- Make it responsive and modern
-- Ensure all text content matches the original
-- Create proper component structure
-- Make sure the app actually renders visible content
-- Create ALL components that you reference in imports
-- Use original image URLs from the scraped content when available
-Focus on the key sections and content, making it clean and modern.`;
-
-        await generateCode(prompt);
+        await generateCode(prompt, {
+          screenshotUrl: scrapeData.screenshot,
+          scrapedHtml: scrapeData.html,
+          structureSummary: scrapeData.structureSummary,
+          scrapedStyles: scrapeData.styles,
+          imageUrls: scrapeData.imageUrls,
+          branding: scrapeData.branding,
+        });
       } catch (err: any) {
         if (cancelled) return;
         addChatMessage(`Failed to clone website: ${err.message}`, 'error');
@@ -342,31 +345,6 @@ Focus on the key sections and content, making it clean and modern.`;
 
     return () => { cancelled = true; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  /* ─── Screenshot capture ─── */
-  const captureUrlScreenshot = async (url: string) => {
-    setIsCapturingScreenshot(true);
-    setScreenshotError(null);
-    try {
-      const res = await fetch('/api/scrape-screenshot', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url }),
-      });
-      const data = await res.json();
-      if (data.success && data.screenshot) {
-        setIsScreenshotLoaded(false);
-        setUrlScreenshot(data.screenshot);
-        setIsPreparingDesign(true);
-      } else {
-        setScreenshotError(data.error || 'Failed to capture screenshot');
-      }
-    } catch {
-      setScreenshotError('Network error while capturing screenshot');
-    } finally {
-      setIsCapturingScreenshot(false);
-    }
-  };
 
   /* ─── Apply generated code to sandbox ─── */
   const applyGeneratedCode = useCallback(
@@ -450,7 +428,14 @@ Focus on the key sections and content, making it clean and modern.`;
 
   /* ─── Generate code (SSE stream) ─── */
   const generateCode = useCallback(
-    async (prompt: string) => {
+    async (prompt: string, cloneData?: {
+      screenshotUrl?: string;
+      scrapedHtml?: string;
+      structureSummary?: string;
+      scrapedStyles?: { colors?: string[]; fonts?: string[]; fontSizes?: string[] };
+      imageUrls?: string[];
+      branding?: any;
+    }) => {
       setIsGenerating(true);
       setBuildStatus('generating');
       setBuildStatusMessage('Generating code...');
@@ -495,6 +480,15 @@ Focus on the key sections and content, making it clean and modern.`;
             lockedFiles,
             designScheme: designScheme.getPromptInjection(),
             isEdit,
+            // Clone-specific fields (passed through to generation route for multimodal + structured context)
+            ...(cloneData ? {
+              screenshotUrl: cloneData.screenshotUrl,
+              scrapedHtml: cloneData.scrapedHtml,
+              structureSummary: cloneData.structureSummary,
+              scrapedStyles: cloneData.scrapedStyles,
+              imageUrls: cloneData.imageUrls,
+              branding: cloneData.branding,
+            } : {}),
             context: {
               sandboxId: sandboxData?.sandboxId || sandboxIdRef.current,
               projectContext: projectContext ?? undefined,

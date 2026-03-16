@@ -122,7 +122,11 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    const { context, isEdit = false, lockedFiles = [], chatMode = 'build', promptVariant, designScheme } = rawBody;
+    const { context, isEdit = false, lockedFiles = [], chatMode = 'build', promptVariant, designScheme,
+      // Clone-specific fields (from scrape-url-enhanced)
+      screenshotUrl, scrapedHtml, structureSummary, scrapedStyles, imageUrls, branding,
+    } = rawBody;
+    const isCloneMode = !!screenshotUrl || !!branding || !!scrapedHtml;
 
     // BYOK: resolve user's own API key for this model (null = use server key)
     const userApiKey = await getUserApiKey(user.id, model);
@@ -138,6 +142,13 @@ export async function POST(request: NextRequest) {
     console.log('[generate-ai-code-stream] - currentFiles count:', context?.currentFiles ? Object.keys(context.currentFiles).length : 0);
     console.log('[generate-ai-code-stream] - lockedFiles:', lockedFiles.length > 0 ? lockedFiles : 'none');
     console.log('[generate-ai-code-stream] - chatMode:', chatMode);
+    console.log('[generate-ai-code-stream] - isCloneMode:', isCloneMode);
+    if (isCloneMode) {
+      console.log('[generate-ai-code-stream] - hasScreenshot:', !!screenshotUrl);
+      console.log('[generate-ai-code-stream] - hasBranding:', !!branding);
+      console.log('[generate-ai-code-stream] - hasScrapedHtml:', !!scrapedHtml);
+      console.log('[generate-ai-code-stream] - imageUrls count:', imageUrls?.length || 0);
+    }
     
     // Get per-user conversation state (thread-safe, auto-evicts stale)
     const conversationState = getConversationState(user.id);
@@ -240,7 +251,25 @@ export async function POST(request: NextRequest) {
         await sendProgress({ type: 'status', message: 'Initializing AI...' });
         
         // No keep-alive needed - sandbox provisioned for 10 minutes
-        
+
+        // ── Clone Mode: Download screenshot server-side ───────────────────────
+        let screenshotBase64: string | null = null;
+        if (screenshotUrl && isCloneMode) {
+          try {
+            await sendProgress({ type: 'status', message: 'Downloading screenshot for vision model...' });
+            const imgRes = await fetch(screenshotUrl, { signal: AbortSignal.timeout(10000) });
+            if (imgRes.ok) {
+              const buffer = await imgRes.arrayBuffer();
+              screenshotBase64 = Buffer.from(buffer).toString('base64');
+              console.log('[generate-ai-code-stream] Screenshot downloaded:', Math.round(buffer.byteLength / 1024), 'KB');
+            } else {
+              console.warn('[generate-ai-code-stream] Screenshot download failed:', imgRes.status);
+            }
+          } catch (e) {
+            console.warn('[generate-ai-code-stream] Failed to download screenshot, proceeding without:', e);
+          }
+        }
+
         // Check if we have a file manifest for edit mode
         let editContext = null;
         let enhancedSystemPrompt = '';
@@ -638,7 +667,9 @@ Remember: You are a SURGEON making a precise incision, not an artist repainting 
         
         // Build system prompt with conversation awareness
         // Use prompt library for the base system prompt (supports A/B variants: default, concise, design-focused)
-        const basePrompt = getSystemPrompt((promptVariant as PromptVariant) || 'default', isEdit);
+        // Use clone prompt variant when in clone mode, otherwise use selected variant
+        const effectiveVariant = isCloneMode ? 'clone' : ((promptVariant as PromptVariant) || 'default');
+        const basePrompt = getSystemPrompt(effectiveVariant, isEdit);
         // Inject design scheme if provided
         const designSchemePrompt = typeof designScheme === 'string' && designScheme.trim() ? `\nDESIGN SCHEME:\n${designScheme}\n` : '';
 
@@ -1234,23 +1265,72 @@ MORPH FAST APPLY MODE (EDIT-ONLY):
             contextParts.push('NEVER output "Generated Files:" as plain text');
           }
           
+          // ── Clone Mode: Structured context for pixel-perfect cloning ─────
+          if (isCloneMode) {
+            const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+
+            // Priority 1: Firecrawl branding (exact values from CSS)
+            if (branding) {
+              contextParts.push('\n=== BRAND DESIGN TOKENS (EXACT — extracted from CSS) ===');
+              contextParts.push(JSON.stringify(branding, null, 2));
+            }
+
+            // Priority 2: Regex-extracted styles (fallback when branding unavailable)
+            if (!branding && scrapedStyles) {
+              contextParts.push('\n=== EXTRACTED STYLES (approximate — from HTML parsing) ===');
+              if (scrapedStyles.colors?.length) contextParts.push(`Colors: ${scrapedStyles.colors.join(', ')}`);
+              if (scrapedStyles.fonts?.length) contextParts.push(`Fonts: ${scrapedStyles.fonts.join(', ')}`);
+              if (scrapedStyles.fontSizes?.length) contextParts.push(`Font Sizes: ${scrapedStyles.fontSizes.join(', ')}`);
+            }
+
+            if (structureSummary) {
+              contextParts.push('\n=== PAGE STRUCTURE ===');
+              contextParts.push(structureSummary);
+            }
+
+            if (imageUrls?.length) {
+              contextParts.push('\n=== AVAILABLE IMAGES (use these EXACT URLs as img src) ===');
+              imageUrls.forEach((imgUrl: string) => {
+                contextParts.push(`${appUrl}/api/proxy-image?url=${encodeURIComponent(imgUrl)}`);
+              });
+              contextParts.push(`\nIMPORTANT: All image URLs MUST start with ${appUrl} — the app runs in a sandboxed iframe on a different domain.`);
+            }
+
+            if (scrapedHtml) {
+              contextParts.push('\n=== HTML REFERENCE (for structure, not for copying verbatim) ===');
+              contextParts.push(scrapedHtml);
+            }
+          }
+
           // Add conversation context (scraped websites, etc)
           if (context.conversationContext) {
             if (context.conversationContext.scrapedWebsites?.length > 0) {
-              contextParts.push('\nScraped Websites in Context:');
-              context.conversationContext.scrapedWebsites.forEach((site: any) => {
-                contextParts.push(`\nURL: ${site.url}`);
-                contextParts.push(`Scraped: ${new Date(site.timestamp).toLocaleString()}`);
-                if (site.content) {
-                  // Include a summary of the scraped content
-                  const contentPreview = typeof site.content === 'string' 
-                    ? site.content.substring(0, 1000) 
-                    : JSON.stringify(site.content).substring(0, 1000);
-                  contextParts.push(`Content Preview: ${contentPreview}...`);
-                }
-              });
+              if (isCloneMode) {
+                // In clone mode, include full scraped content (HTML processor already caps at 30KB)
+                context.conversationContext.scrapedWebsites.forEach((site: any) => {
+                  contextParts.push(`\nURL: ${site.url}`);
+                  if (site.content) {
+                    const contentStr = typeof site.content === 'string'
+                      ? site.content
+                      : JSON.stringify(site.content);
+                    contextParts.push(`\nScraped content for cloning:\n${contentStr}`);
+                  }
+                });
+              } else {
+                contextParts.push('\nScraped Websites in Context:');
+                context.conversationContext.scrapedWebsites.forEach((site: any) => {
+                  contextParts.push(`\nURL: ${site.url}`);
+                  contextParts.push(`Scraped: ${new Date(site.timestamp).toLocaleString()}`);
+                  if (site.content) {
+                    const contentPreview = typeof site.content === 'string'
+                      ? site.content.substring(0, 1000)
+                      : JSON.stringify(site.content).substring(0, 1000);
+                    contextParts.push(`Content Preview: ${contentPreview}...`);
+                  }
+                });
+              }
             }
-            
+
             if (context.conversationContext.currentProject) {
               contextParts.push(`\nCurrent Project: ${context.conversationContext.currentProject}`);
             }
@@ -1332,9 +1412,37 @@ Examples of CORRECT CODE (ALWAYS DO THIS):
 
 REMEMBER: It's better to generate fewer COMPLETE files than many INCOMPLETE files.`
             },
-            { 
-              role: 'user', 
-              content: fullPrompt + `
+            {
+              role: 'user',
+              // Use multimodal content (image + text) when screenshot available for clone mode
+              content: screenshotBase64 ? [
+                // Image BEFORE text — Anthropic docs confirm better performance
+                {
+                  type: 'image' as const,
+                  image: screenshotBase64,
+                  mediaType: 'image/png' as const,
+                },
+                {
+                  type: 'text' as const,
+                  text: fullPrompt + `
+
+CRITICAL: You MUST complete EVERY file you start. If you write:
+<file path="src/components/Hero.jsx">
+
+You MUST include the closing </file> tag and ALL the code in between.
+
+NEVER write partial code like:
+<h1>Build and deploy on the AI Cloud.</h1>
+<p>Some text...</p>  ❌ WRONG
+
+ALWAYS write complete code:
+<h1>Build and deploy on the AI Cloud.</h1>
+<p>Some text here with full content</p>  ✅ CORRECT
+
+If you're running out of space, generate FEWER files but make them COMPLETE.
+It's better to have 3 complete files than 10 incomplete files.`,
+                },
+              ] : fullPrompt + `
 
 CRITICAL: You MUST complete EVERY file you start. If you write:
 <file path="src/components/Hero.jsx">
@@ -1353,7 +1461,8 @@ If you're running out of space, generate FEWER files but make them COMPLETE.
 It's better to have 3 complete files than 10 incomplete files.`
             }
           ],
-          maxTokens: 8192, // Reduce to ensure completion
+          // Clone mode needs more tokens for complete multi-section sites
+          maxTokens: isCloneMode ? 32768 : 8192,
           stopSequences: [] // Don't stop early
           // Note: Neither Groq nor Anthropic models support tool/function calling in this context
           // We use XML tags for package detection instead
