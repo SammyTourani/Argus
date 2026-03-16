@@ -1,4 +1,8 @@
 import { NextResponse } from 'next/server';
+
+// Sandbox creation + Vite setup can take up to 60s
+export const maxDuration = 60;
+
 import { SandboxFactory } from '@/lib/sandbox/factory';
 import { sandboxManager } from '@/lib/sandbox/sandbox-manager';
 import { Ratelimit } from '@upstash/ratelimit';

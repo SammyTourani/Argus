@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+
+// File writing + package installation can take time
+export const maxDuration = 120;
+
 import { parseMorphEdits, applyMorphEditToFile } from '@/lib/morph-fast-apply';
 import { sandboxManager } from '@/lib/sandbox/sandbox-manager';
 import { createClient } from '@/lib/supabase/server';

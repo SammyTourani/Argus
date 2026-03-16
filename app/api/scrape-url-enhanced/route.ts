@@ -2,25 +2,78 @@ import { NextRequest, NextResponse } from 'next/server';
 import { checkRateLimit, getClientIp } from '@/lib/ratelimit';
 import { processHtml } from '@/lib/scrape/html-processor';
 
-// Function to sanitize smart quotes and other problematic characters
+// Allow up to 60 seconds for heavy sites (Vercel Pro plan)
+export const maxDuration = 60;
+
+// Sanitize smart quotes and other problematic characters
 function sanitizeQuotes(text: string): string {
   return text
-    // Replace smart single quotes
     .replace(/[\u2018\u2019\u201A\u201B]/g, "'")
-    // Replace smart double quotes
     .replace(/[\u201C\u201D\u201E\u201F]/g, '"')
-    // Replace other quote-like characters
-    .replace(/[\u00AB\u00BB]/g, '"') // Guillemets
-    .replace(/[\u2039\u203A]/g, "'") // Single guillemets
-    // Replace other problematic characters
-    .replace(/[\u2013\u2014]/g, '-') // En dash and em dash
-    .replace(/[\u2026]/g, '...') // Ellipsis
-    .replace(/[\u00A0]/g, ' '); // Non-breaking space
+    .replace(/[\u00AB\u00BB]/g, '"')
+    .replace(/[\u2039\u203A]/g, "'")
+    .replace(/[\u2013\u2014]/g, '-')
+    .replace(/[\u2026]/g, '...')
+    .replace(/[\u00A0]/g, ' ');
+}
+
+async function scrapeWithFirecrawl(url: string, apiKey: string, attempt: number = 1): Promise<any> {
+  // First attempt: full formats with screenshot
+  // Retry: simplified formats (no screenshot action, shorter wait)
+  const isRetry = attempt > 1;
+
+  const body: Record<string, any> = {
+    url,
+    formats: ['markdown', 'rawHtml', 'screenshot'],
+    waitFor: isRetry ? 1000 : 2000,
+    timeout: isRetry ? 45000 : 30000,
+    blockAds: true,
+    maxAge: 3600000,
+  };
+
+  // Only add actions on first attempt — they add overhead
+  if (!isRetry) {
+    body.actions = [
+      { type: 'screenshot', fullPage: false },
+    ];
+  }
+
+  console.log(`[scrape-url-enhanced] Attempt ${attempt} for ${url} (timeout: ${body.timeout}ms)`);
+
+  const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(55000), // Hard abort before Vercel kills us
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    // Try to parse as JSON to get a cleaner error message
+    try {
+      const errorJson = JSON.parse(errorText);
+      throw new Error(errorJson.error || errorJson.message || `Firecrawl error (${response.status})`);
+    } catch {
+      throw new Error(`Firecrawl error (${response.status}): ${errorText.slice(0, 200)}`);
+    }
+  }
+
+  const data = await response.json();
+
+  if (!data.success || !data.data) {
+    const errorMsg = data.error || 'Firecrawl returned no data';
+    throw new Error(errorMsg);
+  }
+
+  return data;
 }
 
 export async function POST(request: NextRequest) {
   try {
-    // Rate limit by IP (public route — no auth required)
+    // Rate limit by IP
     const ip = getClientIp(request);
     const rateLimit = await checkRateLimit(ip, 'scrape');
     if (!rateLimit.allowed) {
@@ -54,49 +107,31 @@ export async function POST(request: NextRequest) {
       throw new Error('FIRECRAWL_API_KEY environment variable is not set');
     }
 
-    // Single Firecrawl call requesting ALL useful formats:
-    // - markdown: text content for AI reference
-    // - rawHtml: full rendered DOM (preserves nav/footer unlike 'html')
-    // - screenshot: viewport capture for vision model
-    // - branding: exact design tokens from CSS (colors, fonts, spacing)
-    const firecrawlResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${FIRECRAWL_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        url,
-        formats: ['markdown', 'rawHtml', 'screenshot', 'branding'],
-        waitFor: 3000,
-        timeout: 30000,
-        blockAds: true,
-        maxAge: 3600000, // Use cached data if less than 1 hour old
-        actions: [
-          {
-            type: 'wait',
-            milliseconds: 2000
-          },
-          {
-            type: 'screenshot',
-            fullPage: false // Viewport only — Claude downscales >1568px
-          }
-        ]
-      })
-    });
+    // Try scraping with retry on timeout
+    let data: any;
+    try {
+      data = await scrapeWithFirecrawl(url, FIRECRAWL_API_KEY, 1);
+    } catch (firstError: any) {
+      const isTimeout = firstError.message?.includes('SCRAPE_TIMEOUT') ||
+                        firstError.message?.includes('timed out') ||
+                        firstError.name === 'TimeoutError';
 
-    if (!firecrawlResponse.ok) {
-      const error = await firecrawlResponse.text();
-      throw new Error(`Firecrawl API error: ${error}`);
+      if (isTimeout) {
+        console.warn('[scrape-url-enhanced] First attempt timed out, retrying with simplified config...');
+        try {
+          data = await scrapeWithFirecrawl(url, FIRECRAWL_API_KEY, 2);
+        } catch (retryError: any) {
+          throw new Error(
+            `Could not scrape this website — it may be too slow to load or blocking automated access. ` +
+            `Try a different URL, or paste the website content directly.`
+          );
+        }
+      } else {
+        throw firstError;
+      }
     }
 
-    const data = await firecrawlResponse.json();
-
-    if (!data.success || !data.data) {
-      throw new Error('Failed to scrape content');
-    }
-
-    const { markdown, rawHtml, metadata, screenshot, actions, branding } = data.data;
+    const { markdown, rawHtml, metadata, screenshot, actions } = data.data;
 
     // Get screenshot from either direct field or actions result
     const screenshotUrl = screenshot || actions?.screenshots?.[0] || null;
@@ -126,37 +161,52 @@ ${sanitizedMarkdown}
       url,
       content: formattedContent,
       screenshot: screenshotUrl,
-      // NEW: structured data for pixel-perfect cloning
       html: processed.cleanHtml,
       structureSummary: processed.structureSummary,
       imageUrls: processed.imageUrls,
-      branding: branding || null,
-      // Fallback styles only when branding is unavailable
-      styles: !branding ? processed.styles : undefined,
+      branding: null, // branding is v2-only — use extracted styles as fallback
+      styles: processed.styles,
       structured: {
         title: sanitizeQuotes(title),
         description: sanitizeQuotes(description),
         content: sanitizedMarkdown,
         url,
-        screenshot: screenshotUrl
+        screenshot: screenshotUrl,
       },
       metadata: {
         scraper: 'firecrawl-enhanced',
         timestamp: new Date().toISOString(),
         contentLength: formattedContent.length,
         cached: data.data.cached || false,
-        hasBranding: !!branding,
+        hasBranding: false,
         hasRawHtml: !!rawHtml,
         imageCount: processed.imageUrls.length,
-        ...metadata
+        ...metadata,
       },
     });
 
   } catch (error) {
     console.error('[scrape-url-enhanced] Error:', error);
+
+    // Clean error message for the user — never dump raw JSON
+    let userMessage = 'Failed to scrape website.';
+    const errMsg = (error as Error).message || '';
+
+    if (errMsg.includes('Could not scrape')) {
+      userMessage = errMsg;
+    } else if (errMsg.includes('SCRAPE_TIMEOUT') || errMsg.includes('timed out')) {
+      userMessage = 'This website took too long to load. Try again, or try a different URL.';
+    } else if (errMsg.includes('Rate limit')) {
+      userMessage = 'Too many requests. Please wait a moment and try again.';
+    } else if (errMsg.includes('not set')) {
+      userMessage = 'Scraping service is not configured. Please contact support.';
+    } else {
+      userMessage = `Failed to scrape website: ${errMsg.slice(0, 200)}`;
+    }
+
     return NextResponse.json({
       success: false,
-      error: (error as Error).message
+      error: userMessage,
     }, { status: 500 });
   }
 }

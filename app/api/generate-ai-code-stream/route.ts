@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+
+// AI streaming can take a while for complex clones
+export const maxDuration = 120;
+
 import { streamText } from 'ai';
 import { getProviderForModel } from '@/lib/ai/provider-manager';
 import { getUserApiKey } from '@/lib/ai/user-key-resolver';
