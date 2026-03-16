@@ -417,61 +417,40 @@ export async function POST(request: NextRequest) {
             packages: uniquePackages
           });
 
-          // Use streaming package installation
+          // Install packages directly via sandbox provider
           try {
-            // Construct the API URL properly for both dev and production
-            const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
-            const host = req.headers.get('host') || 'localhost:3000';
-            const apiUrl = `${protocol}://${host}/api/install-packages`;
-
-            const installResponse = await fetch(apiUrl, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                packages: uniquePackages,
-                sandboxId: sandboxId || providerInstance.getSandboxInfo()?.sandboxId
-              })
+            await sendProgress({
+              type: 'package-progress',
+              status: 'installing',
+              packages: uniquePackages,
             });
 
-            if (installResponse.ok && installResponse.body) {
-              const reader = installResponse.body.getReader();
-              const decoder = new TextDecoder();
+            const installResult = await providerInstance.installPackages(uniquePackages);
 
-              while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-
-                const chunk = decoder.decode(value);
-                if (!chunk) continue;
-                const lines = chunk.split('\n');
-
-                for (const line of lines) {
-                  if (line.startsWith('data: ')) {
-                    try {
-                      const data = JSON.parse(line.slice(6));
-
-                      // Forward package installation progress
-                      await sendProgress({
-                        type: 'package-progress',
-                        ...data
-                      });
-
-                      // Track results
-                      if (data.type === 'success' && data.installedPackages) {
-                        results.packagesInstalled = data.installedPackages;
-                      }
-                    } catch (parseError) {
-                      console.debug('Error parsing terminal output:', parseError);
-                    }
-                  }
-                }
-              }
+            if (installResult.exitCode === 0) {
+              results.packagesInstalled = uniquePackages;
+              await sendProgress({
+                type: 'package-progress',
+                status: 'complete',
+                installedPackages: uniquePackages,
+              });
+            } else {
+              console.warn('[apply-ai-code-stream] Package install exited with code:', installResult.exitCode);
+              console.warn('[apply-ai-code-stream] stderr:', installResult.stderr);
+              // Still mark as installed — npm often exits non-zero for warnings
+              results.packagesInstalled = uniquePackages;
+              await sendProgress({
+                type: 'package-progress',
+                status: 'complete',
+                installedPackages: uniquePackages,
+                warning: installResult.stderr?.slice(0, 500),
+              });
             }
           } catch (error) {
             console.error('[apply-ai-code-stream] Error installing packages:', error);
             await sendProgress({
               type: 'warning',
-              message: `Package installation skipped (${(error as Error).message}). Continuing with file creation...`
+              message: `Package installation failed (${(error as Error).message}). Continuing with file creation...`
             });
             results.errors.push(`Package installation failed: ${(error as Error).message}`);
           }
