@@ -54,10 +54,17 @@ export async function POST(request: Request) {
       const session = event.data.object as Stripe.Checkout.Session;
       const userId = session.metadata?.supabase_user_id;
       if (userId) {
+        const isTeam = session.metadata?.plan === 'team';
+        const creditAllocation = isTeam ? 500 : 300;
+        const nextReset = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString();
+
         await supabaseAdmin.from('profiles').update({
-          subscription_status: session.metadata?.plan === 'team' ? 'team' : 'pro',
+          subscription_status: isTeam ? 'team' : 'pro',
           stripe_customer_id: session.customer as string,
           subscription_id: session.subscription as string,
+          credits_remaining: creditAllocation,
+          credits_total: creditAllocation,
+          credits_reset_at: nextReset,
           updated_at: new Date().toISOString(),
         }).eq('id', userId);
 
@@ -88,6 +95,8 @@ export async function POST(request: Request) {
         await supabaseAdmin.from('profiles').update({
           subscription_status: 'free',
           subscription_id: null,
+          credits_total: 30,
+          credits_remaining: 30, // Reset to free tier allocation
           updated_at: new Date().toISOString(),
         }).eq('id', profile.id);
 

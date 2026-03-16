@@ -237,15 +237,13 @@ function AccountPageInner() {
                   </div>
                   <div className="rounded-lg border border-zinc-200 p-4 mb-6">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-zinc-700">Builds this month</span>
-                      <span className="text-sm font-semibold text-zinc-900">{subscription.maxBuilds === null ? 'Unlimited' : `${(subscription.maxBuilds ?? 3) - (subscription.buildsRemaining ?? 0)} / ${subscription.maxBuilds}`}</span>
+                      <span className="text-sm font-medium text-zinc-700">Credits remaining</span>
+                      <span className="text-sm font-semibold text-zinc-900">{subscription.creditsRemaining} / {subscription.creditsTotal}</span>
                     </div>
-                    {subscription.maxBuilds !== null && (
-                      <div className="h-2 rounded-full bg-zinc-100 overflow-hidden">
-                        <div className={cn('h-full rounded-full transition-all duration-500', subscription.canBuild ? 'bg-[#FA4500]' : 'bg-red-500')} style={{ width: `${Math.min(100, (((subscription.maxBuilds ?? 3) - (subscription.buildsRemaining ?? 0)) / (subscription.maxBuilds ?? 3)) * 100)}%` }} />
-                      </div>
-                    )}
-                    {subscription.maxBuilds !== null && !subscription.canBuild && <p className="text-xs text-red-500 mt-2">You have used all your builds this month. Upgrade to Pro for unlimited builds.</p>}
+                    <div className="h-2 rounded-full bg-zinc-100 overflow-hidden">
+                      <div className={cn('h-full rounded-full transition-all duration-500', subscription.creditsRemaining > 5 ? 'bg-[#FA4500]' : subscription.creditsRemaining > 0 ? 'bg-orange-400' : 'bg-red-500')} style={{ width: `${Math.min(100, (subscription.creditsRemaining / subscription.creditsTotal) * 100)}%` }} />
+                    </div>
+                    {subscription.creditsRemaining <= 0 && <p className="text-xs text-red-500 mt-2">Credits depleted — you can still use free models. Upgrade to Pro for 300 credits/month.</p>}
                   </div>
                   <div className="flex items-center gap-3">
                     {subscription.tier !== 'free' && (
@@ -263,7 +261,7 @@ function AccountPageInner() {
                     <h3 className="text-base font-bold text-zinc-900 mb-4 flex items-center gap-2"><Zap size={16} className="text-[#FA4500]" />Upgrade your plan</h3>
                     <div className="space-y-3">
                       {[
-                        { name: 'Pro', planKey: 'pro' as const, price: '$19/mo', features: 'Unlimited builds, deploy to Vercel, all AI models, priority queue', badge: 'Most popular' },
+                        { name: 'Pro', planKey: 'pro' as const, price: '$19/mo', features: '300 credits/month, deploy to Vercel, all 9 AI models, priority queue', badge: 'Most popular' },
                         { name: 'Team', planKey: 'team' as const, price: '$49/mo', features: 'Everything in Pro + 5 team members, shared library, SSO', badge: null },
                       ].map(plan => (
                         <div key={plan.name} className="flex items-center justify-between rounded-lg border border-zinc-200 p-4 hover:border-zinc-300 transition-colors">

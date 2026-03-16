@@ -18,20 +18,22 @@ import type { RateLimitTier } from '@/lib/ratelimit-tiered';
 
 export interface UsageStats {
   buildsThisMonth: number;
-  buildsLimit: number | null; // null = unlimited
+  buildsLimit: number | null; // null = unlimited (credit-gated)
   deploysThisMonth: number;
   deploysLimit: number | null; // null = unlimited
   modelsUsed: string[];
   lastBuildAt: string | null;
   resetDate: string; // ISO string — first of next month
   tier: RateLimitTier;
+  creditsRemaining: number;
+  creditsTotal: number;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const TIER_BUILD_LIMITS: Record<RateLimitTier, number | null> = {
-  free: 3,
-  pro: null, // unlimited
+  free: null, // Now credit-gated, not build-count-gated
+  pro: null,  // unlimited
   team: null, // unlimited
 };
 
@@ -64,7 +66,7 @@ export async function getUserUsage(userId: string): Promise<UsageStats> {
   // 1. Get profile data (builds_this_month, builds_reset_at, subscription_status)
   const { data: profile } = await supabase
     .from('profiles')
-    .select('subscription_status, builds_this_month, builds_reset_at')
+    .select('subscription_status, builds_this_month, builds_reset_at, credits_remaining, credits_total')
     .eq('id', userId)
     .single();
 
@@ -139,6 +141,8 @@ export async function getUserUsage(userId: string): Promise<UsageStats> {
     lastBuildAt,
     resetDate: getFirstOfNextMonth().toISOString(),
     tier,
+    creditsRemaining: profile?.credits_remaining ?? 30,
+    creditsTotal: profile?.credits_total ?? 30,
   };
 }
 

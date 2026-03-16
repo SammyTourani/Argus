@@ -10,7 +10,17 @@ export interface SubscriptionGate {
   canCollaborate: boolean;
   buildsRemaining: number | null; // null = unlimited
   maxBuildsPerMonth: number | null; // null = unlimited
+  creditsRemaining: number;
+  creditsTotal: number;
 }
+
+/** Credit allocation per subscription tier */
+export const TIER_CREDITS: Record<SubscriptionTier, number> = {
+  free: 30,
+  pro: 300,
+  team: 500,
+  enterprise: 500,
+};
 
 /** Tier-specific feature limits */
 const TIER_CONFIG: Record<SubscriptionTier, {
@@ -20,7 +30,7 @@ const TIER_CONFIG: Record<SubscriptionTier, {
   canCollaborate: boolean;
 }> = {
   free: {
-    maxBuildsPerMonth: 3,
+    maxBuildsPerMonth: null, // Now credit-gated, not build-count-gated
     canDeploy: false,
     canUseAllModels: false,
     canCollaborate: false,
@@ -56,19 +66,19 @@ function getSupabaseAdmin() {
  * Fetches the user's profile and returns a subscription gate object
  * describing what the user is allowed to do.
  *
- * Auto-resets builds_this_month when builds_reset_at has passed.
+ * Auto-resets credits and builds_this_month when the billing period expires.
  */
 export async function getUserSubscriptionGate(userId: string): Promise<SubscriptionGate> {
   const supabase = getSupabaseAdmin();
 
   const { data: profile, error } = await supabase
     .from('profiles')
-    .select('subscription_status, builds_this_month, builds_reset_at')
+    .select('subscription_status, builds_this_month, builds_reset_at, credits_remaining, credits_total, credits_reset_at')
     .eq('id', userId)
     .single();
 
   if (error || !profile) {
-    // Default to free with no builds remaining (safe fallback)
+    // Default to free with no credits (safe fallback)
     return {
       tier: 'free',
       canBuild: false,
@@ -76,7 +86,9 @@ export async function getUserSubscriptionGate(userId: string): Promise<Subscript
       canUseAllModels: false,
       canCollaborate: false,
       buildsRemaining: 0,
-      maxBuildsPerMonth: 3,
+      maxBuildsPerMonth: null,
+      creditsRemaining: 0,
+      creditsTotal: 30,
     };
   }
 
@@ -91,14 +103,20 @@ export async function getUserSubscriptionGate(userId: string): Promise<Subscript
 
   let buildsThisMonth: number = profile.builds_this_month ?? 0;
   let buildsResetAt: string | null = profile.builds_reset_at ?? null;
+  let creditsRemaining: number = profile.credits_remaining ?? TIER_CREDITS[tier];
+  let creditsTotal: number = profile.credits_total ?? TIER_CREDITS[tier];
 
-  // Auto-reset builds if the reset date has passed
+  // Auto-reset builds and credits if the reset date has passed
   const now = new Date();
-  if (buildsResetAt && new Date(buildsResetAt) <= now) {
+  const creditsResetAt = profile.credits_reset_at ?? buildsResetAt;
+
+  if (creditsResetAt && new Date(creditsResetAt) <= now) {
     // Calculate next reset: first of the next month
     const nextReset = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
     buildsThisMonth = 0;
     buildsResetAt = nextReset;
+    creditsTotal = TIER_CREDITS[tier];
+    creditsRemaining = creditsTotal;
 
     // Persist the reset (fire-and-forget — don't block the gate check)
     supabase
@@ -106,6 +124,9 @@ export async function getUserSubscriptionGate(userId: string): Promise<Subscript
       .update({
         builds_this_month: 0,
         builds_reset_at: nextReset,
+        credits_remaining: creditsRemaining,
+        credits_total: creditsTotal,
+        credits_reset_at: nextReset,
         updated_at: now.toISOString(),
       })
       .eq('id', userId)
@@ -117,7 +138,7 @@ export async function getUserSubscriptionGate(userId: string): Promise<Subscript
     const nextReset = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
     supabase
       .from('profiles')
-      .update({ builds_reset_at: nextReset })
+      .update({ builds_reset_at: nextReset, credits_reset_at: nextReset })
       .eq('id', userId)
       .then(() => { /* best effort */ });
   }
@@ -127,6 +148,7 @@ export async function getUserSubscriptionGate(userId: string): Promise<Subscript
     ? null
     : Math.max(0, config.maxBuildsPerMonth - buildsThisMonth);
 
+  // canBuild is true as long as user has some credits OR can use free-after-depletion models
   const canBuild = config.maxBuildsPerMonth === null || buildsThisMonth < config.maxBuildsPerMonth;
 
   return {
@@ -137,6 +159,41 @@ export async function getUserSubscriptionGate(userId: string): Promise<Subscript
     canCollaborate: config.canCollaborate,
     buildsRemaining,
     maxBuildsPerMonth: config.maxBuildsPerMonth,
+    creditsRemaining,
+    creditsTotal,
+  };
+}
+
+/**
+ * Atomically deduct credits from a user's balance.
+ * Uses the deduct_credits Postgres RPC which handles:
+ * - Row-level locking (FOR UPDATE) to prevent race conditions
+ * - Auto-reset of credits when the billing period expires
+ * - Build count increment
+ *
+ * Returns { success, remaining } — success is false if insufficient credits.
+ */
+export async function deductCredits(
+  userId: string,
+  amount: number
+): Promise<{ success: boolean; remaining: number }> {
+  const supabase = getSupabaseAdmin();
+
+  const { data, error } = await supabase.rpc('deduct_credits', {
+    p_user_id: userId,
+    p_amount: amount,
+  });
+
+  if (error) {
+    console.error('[deductCredits] RPC error:', error);
+    return { success: false, remaining: 0 };
+  }
+
+  // RPC returns an array with one row: { success: boolean, remaining: number }
+  const result = Array.isArray(data) ? data[0] : data;
+  return {
+    success: result?.success ?? false,
+    remaining: result?.remaining ?? 0,
   };
 }
 
@@ -144,6 +201,9 @@ export async function getUserSubscriptionGate(userId: string): Promise<Subscript
  * Increment the user's builds_this_month counter by 1 atomically.
  * Uses a Postgres RPC function to prevent race conditions from concurrent builds.
  * Call this AFTER a successful build/generation starts.
+ *
+ * NOTE: For credit-gated builds, use deductCredits() instead — it handles
+ * both credit deduction and build count increment in one atomic operation.
  */
 export async function incrementBuildCount(userId: string): Promise<void> {
   const supabase = getSupabaseAdmin();

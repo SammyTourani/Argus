@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getUserSubscriptionGate } from '@/lib/subscription/gate';
 import { createClient } from '@/lib/supabase/server';
+import { MODELS } from '@/lib/models';
 
 // GET /api/user/subscription
 export async function GET() {
@@ -22,6 +23,9 @@ export async function GET() {
       canCollaborate: gate.canCollaborate,
       buildsRemaining: gate.buildsRemaining,
       maxBuilds: gate.maxBuildsPerMonth,
+      creditsRemaining: gate.creditsRemaining,
+      creditsTotal: gate.creditsTotal,
+      modelCreditCosts: Object.fromEntries(MODELS.map(m => [m.id, m.creditCost])),
     });
   } catch (err) {
     console.error('[GET /api/user/subscription]', err);

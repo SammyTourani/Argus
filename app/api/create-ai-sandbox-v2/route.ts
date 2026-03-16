@@ -46,7 +46,7 @@ export async function POST(request: Request) {
         const { success } = await ratelimit.limit(userId);
         if (!success) {
           return NextResponse.json(
-            { error: 'Monthly build limit reached. Upgrade to Pro for unlimited builds.' },
+            { error: 'Credits depleted. Switch to a free model or upgrade to Pro.' },
             { status: 429 }
           );
         }

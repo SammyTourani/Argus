@@ -38,34 +38,22 @@ export function sanitizeOptionalString(
  */
 export const ALLOWED_MODELS: ReadonlySet<string> = new Set([
   // Anthropic
-  'claude-sonnet-4-5',
   'claude-sonnet-4-6',
   'claude-opus-4-6',
-  'claude-haiku-3-5',
   // OpenAI
   'gpt-4o',
   'gpt-4o-mini',
-  'gpt-4-turbo',
   // Google
   'gemini-2.5-flash',
   'gemini-2.5-pro',
-  'gemini-1.5-flash',
-  'gemini-1.5-pro',
   // Meta / Groq
   'llama-3.3-70b',
-  'llama-3.1-70b',
   // Deepseek
   'deepseek-r1',
-  'deepseek-v3',
   // Mistral
   'mistral-large',
   // Alibaba
   'qwen-2.5-72b',
-  // OpenRouter / custom
-  'openai/gpt-oss-20b',
-  'openai/gpt-oss-120b',
-  'groq/openai/gpt-oss-120b',
-  'cerebras/gpt-oss-120b',
 ]);
 
 /**
@@ -74,7 +62,7 @@ export const ALLOWED_MODELS: ReadonlySet<string> = new Set([
  */
 export function validateModel(
   model: unknown,
-  defaultModel = 'openai/gpt-oss-20b'
+  defaultModel = 'gemini-2.5-flash'
 ): string {
   if (typeof model !== 'string') return defaultModel;
   const normalized = model.trim();

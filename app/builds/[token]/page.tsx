@@ -95,7 +95,7 @@ export default async function SharedBuildPage({ params }: { params: Promise<{ to
         {/* CTA */}
         <div style={{ background: 'rgba(250,69,0,0.08)', border: '1px solid rgba(250,69,0,0.2)', borderRadius: '16px', padding: '32px', textAlign: 'center' }}>
           <p style={{ fontWeight: 700, fontSize: '20px', marginBottom: '8px' }}>Clone any website with AI</p>
-          <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px', marginBottom: '24px' }}>3 free builds. No credit card. Under 60 seconds.</p>
+          <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px', marginBottom: '24px' }}>30 free credits. No credit card. Under 60 seconds.</p>
           <Link href="/app" style={{
             display: 'inline-block',
             background: '#FA4500',

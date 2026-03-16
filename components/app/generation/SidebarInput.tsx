@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { appConfig } from "@/config/app.config";
+import { MODELS, DEFAULT_MODEL_ID } from "@/lib/models";
 
 interface SidebarInputProps {
   onSubmit: (url: string, style: string, model: string, instructions?: string) => void;
@@ -12,7 +12,7 @@ interface SidebarInputProps {
 export default function SidebarInput({ onSubmit, disabled = false }: SidebarInputProps) {
   const [url, setUrl] = useState<string>("");
   const [selectedStyle, setSelectedStyle] = useState<string>("1");
-  const [selectedModel, setSelectedModel] = useState<string>(appConfig.ai.defaultModel);
+  const [selectedModel, setSelectedModel] = useState<string>(DEFAULT_MODEL_ID);
   const [additionalInstructions, setAdditionalInstructions] = useState<string>("");
   const [isValidUrl, setIsValidUrl] = useState<boolean>(false);
 
@@ -34,9 +34,9 @@ export default function SidebarInput({ onSubmit, disabled = false }: SidebarInpu
     { id: "8", name: "Retro Wave", description: "80s inspired" },
   ];
 
-  const models = appConfig.ai.availableModels.map(model => ({
-    id: model,
-    name: appConfig.ai.modelDisplayNames[model] || model,
+  const models = MODELS.map(model => ({
+    id: model.id,
+    name: model.name,
   }));
 
   const handleSubmit = (e?: React.FormEvent) => {

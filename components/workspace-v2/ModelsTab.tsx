@@ -315,8 +315,8 @@ export default function ModelsTab() {
           <div className="sub-tagline">No strings.</div>
           <button className="sub-cta outline">Start for free</button>
           <ul className="sub-features grey-checks">
-            <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8.5l3.5 3.5L13 5" /></svg> 3 builds / 30 days</li>
-            <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8.5l3.5 3.5L13 5" /></svg> All 8 style transforms</li>
+            <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8.5l3.5 3.5L13 5" /></svg> 30 credits / month</li>
+            <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8.5l3.5 3.5L13 5" /></svg> All 9 AI models</li>
             <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8.5l3.5 3.5L13 5" /></svg> Download as ZIP</li>
             <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8.5l3.5 3.5L13 5" /></svg> Community support</li>
           </ul>
@@ -332,8 +332,8 @@ export default function ModelsTab() {
           <div className="sub-tagline">For power builders.</div>
           <button className="sub-cta primary">Go Pro</button>
           <ul className="sub-features orange-checks">
-            <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8.5l3.5 3.5L13 5" /></svg> Unlimited builds</li>
-            <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8.5l3.5 3.5L13 5" /></svg> All AI models (GPT-4o, Claude, Gemini, Kimi)</li>
+            <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8.5l3.5 3.5L13 5" /></svg> 300 credits / month</li>
+            <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8.5l3.5 3.5L13 5" /></svg> All 9 AI models — use any model</li>
             <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8.5l3.5 3.5L13 5" /></svg> Priority generation queue</li>
             <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8.5l3.5 3.5L13 5" /></svg> Push to Vercel in 1 click</li>
             <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8.5l3.5 3.5L13 5" /></svg> Brand extraction mode</li>

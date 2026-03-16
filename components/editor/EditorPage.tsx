@@ -11,6 +11,8 @@ import Link from 'next/link';
 import PublishButton from '@/components/builder/PublishButton';
 import DeploySuccessBanner from '@/components/builder/DeploySuccessBanner';
 import { MODELS } from '@/components/builder/ModelSelector';
+import { useSubscription } from '@/hooks/use-subscription';
+import { DEFAULT_MODEL_ID, isModelFreeAfterDepletion } from '@/lib/models';
 import VersionHistoryPanel from '@/components/builder/VersionHistoryPanel';
 import VersionDiffBadge from '@/components/builder/VersionDiffBadge';
 import GitSyncButton from '@/components/builder/GitSyncButton';
@@ -87,7 +89,8 @@ export default function EditorPage({ projectId, buildId }: EditorPageProps) {
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
 
   /* ─── Model ─── */
-  const [selectedModelId, setSelectedModelId] = useState<string>('claude-sonnet-4-6');
+  const [selectedModelId, setSelectedModelId] = useState<string>(DEFAULT_MODEL_ID);
+  const subscription = useSubscription();
   useEffect(() => {
     try {
       const stored = localStorage.getItem(`argus_model_${projectId}`);
@@ -762,14 +765,25 @@ ${storedInstructions ? `\nADDITIONAL CONTEXT: ${storedInstructions}` : ''}`;
             <span className="text-sm font-medium text-gray-900 truncate max-w-[200px]">{projectName || 'Untitled'}</span>
           </div>
           <div className="flex items-center gap-2">
+            {subscription.creditsTotal > 0 && (
+              <span className="text-[11px] font-mono text-gray-400 mr-1">
+                {subscription.creditsRemaining}/{subscription.creditsTotal} cr
+              </span>
+            )}
             <select
               value={selectedModelId}
               onChange={(e) => handleModelChange(e.target.value)}
               className="px-3 py-1.5 text-sm text-gray-900 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-gray-300 transition-colors"
             >
-              {MODELS.map((m) => (
-                <option key={m.id} value={m.id}>{m.name}</option>
-              ))}
+              {MODELS.map((m) => {
+                const isFree = isModelFreeAfterDepletion(m.id, subscription.tier);
+                const canAfford = subscription.creditsRemaining >= m.creditCost || isFree;
+                return (
+                  <option key={m.id} value={m.id} disabled={!canAfford}>
+                    {m.name} ({m.creditCost} cr{!canAfford ? ' - locked' : ''}{isFree && subscription.creditsRemaining <= 0 ? ' - FREE' : ''})
+                  </option>
+                );
+              })}
             </select>
             <button
               onClick={() => createSandbox()}

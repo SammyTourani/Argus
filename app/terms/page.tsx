@@ -43,8 +43,8 @@ export default function TermsPage() {
           <section>
             <h2 className="text-lg font-semibold text-white mb-3">5. Pricing and Billing</h2>
             <ul className="list-disc pl-6 space-y-1">
-              <li>Free tier: 3 builds per month, no credit card required.</li>
-              <li>Pro tier: $29/month for unlimited builds, billed monthly.</li>
+              <li>Free tier: 30 credits per month, no credit card required.</li>
+              <li>Pro tier: $19/month for 300 credits, billed monthly.</li>
               <li>You can cancel your subscription at any time. Cancellation takes effect at the end of the current billing period.</li>
               <li>Refunds are handled on a case-by-case basis.</li>
             </ul>

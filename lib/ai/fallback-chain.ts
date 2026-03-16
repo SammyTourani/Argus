@@ -18,12 +18,43 @@ export interface FallbackConfig {
   retryDelayMs: number;
 }
 
+import type { SubscriptionTier } from '@/lib/subscription/gate';
+
 export const DEFAULT_FALLBACK_CHAIN: FallbackConfig = {
   primary: 'anthropic/claude-sonnet-4-6',
   fallbacks: ['openai/gpt-4o', 'google/gemini-2.5-flash'],
   maxRetries: 2,
   retryDelayMs: 1000,
 };
+
+/**
+ * Returns a fallback chain appropriate for the user's tier and credit state.
+ * When credits are depleted, fallbacks stay within free-after-depletion models.
+ */
+export function getFallbackChainForContext(
+  tier: SubscriptionTier,
+  hasCredits: boolean
+): FallbackConfig {
+  if (hasCredits) return DEFAULT_FALLBACK_CHAIN;
+
+  // No credits — use only free-after-depletion models
+  if (tier === 'pro' || tier === 'team' || tier === 'enterprise') {
+    return {
+      primary: 'gemini-2.5-flash',
+      fallbacks: ['llama-3.3-70b', 'qwen-2.5-72b'],
+      maxRetries: 2,
+      retryDelayMs: 1000,
+    };
+  }
+
+  // Free tier with no credits
+  return {
+    primary: 'llama-3.3-70b',
+    fallbacks: ['qwen-2.5-72b'],
+    maxRetries: 2,
+    retryDelayMs: 1000,
+  };
+}
 
 /** Errors that carry an HTTP status code from upstream providers */
 interface StatusError extends Error {

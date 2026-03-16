@@ -85,6 +85,8 @@ export interface SubscriptionInfo {
   canDeploy: boolean;
   canUseAllModels: boolean;
   canCollaborate: boolean;
+  creditsRemaining: number;
+  creditsTotal: number;
 }
 
 export interface ApiKeyEntry {
@@ -262,6 +264,8 @@ const DEFAULT_FREE_SUB: SubscriptionInfo = {
   canDeploy: false,
   canUseAllModels: false,
   canCollaborate: false,
+  creditsRemaining: 30,
+  creditsTotal: 30,
 };
 
 export async function fetchSubscription(): Promise<SubscriptionInfo> {

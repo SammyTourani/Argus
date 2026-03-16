@@ -29,6 +29,9 @@ export interface Profile {
   subscription_id: string | null;
   builds_this_month: number;
   builds_reset_at: string | null;
+  credits_remaining: number;
+  credits_total: number;
+  credits_reset_at: string | null;
   referral_code: string | null;
   created_at: string;
   updated_at: string;

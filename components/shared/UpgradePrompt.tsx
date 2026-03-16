@@ -27,11 +27,11 @@ const FEATURE_MESSAGES: Record<string, { title: string; description: string }> =
   },
   'premium models': {
     title: 'All AI Models',
-    description: 'Access GPT-4o, Claude, Gemini, Kimi and more. Available on Pro and above.',
+    description: 'Access all 9 AI models with Pro credits. Available on Pro and above.',
   },
   'more builds': {
-    title: 'Unlimited Builds',
-    description: 'You have used all your free builds this month. Upgrade to keep building.',
+    title: 'More Credits',
+    description: 'You\'ve used all your credits. Upgrade to Pro for 300 credits/month.',
   },
   collaborate: {
     title: 'Team Collaboration',

@@ -17,7 +17,8 @@ import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit, getClientIp } from '@/lib/ratelimit';
 import { checkTieredRateLimit, type RateLimitTier } from '@/lib/ratelimit-tiered';
 import { validatePrompt, validateModel } from '@/lib/validation';
-import { getUserSubscriptionGate, incrementBuildCount } from '@/lib/subscription/gate';
+import { getUserSubscriptionGate, incrementBuildCount, deductCredits } from '@/lib/subscription/gate';
+import { getModelCreditCost, isModelFreeAfterDepletion } from '@/lib/models';
 import { getSandbox } from '@/lib/sandbox/registry';
 import { getConversationState } from '@/lib/conversation/per-user-state';
 import { StreamRecoveryManager } from '@/lib/ai/stream-recovery';
@@ -90,8 +91,6 @@ export async function POST(request: NextRequest) {
         { status: 403, headers: { 'Content-Type': 'application/json' } }
       );
     }
-    // Increment build counter (fire-and-forget — don't block the stream)
-    incrementBuildCount(user.id).catch((err) => console.error('[generate] Failed to increment build count:', err));
 
     // ── Rate Limiting ─────────────────────────────────────────────────────────
     const rateLimitKey = `user:${user.id}`;
@@ -119,7 +118,7 @@ export async function POST(request: NextRequest) {
     let model: string;
     try {
       prompt = validatePrompt(rawBody.prompt);
-      model = validateModel(rawBody.model, 'openai/gpt-oss-20b');
+      model = validateModel(rawBody.model, 'gemini-2.5-flash');
     } catch (validationError) {
       return NextResponse.json(
         { error: (validationError as Error).message },
@@ -136,6 +135,48 @@ export async function POST(request: NextRequest) {
     const userApiKey = await getUserApiKey(user.id, model);
     const byokOptions = userApiKey ? { apiKey: userApiKey } : undefined;
     if (userApiKey) console.log('[generate-ai-code-stream] Using BYOK key for provider');
+
+    // ── Credit Gate ───────────────────────────────────────────────────────────
+    const creditCost = getModelCreditCost(model);
+    // BYOK bypass: user's own API key = 0 credit cost (no cost to us)
+    const effectiveCreditCost = userApiKey ? 0 : creditCost;
+
+    if (effectiveCreditCost > 0) {
+      // Check if user has enough credits for this model
+      if (gate.creditsRemaining < effectiveCreditCost) {
+        // If the model is free-after-depletion for this tier, allow it at 0 cost
+        if (!isModelFreeAfterDepletion(model, gate.tier)) {
+          return new Response(
+            JSON.stringify({
+              error: gate.creditsRemaining <= 0
+                ? 'No credits remaining. Switch to a free model or upgrade your plan.'
+                : `Not enough credits (need ${effectiveCreditCost}, have ${gate.creditsRemaining}). Try a cheaper model.`,
+              code: 'INSUFFICIENT_CREDITS',
+              creditsRemaining: gate.creditsRemaining,
+              creditCost: effectiveCreditCost,
+            }),
+            { status: 403, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+        // Model is free after depletion — allow at 0 cost, just count the build
+        incrementBuildCount(user.id).catch(err => console.error('[generate] increment error:', err));
+      } else {
+        // Deduct credits atomically (also increments build count)
+        const deduction = await deductCredits(user.id, effectiveCreditCost);
+        if (!deduction.success) {
+          return new Response(
+            JSON.stringify({
+              error: 'Credit deduction failed. Try again.',
+              code: 'CREDIT_DEDUCTION_FAILED',
+            }),
+            { status: 403, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+    } else {
+      // Free model or BYOK — still count the build
+      incrementBuildCount(user.id).catch(err => console.error('[generate] increment error:', err));
+    }
 
     console.log('[generate-ai-code-stream] Received request (user:', user.id, '):');
     console.log('[generate-ai-code-stream] - prompt length:', prompt.length);

@@ -24,7 +24,7 @@ export const PLANS = [
     id: 'team' as const,
     name: 'Team',
     price: '$49/month',
-    features: ['Everything in Pro', 'Team collaboration', 'Shared workspaces', 'Admin controls'],
+    features: ['Everything in Pro', '500 credits / month', 'Team collaboration', 'Shared workspaces', 'Admin controls'],
     badge: 'Coming soon',
     recommended: false,
   },

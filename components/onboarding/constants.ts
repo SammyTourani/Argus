@@ -83,23 +83,29 @@ export const CATEGORIES = [
 
 export const MODELS = [
   {
-    id: 'gpt-4o',
-    name: 'OpenAI',
-    logo: '/argus-assets/logos/openai.svg',
-    description: 'GPT-4o — fast and versatile, great for rapid iteration',
+    id: 'gemini-2.5-flash',
+    name: 'Google',
+    logo: '/argus-assets/logos/google.svg',
+    description: 'Gemini Flash — ultra-fast iteration (2 credits)',
+    recommended: true,
   },
   {
     id: 'claude-sonnet-4-6',
     name: 'Anthropic',
     logo: '/argus-assets/logos/anthropic.svg',
-    description: 'Claude — best code quality with deep understanding',
-    recommended: true,
+    description: 'Claude Sonnet — best code quality (10 credits)',
   },
   {
-    id: 'gemini-2.5-pro',
-    name: 'Google',
-    logo: '/argus-assets/logos/google.svg',
-    description: 'Gemini — lightning fast with massive context',
+    id: 'gpt-4o',
+    name: 'OpenAI',
+    logo: '/argus-assets/logos/openai.svg',
+    description: 'GPT-4o — fast and versatile (7 credits)',
+  },
+  {
+    id: 'llama-3.3-70b',
+    name: 'Meta',
+    logo: '/argus-assets/logos/meta.svg',
+    description: 'Llama 3.3 — free after credits run out (1 credit)',
   },
 ] as const;
 

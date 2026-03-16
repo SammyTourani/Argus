@@ -98,23 +98,16 @@ export default function WorkspaceDropdown() {
         var planBadge = dropdown!.querySelector('.ws-plan-badge');
         if (planBadge) planBadge.textContent = (sub.tier || 'Free').charAt(0).toUpperCase() + (sub.tier || 'free').slice(1) + ' Plan';
         var creditsCount = dropdown!.querySelector('.ws-credits-count');
-        if (creditsCount) creditsCount.textContent = (sub.buildsRemaining || 0) + ' left \u203A';
+        var cr = sub.creditsRemaining !== undefined ? sub.creditsRemaining : (sub.buildsRemaining || 0);
+        var ct = sub.creditsTotal !== undefined ? sub.creditsTotal : 30;
+        if (creditsCount) creditsCount.textContent = cr + '/' + ct + ' credits';
         var progressFill = dropdown!.querySelector('.ws-progress-fill') as HTMLElement;
-        if (progressFill && sub.maxBuilds > 0) {
-          progressFill.style.width = Math.round((sub.buildsRemaining / sub.maxBuilds) * 100) + '%';
+        if (progressFill && ct > 0) {
+          progressFill.style.width = Math.round((cr / ct) * 100) + '%';
+          if (cr <= 5) progressFill.style.background = '#ef4444';
         }
         var creditsHelp = dropdown!.querySelector('.ws-credits-help');
-        if (creditsHelp) creditsHelp.textContent = sub.maxBuilds + ' ' + sub.tier + ' builds reset monthly';
-
-        // Handle unlimited builds for paid tiers
-        if (sub.maxBuilds === null) {
-          if (creditsCount) creditsCount.textContent = 'Unlimited';
-          if (creditsHelp) creditsHelp.textContent = sub.tier.charAt(0).toUpperCase() + sub.tier.slice(1) + ' \u2014 unlimited builds';
-          if (progressFill) {
-            progressFill.style.width = '100%';
-            progressFill.style.background = 'var(--accent-100)';
-          }
-        }
+        if (creditsHelp) creditsHelp.textContent = ct + ' credits reset monthly';
 
         // Conditional upgrade card based on tier
         var upgradeCard = dropdown!.querySelector('.ws-upgrade-card');
@@ -194,10 +187,10 @@ export default function WorkspaceDropdown() {
         <div className="ws-credits">
           <div className="ws-credits-header">
             <span className="ws-credits-label">Credits</span>
-            <span className="ws-credits-count">3 left &rsaquo;</span>
+            <span className="ws-credits-count">30/30 credits</span>
           </div>
           <div className="ws-progress-bar"><div className="ws-progress-fill" style={{ width: '100%' }}></div></div>
-          <div className="ws-credits-help">3 free builds reset monthly</div>
+          <div className="ws-credits-help">30 credits reset monthly</div>
         </div>
         <div className="ws-divider"></div>
         <div className="ws-section-label-dd">All workspaces</div>

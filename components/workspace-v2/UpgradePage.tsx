@@ -147,7 +147,7 @@ export default function UpgradePage() {
               <p className="plan-desc">No strings.</p>
               <button className="plan-cta outline">Start for free</button>
               <ul className="feature-list">
-                <li><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4" stroke="rgba(82,16,0,0.3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg> 3 builds / 30 days</li>
+                <li><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4" stroke="rgba(82,16,0,0.3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg> 30 credits / month</li>
                 <li><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4" stroke="rgba(82,16,0,0.3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg> All 8 style transforms</li>
                 <li><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4" stroke="rgba(82,16,0,0.3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg> Download as ZIP</li>
                 <li><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4" stroke="rgba(82,16,0,0.3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg> Community support</li>
@@ -165,8 +165,8 @@ export default function UpgradePage() {
               <p className="plan-desc">For power builders.</p>
               <button className="plan-cta primary">Go Pro</button>
               <ul className="feature-list">
-                <li><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4" stroke="#ff4801" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg> Unlimited builds</li>
-                <li><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4" stroke="#ff4801" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg> All AI models (GPT-4o, Claude, Gemini, Kimi)</li>
+                <li><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4" stroke="#ff4801" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg> 300 credits / month</li>
+                <li><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4" stroke="#ff4801" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg> All 9 AI models — use any model</li>
                 <li><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4" stroke="#ff4801" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg> Priority generation queue</li>
                 <li><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4" stroke="#ff4801" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg> Push to Vercel in 1 click</li>
                 <li><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4" stroke="#ff4801" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg> Brand extraction mode</li>

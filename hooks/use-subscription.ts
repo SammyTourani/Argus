@@ -11,6 +11,8 @@ interface SubscriptionState {
   canCollaborate: boolean;
   buildsRemaining: number | null;
   maxBuilds: number | null;
+  creditsRemaining: number;
+  creditsTotal: number;
   loading: boolean;
   error: string | null;
   openUpgrade: (plan?: 'pro' | 'team') => void;
@@ -25,6 +27,8 @@ export function useSubscription(): SubscriptionState {
   const [canCollaborate, setCanCollaborate] = useState(false);
   const [buildsRemaining, setBuildsRemaining] = useState<number | null>(3);
   const [maxBuilds, setMaxBuilds] = useState<number | null>(3);
+  const [creditsRemaining, setCreditsRemaining] = useState(30);
+  const [creditsTotal, setCreditsTotal] = useState(30);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,6 +52,8 @@ export function useSubscription(): SubscriptionState {
       setCanCollaborate(data.canCollaborate);
       setBuildsRemaining(data.buildsRemaining);
       setMaxBuilds(data.maxBuilds);
+      setCreditsRemaining(data.creditsRemaining ?? 30);
+      setCreditsTotal(data.creditsTotal ?? 30);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -92,6 +98,8 @@ export function useSubscription(): SubscriptionState {
     canCollaborate,
     buildsRemaining,
     maxBuilds,
+    creditsRemaining,
+    creditsTotal,
     loading,
     error,
     openUpgrade,

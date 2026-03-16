@@ -5,6 +5,7 @@ import { ArrowLeft, Share2, Rocket } from 'lucide-react';
 import { useState, useCallback, useEffect } from 'react';
 import ModelSelector from './ModelSelector';
 import { createClient } from '@/lib/supabase/client';
+import type { SubscriptionTier } from '@/lib/subscription/gate';
 
 interface BuilderNavProps {
   projectName?: string;
@@ -23,6 +24,11 @@ interface BuilderNavProps {
   extraActions?: React.ReactNode;
   /** Replaces the default Publish button — pass a <PublishButton /> here */
   publishSlot?: React.ReactNode;
+  /** Credit system props */
+  creditsRemaining?: number;
+  creditsTotal?: number;
+  tier?: SubscriptionTier;
+  onUpgrade?: () => void;
 }
 
 export default function BuilderNav({
@@ -38,6 +44,10 @@ export default function BuilderNav({
   onToggleRight,
   extraActions,
   publishSlot,
+  creditsRemaining,
+  creditsTotal,
+  tier,
+  onUpgrade,
 }: BuilderNavProps) {
   const [showShareToast, setShowShareToast] = useState(false);
   const [userInitial, setUserInitial] = useState('');
@@ -111,6 +121,10 @@ export default function BuilderNav({
           selectedModelId={selectedModelId}
           onModelChange={onModelChange}
           compact
+          creditsRemaining={creditsRemaining}
+          creditsTotal={creditsTotal}
+          tier={tier}
+          onUpgrade={onUpgrade}
         />
       </div>
 

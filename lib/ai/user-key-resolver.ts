@@ -13,12 +13,19 @@ type ProviderName = 'openai' | 'anthropic' | 'groq' | 'google' | 'xai' | 'deepse
 
 /** Map model ID prefixes to the provider name stored in user_api_keys */
 function resolveProvider(modelId: string): ProviderName {
+  // Prefixed model IDs (e.g. "anthropic/claude-sonnet-4-6")
   if (modelId.startsWith('anthropic/')) return 'anthropic';
   if (modelId.startsWith('openai/')) return 'openai';
   if (modelId.startsWith('google/')) return 'google';
   if (modelId.startsWith('xai/')) return 'xai';
   if (modelId.startsWith('deepseek/')) return 'deepseek';
   if (modelId.startsWith('mistral/')) return 'mistral';
+  // Unprefixed model names from the UI (e.g. "claude-sonnet-4-6", "gpt-4o")
+  if (modelId.startsWith('claude-')) return 'anthropic';
+  if (modelId.startsWith('gpt-')) return 'openai';
+  if (modelId.startsWith('gemini-')) return 'google';
+  if (modelId.startsWith('deepseek-')) return 'deepseek';
+  if (modelId.startsWith('mistral-')) return 'mistral';
   return 'groq';
 }
 

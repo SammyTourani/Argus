@@ -38,7 +38,7 @@ export async function GET(request: Request) {
   </div>
   <h1 style="font-size: 28px; font-weight: 700; margin-bottom: 16px;">You're in. Let's build.</h1>
   <p style="color: rgba(255,255,255,0.6); line-height: 1.6; margin-bottom: 24px;">
-    You have 3 free builds. Enter any URL and watch Argus clone it in seconds — powered by Claude Opus 4.6, Gemini 2.5 Pro, and Kimi K2.
+    You have 30 free credits. Enter any URL and watch Argus clone it in seconds — powered by Claude, GPT-4o, Gemini, and more.
   </p>
   <a href="https://argus.build/app" style="display: inline-block; background: #FA4500; color: white; padding: 14px 24px; border-radius: 10px; text-decoration: none; font-weight: 600;">
     Start cloning &rarr;

@@ -127,7 +127,7 @@ export default function LandingHeroInput() {
       <div className="flex gap-16 justify-center mt-16 font-mono text-[11px] text-[var(--landing-text-faint)]">
         <span>No credit card</span>
         <span>&middot;</span>
-        <span>3 free builds</span>
+        <span>30 free credits</span>
         <span>&middot;</span>
         <span>Free tier available</span>
       </div>

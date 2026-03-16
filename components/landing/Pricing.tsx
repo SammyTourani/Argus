@@ -10,7 +10,7 @@ const PLANS = [
     price: "$0",
     period: "forever",
     description: "No strings.",
-    features: ["3 builds / 30 days", "All 8 style transforms", "Download as ZIP", "Community support"],
+    features: ["30 credits / month", "All 9 AI models", "Free models after credits run out", "Download as ZIP", "Community support"],
     cta: "Start for free",
     ctaHref: "/sign-up",
     highlight: false,
@@ -22,8 +22,9 @@ const PLANS = [
     period: "/month",
     description: "For power builders.",
     features: [
-      "Unlimited builds",
-      "All AI models (GPT-4o, Claude, Gemini, Kimi)",
+      "300 credits / month",
+      "All 9 AI models — use any model",
+      "Unlimited free models after credits",
       "Priority generation queue",
       "Push to Vercel in 1 click",
       "Brand extraction mode",
@@ -114,7 +115,7 @@ export default function Pricing() {
           transition={{ duration: 0.5 }}
           className="text-title-h3 lg:text-title-h2 text-center text-[var(--landing-text)] mb-8 font-sans"
         >
-          3 free builds. No credit card.
+          30 free credits. No credit card.
         </motion.h2>
         <motion.p
           initial={{ opacity: 0, y: 16 }}

@@ -49,27 +49,12 @@ export const appConfig = {
   },
   
   // AI Model Configuration
+  // Canonical model list lives in lib/models.ts — import from there.
   ai: {
-    // Default AI model
-    defaultModel: 'google/gemini-2.5-pro',
+    // Default AI model (must match DEFAULT_MODEL_ID in lib/models.ts)
+    defaultModel: 'gemini-2.5-flash',
 
-    // Available models
-    availableModels: [
-      'google/gemini-2.5-pro',
-      'anthropic/claude-opus-4-5',
-      'openai/gpt-4o',
-      'moonshotai/kimi-k2-instruct-0905',
-    ],
-
-    // Model display names
-    modelDisplayNames: {
-      'google/gemini-2.5-pro': 'Gemini 2.5 Pro',
-      'anthropic/claude-opus-4-5': 'Claude Opus 4.5',
-      'openai/gpt-4o': 'GPT-4o',
-      'moonshotai/kimi-k2-instruct-0905': 'Kimi K2 (Groq)',
-    } as Record<string, string>,
-
-    // Model API configuration
+    // Model API configuration (for non-standard routing)
     modelApiConfig: {
       'moonshotai/kimi-k2-instruct-0905': {
         provider: 'groq',
