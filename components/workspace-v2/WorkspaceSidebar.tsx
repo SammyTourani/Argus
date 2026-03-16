@@ -4,6 +4,7 @@
 import { useEffect } from 'react';
 import WorkspaceDropdown from './WorkspaceDropdown';
 import { fetchCurrentUser, fetchRecents, fetchSubscription, escapeHtml } from './workspace-api';
+import { getActiveWorkspace, onWorkspaceChange } from './workspace-active';
 import { useUser } from '@/components/providers/UserProvider';
 
 var sidebarTier = 'free';
@@ -27,13 +28,31 @@ export default function WorkspaceSidebar() {
 
     // Fetch user data to update sidebar
     var cancelled = false;
+    var chevronSvg = ' <svg class="sidebar-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 6l3 3 3-3"/></svg>';
+    var sidebarUser = null;
     fetchCurrentUser().then(function(user) {
       if (cancelled || !user) return;
+      sidebarUser = user;
       var logo = document.querySelector('.sidebar-logo');
       var title = document.querySelector('.sidebar-title');
       if (logo) logo.textContent = user.initial;
-      if (title) title.innerHTML = escapeHtml(user.name) + '\'s Workspace <svg class="sidebar-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 6l3 3 3-3"/></svg>';
+      // Show active workspace name or personal
+      var activeWs = getActiveWorkspace();
+      var titleText = activeWs.id === 'personal'
+        ? escapeHtml(user.name) + '\'s Workspace'
+        : escapeHtml(activeWs.name);
+      if (title) title.innerHTML = titleText + chevronSvg;
     }).catch(function() {});
+
+    // Update sidebar title when workspace changes
+    var removeWsListener = onWorkspaceChange(function(ws) {
+      var title = document.querySelector('.sidebar-title');
+      if (!title) return;
+      var text = ws.id === 'personal' && sidebarUser
+        ? escapeHtml(sidebarUser.name) + '\'s Workspace'
+        : escapeHtml(ws.name);
+      title.innerHTML = text + chevronSvg;
+    });
 
     // Fetch recently viewed projects
     var docSvg = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h12v12H4z" /><path d="M8 8h4M8 11h2" /></svg>';
@@ -76,6 +95,7 @@ export default function WorkspaceSidebar() {
     return () => {
       cancelled = true;
       upgradeBtn!.removeEventListener('click', handleUpgradeClick);
+      removeWsListener();
     };
   }, []);
 

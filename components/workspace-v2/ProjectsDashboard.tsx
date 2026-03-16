@@ -3,6 +3,7 @@
 
 import { useEffect } from 'react';
 import { fetchCurrentUser, fetchProjects, patchProject, deleteProject, invalidateProjectsCache, mapProjectToDisplay } from './workspace-api';
+import { getActiveWorkspace, onWorkspaceChange } from './workspace-active';
 
 export default function ProjectsDashboard() {
   // ===== initProjectsDashboard =====
@@ -371,10 +372,11 @@ export default function ProjectsDashboard() {
       updateNavActive(viewParam);
     }
 
-    // Async data load
+    // Async data load — scoped to active workspace
     var cancelled = false;
+    var activeWs = getActiveWorkspace();
     (function loadData() {
-      Promise.all([fetchCurrentUser(), fetchProjects()]).then(function(results) {
+      Promise.all([fetchCurrentUser(), fetchProjects(activeWs.id)]).then(function(results) {
         if (cancelled) return;
         dataLoaded = true;
         currentUser = results[0];
@@ -389,6 +391,24 @@ export default function ProjectsDashboard() {
       });
     })();
 
+    // Re-fetch when workspace switches
+    var removeWsListener = onWorkspaceChange(function(ws) {
+      if (cancelled) return;
+      dataLoaded = false;
+      dashboard!.innerHTML = renderLoadingSkeleton();
+      fetchProjects(ws.id).then(function(apiProjects) {
+        if (cancelled) return;
+        dataLoaded = true;
+        PROJECTS = (apiProjects || []).map(function(p) { return mapProjectToDisplay(p, currentUser); });
+        render();
+      }).catch(function() {
+        if (cancelled) return;
+        dataLoaded = true;
+        PROJECTS = [];
+        render();
+      });
+    });
+
     // Test hook
     (window as any).__pdTest = function(mode: string) {
       if (mode === 'first-time') { PROJECTS.length = 0; pdState.activeView = 'all'; switchView('all'); }
@@ -397,6 +417,7 @@ export default function ProjectsDashboard() {
 
     return () => {
       cancelled = true;
+      removeWsListener();
       dashboard!.removeEventListener('click', handleDashboardClick);
       document.removeEventListener('keydown', handleKeydown as EventListener);
       navClickHandlers.forEach(function(entry) {

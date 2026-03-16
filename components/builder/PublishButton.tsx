@@ -21,6 +21,7 @@ import type { DeployStatus } from '@/lib/deploy/status-poller';
 import type { FileEntry } from './CodePanel';
 import DeployHistory from './DeployHistory';
 import CustomDomainInput from './CustomDomainInput';
+import { UpgradePrompt } from '@/components/shared/UpgradePrompt';
 
 /* ─── Types ─── */
 type DeployState = 'idle' | 'deploying' | 'success' | 'error';
@@ -66,6 +67,7 @@ export default function PublishButton({
   const [deployDuration, setDeployDuration] = useState<number | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [showDomainInput, setShowDomainInput] = useState(false);
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
 
   const pollerRef = useRef<DeployStatusPoller | null>(null);
   const deployStartRef = useRef<number>(0);
@@ -170,6 +172,11 @@ export default function PublishButton({
       const data = await res.json();
 
       if (!res.ok) {
+        if (res.status === 403 && data.code === 'DEPLOY_GATED') {
+          setShowUpgradePrompt(true);
+          setState('idle');
+          return;
+        }
         throw new Error(data.error ?? `Deployment failed (${res.status})`);
       }
 
@@ -235,6 +242,7 @@ export default function PublishButton({
     setDeploymentId(null);
     setDeployDuration(null);
     setShowDomainInput(false);
+    setShowUpgradePrompt(false);
     setSteps([
       { label: 'Preparing files...', done: false, active: false },
       { label: 'Creating deployment...', done: false, active: false },
@@ -255,6 +263,14 @@ export default function PublishButton({
   if (state === 'idle' || state === 'error') {
     return (
       <div className="relative flex flex-col items-end gap-1.5">
+        {showUpgradePrompt && (
+          <UpgradePrompt
+            feature="deploy"
+            currentTier="free"
+            dark={true}
+            onDismiss={() => setShowUpgradePrompt(false)}
+          />
+        )}
         <div className="flex items-center gap-1">
           {/* Environment selector stub */}
           <div className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[10px] font-mono text-[var(--editor-fg-dim)] border border-[var(--editor-border-faint)] bg-[var(--editor-bg-surface)]">

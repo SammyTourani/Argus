@@ -104,7 +104,9 @@ export default function ModelsTab() {
 
     // Wire "Go Pro" CTA button
     var goProBtn = document.querySelector('.sub-card.popular .sub-cta.primary');
+    var modelsTier = 'free';
     function handleGoPro() {
+      if (modelsTier !== 'free') return;
       createCheckoutSession('pro').then(function(url) {
         if (url) window.location.href = url;
       }).catch(function() {});
@@ -132,6 +134,30 @@ export default function ModelsTab() {
         badge.textContent = 'Current Plan';
         targetCard.insertBefore(badge, targetCard.firstChild);
       }
+
+      // Update module-scoped tier for handleGoPro guard
+      modelsTier = sub.tier || 'free';
+
+      // Disable "Go Pro" button for Pro+ users
+      if (sub.tier !== 'free' && goProBtn) {
+        goProBtn.textContent = 'Current Plan';
+        goProBtn.classList.add('disabled');
+        goProBtn.setAttribute('disabled', 'true');
+      }
+
+      // Mark cards below current tier as "Included"
+      var tierOrder = { free: 0, pro: 1, team: 2, enterprise: 2 };
+      var currentOrder = tierOrder[sub.tier] || 0;
+      cards.forEach(function(card, i) {
+        if (i < currentOrder && !card.classList.contains('current-plan')) {
+          var cta = card.querySelector('.sub-cta');
+          if (cta) {
+            cta.textContent = 'Included in your plan';
+            cta.classList.add('disabled');
+            cta.setAttribute('disabled', 'true');
+          }
+        }
+      });
     });
 
     return () => {

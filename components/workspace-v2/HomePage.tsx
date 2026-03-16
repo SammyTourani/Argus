@@ -8,6 +8,7 @@ import ChatBox from './ChatBox';
 import FireCrawlCarousel from './FireCrawlCarousel';
 import ProjectsDashboard from './ProjectsDashboard';
 import { fetchCurrentUser, fetchProjects, fetchTemplates, fetchRecents, generateGradient, formatRelativeTime, escapeHtml } from './workspace-api';
+import { getActiveWorkspace, onWorkspaceChange } from './workspace-active';
 import { useUser } from '@/components/providers/UserProvider';
 
 export default function HomePage() {
@@ -261,9 +262,8 @@ export default function HomePage() {
       });
     }).catch(function() {});
 
-    // Populate "My projects" tab with real projects
-    fetchProjects().then(function(apiProjects) {
-      if (cancelled) return;
+    // Populate "My projects" tab with real projects (scoped to active workspace)
+    function renderProjectsTab(apiProjects) {
       var projectsPanel = document.querySelector('.tab-panel[data-panel="projects"] .template-grid');
       if (!projectsPanel) return;
       if (!apiProjects || apiProjects.length === 0) {
@@ -279,15 +279,27 @@ export default function HomePage() {
         html += '<div class="template-desc">' + formatRelativeTime(p.updated_at) + '</div></div></div>';
       });
       projectsPanel.innerHTML = html;
-
-      // Wire click handlers
       projectsPanel.querySelectorAll('.template-card[data-project-id]').forEach(function(card) {
         card.addEventListener('click', function() {
           var pid = card.getAttribute('data-project-id');
           if (pid) window.location.href = '/workspace/' + pid;
         });
       });
+    }
+
+    fetchProjects(getActiveWorkspace().id).then(function(apiProjects) {
+      if (cancelled) return;
+      renderProjectsTab(apiProjects);
     }).catch(function() {});
+
+    // Re-fetch when workspace switches
+    var removeWsListener = onWorkspaceChange(function(ws) {
+      if (cancelled) return;
+      fetchProjects(ws.id).then(function(apiProjects) {
+        if (cancelled) return;
+        renderProjectsTab(apiProjects);
+      }).catch(function() {});
+    });
 
     // Populate "Templates" tab with marketplace data
     fetchTemplates().then(function(listings) {
@@ -310,7 +322,7 @@ export default function HomePage() {
       templatesPanel.innerHTML = html;
     }).catch(function() {});
 
-    return () => { cancelled = true; };
+    return () => { cancelled = true; removeWsListener(); };
   }, []);
 
   return (

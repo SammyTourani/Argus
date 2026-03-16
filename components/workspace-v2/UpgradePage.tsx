@@ -3,7 +3,9 @@
 
 import { useEffect, useRef } from 'react';
 import AsciiCanvasBackground from './AsciiCanvasBackground';
-import { createCheckoutSession } from './workspace-api';
+import { createCheckoutSession, fetchSubscription } from './workspace-api';
+
+var currentTier = 'free';
 
 export default function UpgradePage() {
   const initialized = useRef(false);
@@ -11,6 +13,54 @@ export default function UpgradePage() {
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
+
+    // Fetch subscription to highlight current plan
+    fetchSubscription().then(function(sub) {
+      currentTier = sub.tier || 'free';
+      var tierToIndex = { free: 0, pro: 1, team: 2, enterprise: 2 };
+      var currentIndex = tierToIndex[currentTier] !== undefined ? tierToIndex[currentTier] : 0;
+      var cards = document.querySelectorAll('.pricing-card');
+
+      cards.forEach(function(card, i) {
+        if (i === currentIndex) {
+          card.classList.add('current-plan');
+          // Remove "Most popular" badge if present (avoid overlapping badges)
+          var existingBadge = card.querySelector('.popular-badge');
+          if (existingBadge) existingBadge.remove();
+          // Add "Current plan" badge
+          var badge = document.createElement('span');
+          badge.className = 'current-plan-badge';
+          badge.textContent = 'Current plan';
+          card.insertBefore(badge, card.firstChild);
+          // Disable the CTA button
+          var cta = card.querySelector('.plan-cta');
+          if (cta) {
+            cta.textContent = 'Current Plan';
+            cta.classList.add('disabled');
+            cta.setAttribute('disabled', 'true');
+          }
+          // Hide waitlist form if user is already on Team
+          var wlForm = card.querySelector('.waitlist-form');
+          if (wlForm) wlForm.style.display = 'none';
+        } else if (i < currentIndex) {
+          // Cards below current tier
+          var ctaBelow = card.querySelector('.plan-cta');
+          if (ctaBelow) {
+            ctaBelow.textContent = 'Included in your plan';
+            ctaBelow.classList.add('disabled');
+            ctaBelow.setAttribute('disabled', 'true');
+          }
+        }
+      });
+
+      // Update subtitle for paid users
+      if (currentTier !== 'free') {
+        var subtitle = document.querySelector('.pricing-subtitle');
+        if (subtitle) {
+          subtitle.textContent = 'You\u2019re on the ' + currentTier.charAt(0).toUpperCase() + currentTier.slice(1) + ' plan. See what\u2019s available.';
+        }
+      }
+    }).catch(function() {});
 
     var form = document.getElementById('waitlistForm') as HTMLElement | null;
     var emailInput = document.getElementById('waitlistEmail') as HTMLInputElement | null;
@@ -40,6 +90,7 @@ export default function UpgradePage() {
     // Wire "Go Pro" CTA
     var goProBtn = document.querySelector('.pricing-card.highlight .plan-cta.primary');
     function handleGoPro() {
+      if (currentTier !== 'free') return;
       createCheckoutSession('pro').then(function(url) {
         if (url) window.location.href = url;
       }).catch(function() {});

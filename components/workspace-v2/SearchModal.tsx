@@ -3,6 +3,7 @@
 
 import { useEffect } from 'react';
 import { fetchProjects, fetchCurrentUser, formatRelativeTime, generateGradient } from './workspace-api';
+import { getActiveWorkspace, onWorkspaceChange } from './workspace-active';
 
 export default function SearchModal() {
   // ===== initSearchModal =====
@@ -209,26 +210,36 @@ export default function SearchModal() {
     }
     if (searchNav) searchNav.addEventListener('click', handleSearchNavClick);
 
-    // Load real projects from API
+    // Load real projects from API (scoped to active workspace)
     var cancelled = false;
-    Promise.all([fetchCurrentUser(), fetchProjects()]).then(function(results) {
+    var searchUser = null;
+    function loadSearchProjects(teamId) {
+      Promise.all([fetchCurrentUser(), fetchProjects(teamId)]).then(function(results) {
+        if (cancelled) return;
+        searchUser = results[0];
+        var apiProjects = results[1] || [];
+        SEARCH_PROJECTS = apiProjects.map(function(p) {
+          var ownerEmail = (searchUser && p.created_by === searchUser.id) ? searchUser.email : (searchUser?.email || '');
+          return {
+            id: p.id,
+            name: p.name,
+            type: 'project',
+            owner: ownerEmail,
+            time: formatRelativeTime(p.updated_at),
+            gradient: generateGradient(p.id),
+          };
+        });
+        smState.isEmpty = SEARCH_PROJECTS.length === 0;
+        if (smState.isOpen) renderPanel();
+      }).catch(function() {});
+    }
+    loadSearchProjects(getActiveWorkspace().id);
+
+    // Re-populate when workspace switches
+    var removeWsListener = onWorkspaceChange(function(ws) {
       if (cancelled) return;
-      var user = results[0];
-      var apiProjects = results[1] || [];
-      SEARCH_PROJECTS = apiProjects.map(function(p) {
-        var ownerEmail = (user && p.created_by === user.id) ? user.email : (user?.email || '');
-        return {
-          id: p.id,
-          name: p.name,
-          type: 'project',
-          owner: ownerEmail,
-          time: formatRelativeTime(p.updated_at),
-          gradient: generateGradient(p.id),
-        };
-      });
-      smState.isEmpty = SEARCH_PROJECTS.length === 0;
-      if (smState.isOpen) renderPanel();
-    }).catch(function() {});
+      loadSearchProjects(ws.id);
+    });
 
     // Auto-open search if navigated from another page with ?action=search
     var searchParams = new URLSearchParams(window.location.search);
@@ -293,6 +304,7 @@ export default function SearchModal() {
 
     return () => {
       cancelled = true;
+      removeWsListener();
       modal!.removeEventListener('click', handleModalClick);
       backdrop!.removeEventListener('click', handleBackdropClick);
       if (searchNav) searchNav.removeEventListener('click', handleSearchNavClick);

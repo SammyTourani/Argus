@@ -1,11 +1,13 @@
-import { NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 import { nanoid } from 'nanoid';
 import { checkRateLimit } from '@/lib/ratelimit';
 import { validateProjectName, validateProjectDescription } from '@/lib/validation';
 import { createClient } from '@/lib/supabase/server';
 
-// GET /api/projects — fetch all projects for current user
-export async function GET() {
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// GET /api/projects — fetch projects for current user, optionally filtered by team
+export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -14,7 +16,9 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { data: projects, error } = await supabase
+    const teamId = request.nextUrl.searchParams.get('team_id');
+
+    let query = supabase
       .from('projects')
       .select(`
         *,
@@ -23,6 +27,18 @@ export async function GET() {
         )
       `)
       .order('updated_at', { ascending: false });
+
+    // Filter by workspace context
+    if (teamId === 'personal') {
+      // Personal workspace: only projects not associated with any team
+      query = query.is('team_id', null);
+    } else if (teamId && UUID_RE.test(teamId)) {
+      // Team workspace: only projects belonging to this team (RLS enforces membership)
+      query = query.eq('team_id', teamId);
+    }
+    // No team_id param: return all projects (backward compatible)
+
+    const { data: projects, error } = await query;
 
     if (error) {
       console.error('[GET /api/projects]', error);
@@ -88,7 +104,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { source_url, default_model, default_style } = body;
+    const { source_url, default_model, default_style, team_id } = body;
 
     // Validate and sanitize inputs
     let name: string;
@@ -103,6 +119,25 @@ export async function POST(request: Request) {
       );
     }
 
+    // If team_id provided, verify user is a member of the team
+    let validatedTeamId: string | null = null;
+    if (team_id && team_id !== 'personal' && UUID_RE.test(team_id)) {
+      const { data: membership } = await supabase
+        .from('team_members')
+        .select('id')
+        .eq('team_id', team_id)
+        .eq('user_id', user.id)
+        .single();
+
+      if (!membership) {
+        return NextResponse.json(
+          { error: 'You are not a member of this workspace' },
+          { status: 403 }
+        );
+      }
+      validatedTeamId = team_id;
+    }
+
     const { data: project, error } = await supabase
       .from('projects')
       .insert({
@@ -112,6 +147,7 @@ export async function POST(request: Request) {
         default_model: default_model ?? null,
         default_style: default_style ?? null,
         status: 'active',
+        ...(validatedTeamId ? { team_id: validatedTeamId } : {}),
       })
       .select()
       .single();

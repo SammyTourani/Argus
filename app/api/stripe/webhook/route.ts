@@ -55,7 +55,7 @@ export async function POST(request: Request) {
       const userId = session.metadata?.supabase_user_id;
       if (userId) {
         await supabaseAdmin.from('profiles').update({
-          subscription_status: 'pro',
+          subscription_status: session.metadata?.plan === 'team' ? 'team' : 'pro',
           stripe_customer_id: session.customer as string,
           subscription_id: session.subscription as string,
           updated_at: new Date().toISOString(),
@@ -109,20 +109,23 @@ export async function POST(request: Request) {
     case 'customer.subscription.updated': {
       const subscription = event.data.object as Stripe.Subscription;
       const customerId = subscription.customer as string;
-      const status = subscription.status === 'active' ? 'pro' : 'free';
       const eventTime = new Date(event.created * 1000).toISOString();
 
       const { data: profile } = await supabaseAdmin
         .from('profiles')
-        .select('id, updated_at')
+        .select('id, updated_at, subscription_status')
         .eq('stripe_customer_id', customerId)
         .single();
 
       if (profile) {
         // Guard against out-of-order events: only apply if this event is newer
         if (!profile.updated_at || eventTime > profile.updated_at) {
+          // Preserve existing tier when active; downgrade to free when inactive
+          const newStatus = subscription.status === 'active'
+            ? (profile.subscription_status || 'pro')
+            : 'free';
           await supabaseAdmin.from('profiles').update({
-            subscription_status: status,
+            subscription_status: newStatus,
             updated_at: eventTime,
           }).eq('id', profile.id);
         }

@@ -100,7 +100,7 @@ export async function sendUpgradePrompt(to: string, buildsUsed: number) {
       <li style="margin-bottom: 8px;"><strong style="color: white">All AI models</strong> — Claude Opus 4.6, Gemini 2.5 Pro, Kimi K2</li>
       <li style="margin-bottom: 8px;"><strong style="color: white">Iterative AI chat</strong> — refine after generation</li>
     </ul>
-    <a href="${SITE_URL}/api/stripe/create-checkout-session" class="btn">Upgrade to Pro — $29/month</a>
+    <a href="${SITE_URL}/api/stripe/create-checkout-session" class="btn">Upgrade to Pro — $19/month</a>
     <p style="color: rgba(255,255,255,0.4); font-size: 13px;">Or wait until the 1st for your free tier to reset.</p>
   `)
 

@@ -118,6 +118,7 @@ export interface CreateProjectData {
   source_url?: string;
   default_model?: string;
   default_style?: string;
+  team_id?: string | null;
 }
 
 export interface CreateBuildData {
@@ -128,7 +129,7 @@ export interface CreateBuildData {
 }
 
 // ===== CACHING =====
-let _projectsCache: CacheEntry<ApiProject[]> = { data: null, ts: 0 };
+const _projectsCacheMap = new Map<string, CacheEntry<ApiProject[]>>();
 let _subscriptionCache: CacheEntry<SubscriptionInfo> = { data: null, ts: 0 };
 let _userCache: CacheEntry<WorkspaceUser> = { data: null, ts: 0 };
 const CACHE_TTL = 30000; // 30 seconds
@@ -166,14 +167,17 @@ export async function fetchCurrentUser(): Promise<WorkspaceUser | null> {
 }
 
 // ===== PROJECTS =====
-export async function fetchProjects(): Promise<ApiProject[]> {
-  if (isFresh(_projectsCache)) return _projectsCache.data;
+export async function fetchProjects(teamId?: string): Promise<ApiProject[]> {
+  const cacheKey = teamId ?? '__all__';
+  const cached = _projectsCacheMap.get(cacheKey);
+  if (cached && isFresh(cached)) return cached.data!;
   try {
-    const res = await fetch('/api/projects');
+    const url = teamId ? `/api/projects?team_id=${encodeURIComponent(teamId)}` : '/api/projects';
+    const res = await fetch(url);
     if (!res.ok) return [];
     const json = await res.json();
     const projects: ApiProject[] = json.projects || [];
-    _projectsCache = { data: projects, ts: Date.now() };
+    _projectsCacheMap.set(cacheKey, { data: projects, ts: Date.now() });
     return projects;
   } catch {
     return [];
@@ -181,7 +185,7 @@ export async function fetchProjects(): Promise<ApiProject[]> {
 }
 
 export function invalidateProjectsCache(): void {
-  _projectsCache = { data: null, ts: 0 };
+  _projectsCacheMap.clear();
 }
 
 export async function createProject(data: CreateProjectData): Promise<ApiProject> {

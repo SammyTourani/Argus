@@ -2,7 +2,8 @@
 'use client';
 
 import { useEffect } from 'react';
-import { fetchCurrentUser, fetchSubscription, fetchTeams, createTeam, escapeHtml } from './workspace-api';
+import { fetchCurrentUser, fetchSubscription, fetchTeams, escapeHtml } from './workspace-api';
+import { getActiveWorkspace, setActiveWorkspace } from './workspace-active';
 import { useUser } from '@/components/providers/UserProvider';
 
 export default function WorkspaceDropdown() {
@@ -49,36 +50,8 @@ export default function WorkspaceDropdown() {
         var action = actionBtn.getAttribute('data-ws-action');
         if (action === 'upgrade') { window.location.href = '/upgrade'; return; }
         if (action === 'create') {
-          var teamName = prompt('Enter a name for the new workspace:');
-          if (teamName && teamName.trim()) {
-            actionBtn.setAttribute('disabled', 'true');
-            actionBtn.textContent = 'Creating...';
-            createTeam(teamName.trim()).then(function(team) {
-              if (team) {
-                // Re-fetch teams to update the list
-                fetchTeams().then(function(updatedTeams) {
-                  var wsList = dropdown!.querySelector('.ws-workspace-list');
-                  if (wsList && updatedTeams) {
-                    var checkSvg = '<svg class="ws-ws-check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8.5l3.5 3.5L13 5" /></svg>';
-                    var existingHtml = wsList.innerHTML;
-                    var newInitial = (team.name || 'T').charAt(0).toUpperCase();
-                    existingHtml += '<div class="ws-workspace-item" data-ws-id="' + team.id + '">' +
-                      '<div class="ws-ws-avatar">' + newInitial + '</div>' +
-                      '<span class="ws-ws-name">' + escapeHtml(team.name) + '</span>' +
-                      '<span class="ws-ws-badge">FREE</span>' +
-                      checkSvg + '</div>';
-                    wsList.innerHTML = existingHtml;
-                  }
-                }).catch(function() {});
-              }
-              actionBtn.removeAttribute('disabled');
-              actionBtn.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 3v10M3 8h10" /></svg> Create new workspace';
-            }).catch(function(err) {
-              alert(err.message || 'Failed to create workspace');
-              actionBtn.removeAttribute('disabled');
-              actionBtn.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 3v10M3 8h10" /></svg> Create new workspace';
-            });
-          }
+          close();
+          window.location.href = '/workspace/new';
           return;
         }
         return;
@@ -89,9 +62,14 @@ export default function WorkspaceDropdown() {
         var items = dropdown!.querySelectorAll('.ws-workspace-item');
         items.forEach(function(item) { item.classList.remove('active'); });
         wsItem.classList.add('active');
-        var name = wsItem.querySelector('.ws-ws-name')!.textContent;
-        document.querySelector('.sidebar-title')!.innerHTML = name + ' <svg class="sidebar-chevron open" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 6l3 3 3-3"/></svg>';
+        var wsName = wsItem.querySelector('.ws-ws-name')!.textContent;
+        document.querySelector('.sidebar-title')!.innerHTML = wsName + ' <svg class="sidebar-chevron open" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 6l3 3 3-3"/></svg>';
         chevron = document.querySelector('.sidebar-chevron');
+
+        // Set active workspace state
+        var wsId = wsItem.getAttribute('data-ws-id');
+        setActiveWorkspace({ id: wsId || 'personal', name: wsName || 'Workspace' });
+        close();
       }
     }
 
@@ -148,10 +126,11 @@ export default function WorkspaceDropdown() {
       }
       // Render workspace list dynamically
       var wsList = dropdown!.querySelector('.ws-workspace-list');
+      var activeWs = getActiveWorkspace();
       if (wsList && user) {
         var checkSvg = '<svg class="ws-ws-check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8.5l3.5 3.5L13 5" /></svg>';
         var tierLabel = (sub && sub.tier) ? sub.tier.toUpperCase() : 'FREE';
-        var html = '<div class="ws-workspace-item active" data-ws-id="personal">' +
+        var html = '<div class="ws-workspace-item' + (activeWs.id === 'personal' ? ' active' : '') + '" data-ws-id="personal">' +
           '<div class="ws-ws-avatar">' + user.initial + '</div>' +
           '<span class="ws-ws-name">' + escapeHtml(user.name) + '\'s Workspace</span>' +
           '<span class="ws-ws-badge">' + tierLabel + '</span>' +
@@ -160,7 +139,7 @@ export default function WorkspaceDropdown() {
           teams.forEach(function(t) {
             var initial = (t.name || 'T').charAt(0).toUpperCase();
             var badge = (t.plan || 'free').toUpperCase();
-            html += '<div class="ws-workspace-item" data-ws-id="' + t.id + '">' +
+            html += '<div class="ws-workspace-item' + (activeWs.id === t.id ? ' active' : '') + '" data-ws-id="' + t.id + '">' +
               '<div class="ws-ws-avatar">' + initial + '</div>' +
               '<span class="ws-ws-name">' + escapeHtml(t.name || 'Team') + '</span>' +
               '<span class="ws-ws-badge">' + badge + '</span>' +

@@ -4,6 +4,7 @@
 import { useEffect } from 'react';
 import { CONFIG, state, validateUrl, isURL, showToast } from './workspace-state';
 import { searchWeb, createProject, createBuild } from './workspace-api';
+import { getActiveTeamId } from './workspace-active';
 
 export default function ChatBox() {
   // ===== Chat input handling, URL detection, options panel, style grid, model select, submit =====
@@ -397,6 +398,7 @@ export default function ChatBox() {
             source_url: selectedResult.url,
             default_model: state.selectedModel,
             default_style: state.selectedStyle,
+            team_id: getActiveTeamId(),
           }).then(function(project) {
             if (cancelled) return;
             return createBuild(project.id, {
@@ -422,6 +424,7 @@ export default function ChatBox() {
           source_url: inputValue.indexOf('://') === -1 ? 'https://' + inputValue : inputValue,
           default_model: state.selectedModel,
           default_style: state.selectedStyle,
+          team_id: getActiveTeamId(),
         };
 
         if (state.extendBrandStyles) {
