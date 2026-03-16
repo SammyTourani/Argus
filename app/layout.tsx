@@ -79,7 +79,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: `
+          (function(){
+            try {
+              if (localStorage.getItem('argus-dark-mode') === 'true') {
+                document.documentElement.setAttribute('data-argus-dark', 'true');
+              }
+            } catch(e) {}
+          })()
+        `}} />
+      </head>
       <body className={`${inter.variable} ${geistSans.variable} ${geistMono.variable} ${robotoMono.variable} ${jetbrainsMono.variable} font-sans`}>
         <ToastProvider>
           {children}

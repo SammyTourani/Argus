@@ -95,6 +95,11 @@ export default function ResourcesPage() {
         root.classList.remove('dark');
       }
     }
+    if (isDark) {
+      document.documentElement.setAttribute('data-argus-dark', 'true');
+    } else {
+      document.documentElement.removeAttribute('data-argus-dark');
+    }
     window.dispatchEvent(new CustomEvent('argus-dark-mode-change', { detail: { dark: isDark } }));
 
     // Listen for storage changes from other tabs/pages
@@ -104,6 +109,11 @@ export default function ResourcesPage() {
         var r = document.querySelector('.workspace-root');
         if (r) {
           r.classList.toggle('dark', nowDark);
+        }
+        if (nowDark) {
+          document.documentElement.setAttribute('data-argus-dark', 'true');
+        } else {
+          document.documentElement.removeAttribute('data-argus-dark');
         }
         window.dispatchEvent(new CustomEvent('argus-dark-mode-change', { detail: { dark: nowDark } }));
       }
