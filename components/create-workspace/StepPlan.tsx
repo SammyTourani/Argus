@@ -2,7 +2,6 @@
 
 import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { fadeUp, staggerContainer, staggerItem } from '@/components/onboarding/animations';
 import { createTeam } from '@/lib/workspace/api';
 import { setActiveWorkspace } from '@/lib/workspace/active-workspace';
 import type { CreateWorkspaceData } from './types';
@@ -21,7 +20,7 @@ const CHECK_ORANGE = (
 
 const CHECK_DIM = (
   <svg width="18" height="18" viewBox="0 0 20 20" fill="none" style={{ flexShrink: 0, marginTop: '2px' }}>
-    <path d="M5 10.5l3.5 3.5L15 7" stroke="rgba(82,16,0,0.3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M5 10.5l3.5 3.5L15 7" stroke="var(--fg-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
 
@@ -32,7 +31,7 @@ const PLANS = [
     amount: '$0',
     period: 'forever',
     desc: 'No strings.',
-    features: ['3 builds / 30 days', 'All 8 style transforms', 'Download as ZIP', 'Community support'],
+    features: ['30 credits / month', 'All 9 AI models', 'Free models after credits run out', 'Download as ZIP', 'Community support'],
     highlight: false,
     checkIcon: CHECK_DIM,
   },
@@ -42,7 +41,7 @@ const PLANS = [
     amount: '$19',
     period: '/month',
     desc: 'For power builders.',
-    features: ['Unlimited builds', 'All AI models (GPT-4o, Claude, Gemini)', 'Priority generation queue', 'Push to Vercel in 1 click', 'Brand extraction mode', 'Email support'],
+    features: ['300 credits / month', 'All 9 AI models — use any model', 'Unlimited free models after credits', 'Priority generation queue', 'Push to Vercel in 1 click', 'Email support'],
     highlight: true,
     checkIcon: CHECK_ORANGE,
   },
@@ -83,27 +82,15 @@ export default function StepPlan({ data, onBack, onComplete }: StepPlanProps) {
   }, [data.name, isCreating, onComplete]);
 
   return (
-    <div className="flex flex-col items-center w-full">
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -12 }}
+      transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
+      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', maxWidth: '1060px', margin: '0 auto' }}
+    >
       {/* Header */}
-      <motion.div
-        custom={0}
-        variants={fadeUp}
-        initial="hidden"
-        animate="visible"
-        style={{ textAlign: 'center', marginBottom: '44px' }}
-      >
-        <div
-          style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: '12px',
-            letterSpacing: '0.2em',
-            textTransform: 'uppercase',
-            color: 'var(--fg-muted)',
-            marginBottom: '12px',
-          }}
-        >
-          [ workspace ]
-        </div>
+      <div style={{ textAlign: 'center', marginBottom: '40px' }}>
         <h1
           style={{
             fontSize: '34px',
@@ -126,52 +113,36 @@ export default function StepPlan({ data, onBack, onComplete }: StepPlanProps) {
         >
           All workspaces start on Free. Upgrade anytime.
         </p>
-      </motion.div>
+      </div>
 
       {/* Plan cards grid */}
-      <motion.div
-        variants={staggerContainer}
-        initial="hidden"
-        animate="visible"
+      <div
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(3, 1fr)',
           gap: '24px',
           width: '100%',
-          maxWidth: '960px',
         }}
       >
-        {PLANS.map((plan) => (
-          <motion.div
+        {PLANS.map((plan, i) => (
+          <div
             key={plan.id}
-            variants={staggerItem}
             style={{
-              background: 'white',
+              background: 'var(--bg-100)',
               border: plan.highlight
                 ? '1.5px solid rgba(255, 72, 1, 0.3)'
                 : '1.5px solid var(--border-100)',
-              borderRadius: 'var(--radius-xl)',
+              borderRadius: 'var(--radius-xl, 16px)',
               padding: '34px',
               position: 'relative',
               display: 'flex',
               flexDirection: 'column',
               transition: 'box-shadow 0.3s, transform 0.3s',
-              opacity: plan.id === 'team' ? 0.82 : 1,
+              opacity: plan.id === 'team' ? 0.75 : 1,
               boxShadow: plan.highlight
                 ? '0 0 40px -10px rgba(250, 93, 25, 0.12)'
                 : 'none',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.boxShadow = plan.highlight
-                ? '0 0 40px -10px rgba(250, 93, 25, 0.18), 0 4px 24px rgba(82, 16, 0, 0.06)'
-                : '0 4px 24px rgba(82, 16, 0, 0.06)';
-              e.currentTarget.style.transform = 'translateY(-1px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.boxShadow = plan.highlight
-                ? '0 0 40px -10px rgba(250, 93, 25, 0.12)'
-                : 'none';
-              e.currentTarget.style.transform = 'translateY(0)';
+              animation: `fadeInCard 0.4s ease ${0.1 + i * 0.08}s both`,
             }}
           >
             {/* Plan name */}
@@ -191,7 +162,7 @@ export default function StepPlan({ data, onBack, onComplete }: StepPlanProps) {
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', marginBottom: '4px' }}>
               <span
                 style={{
-                  fontSize: '50px',
+                  fontSize: '48px',
                   fontWeight: 800,
                   color: 'var(--fg-100)',
                   letterSpacing: '-0.03em',
@@ -224,14 +195,14 @@ export default function StepPlan({ data, onBack, onComplete }: StepPlanProps) {
                 style={{
                   width: '100%',
                   padding: '14px 0',
-                  borderRadius: 'var(--radius-lg)',
+                  borderRadius: 'var(--radius-lg, 12px)',
                   fontSize: '15px',
                   fontWeight: 700,
                   fontFamily: 'var(--font-sans)',
                   cursor: 'default',
                   border: '1.5px solid var(--border-100)',
-                  background: 'rgba(0, 0, 0, 0.03)',
-                  color: 'var(--fg-100)',
+                  background: 'transparent',
+                  color: 'var(--fg-200)',
                 }}
               >
                 Included in your plan
@@ -242,38 +213,35 @@ export default function StepPlan({ data, onBack, onComplete }: StepPlanProps) {
                 style={{
                   width: '100%',
                   padding: '14px 0',
-                  borderRadius: 'var(--radius-lg)',
+                  borderRadius: 'var(--radius-lg, 12px)',
                   fontSize: '15px',
                   fontWeight: 700,
                   fontFamily: 'var(--font-sans)',
-                  cursor: 'pointer',
+                  cursor: 'default',
                   border: 'none',
                   background: 'var(--accent-100)',
                   color: 'white',
-                  transition: 'all 0.2s',
                   opacity: 0.5,
-                  pointerEvents: 'none',
                 }}
               >
                 Upgrade later
               </button>
             )}
             {plan.id === 'team' && (
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <div
-                  style={{
-                    flex: 1,
-                    padding: '12px 16px',
-                    borderRadius: 'var(--radius-lg)',
-                    border: '1.5px solid var(--border-100)',
-                    background: 'white',
-                    fontSize: '14px',
-                    fontFamily: 'var(--font-sans)',
-                    color: 'var(--fg-muted)',
-                  }}
-                >
-                  Coming soon
-                </div>
+              <div
+                style={{
+                  width: '100%',
+                  padding: '14px 0',
+                  borderRadius: 'var(--radius-lg, 12px)',
+                  fontSize: '15px',
+                  fontWeight: 700,
+                  fontFamily: 'var(--font-sans)',
+                  textAlign: 'center',
+                  border: '1.5px solid var(--border-100)',
+                  color: 'var(--fg-muted)',
+                }}
+              >
+                Coming soon
               </div>
             )}
 
@@ -283,7 +251,7 @@ export default function StepPlan({ data, onBack, onComplete }: StepPlanProps) {
                 listStyle: 'none',
                 margin: '24px 0 0',
                 padding: '20px 0 0',
-                borderTop: '1px solid var(--bg-300, #fff5eb)',
+                borderTop: '1px solid var(--border-100)',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '10px',
@@ -297,7 +265,7 @@ export default function StepPlan({ data, onBack, onComplete }: StepPlanProps) {
                     display: 'flex',
                     alignItems: 'flex-start',
                     gap: '10px',
-                    fontSize: '14.5px',
+                    fontSize: '14px',
                     color: 'var(--fg-200)',
                     lineHeight: 1.4,
                   }}
@@ -307,15 +275,21 @@ export default function StepPlan({ data, onBack, onComplete }: StepPlanProps) {
                 </li>
               ))}
             </ul>
-          </motion.div>
+          </div>
         ))}
-      </motion.div>
+      </div>
+
+      {/* Inline keyframe for card stagger */}
+      <style>{`
+        @keyframes fadeInCard {
+          from { opacity: 0; transform: translateY(16px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
 
       {/* Error message */}
       {error && (
-        <motion.p
-          initial={{ opacity: 0, y: 4 }}
-          animate={{ opacity: 1, y: 0 }}
+        <p
           style={{
             marginTop: '20px',
             fontSize: '14px',
@@ -325,21 +299,16 @@ export default function StepPlan({ data, onBack, onComplete }: StepPlanProps) {
           }}
         >
           {error}
-        </motion.p>
+        </p>
       )}
 
       {/* Footer */}
-      <motion.div
-        custom={0.2}
-        variants={fadeUp}
-        initial="hidden"
-        animate="visible"
+      <div
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           width: '100%',
-          maxWidth: '960px',
           marginTop: '32px',
         }}
       >
@@ -368,7 +337,7 @@ export default function StepPlan({ data, onBack, onComplete }: StepPlanProps) {
           disabled={isCreating}
           style={{
             padding: '14px 32px',
-            borderRadius: 'var(--radius-lg)',
+            borderRadius: 'var(--radius-lg, 12px)',
             border: 'none',
             background: 'var(--accent-100)',
             color: 'white',
@@ -379,12 +348,12 @@ export default function StepPlan({ data, onBack, onComplete }: StepPlanProps) {
             transition: 'all 0.2s',
             opacity: isCreating ? 0.7 : 1,
           }}
-          onMouseEnter={(e) => { if (!isCreating) { e.currentTarget.style.background = 'var(--accent-200)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(255, 72, 1, 0.25)'; } }}
+          onMouseEnter={(e) => { if (!isCreating) { e.currentTarget.style.background = 'var(--accent-200, #ff7038)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(255, 72, 1, 0.25)'; } }}
           onMouseLeave={(e) => { if (!isCreating) { e.currentTarget.style.background = 'var(--accent-100)'; e.currentTarget.style.boxShadow = 'none'; } }}
         >
           {isCreating ? 'Creating...' : 'Create workspace'}
         </button>
-      </motion.div>
-    </div>
+      </div>
+    </motion.div>
   );
 }

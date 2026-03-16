@@ -1,6 +1,5 @@
 'use client';
 
-import { motion } from 'framer-motion';
 import { STEP_LABELS } from './constants';
 
 interface WizardProgressProps {
@@ -13,20 +12,35 @@ export default function WizardProgress({
   totalSteps,
 }: WizardProgressProps) {
   return (
-    <div className="fixed top-0 left-0 right-0 z-20 px-16 pt-16 pb-8">
-      <div className="max-w-xl mx-auto">
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 60,
+        padding: '16px 16px 8px',
+        background: 'var(--bg-100)',
+      }}
+    >
+      <div style={{ maxWidth: '560px', margin: '0 auto' }}>
         {/* Desktop: labels + bars */}
-        <div className="hidden sm:flex items-end gap-8">
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
           {STEP_LABELS.slice(0, totalSteps).map((step, i) => {
             const isCompleted = i < currentStep;
             const isActive = i === currentStep;
-            const isFuture = i > currentStep;
 
             return (
-              <div key={step.num} className="flex-1">
+              <div key={step.num} style={{ flex: 1 }}>
                 <span
-                  className="block font-mono text-[11px] tracking-[0.2em] uppercase mb-6 transition-colors duration-300"
                   style={{
+                    display: 'block',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '11px',
+                    letterSpacing: '0.2em',
+                    textTransform: 'uppercase',
+                    marginBottom: '6px',
+                    transition: 'color 0.3s',
                     color: isActive
                       ? 'var(--fg-100)'
                       : isCompleted
@@ -38,55 +52,23 @@ export default function WizardProgress({
                 </span>
 
                 <div
-                  className="h-6 rounded-full overflow-hidden"
-                  style={{ background: 'var(--border-100)' }}
+                  style={{
+                    height: '3px',
+                    borderRadius: '99px',
+                    overflow: 'hidden',
+                    background: 'var(--border-100)',
+                  }}
                 >
-                  <motion.div
-                    className="h-full rounded-full"
+                  <div
                     style={{
-                      background: isFuture ? 'transparent' : 'var(--accent-100)',
+                      height: '100%',
+                      borderRadius: '99px',
+                      background: (isCompleted || isActive) ? 'var(--accent-100)' : 'transparent',
+                      width: isCompleted ? '100%' : isActive ? '50%' : '0%',
+                      transition: 'width 0.5s ease-in-out',
                     }}
-                    initial={{ width: '0%' }}
-                    animate={{
-                      width: isCompleted
-                        ? '100%'
-                        : isActive
-                          ? '50%'
-                          : '0%',
-                    }}
-                    transition={{ duration: 0.5, ease: 'easeInOut' }}
                   />
                 </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Mobile: bars only */}
-        <div className="flex sm:hidden gap-4">
-          {STEP_LABELS.slice(0, totalSteps).map((step, i) => {
-            const isCompleted = i < currentStep;
-            const isActive = i === currentStep;
-
-            return (
-              <div
-                key={step.num}
-                className="flex-1 h-2 rounded-full overflow-hidden"
-                style={{ background: 'var(--border-100)' }}
-              >
-                <motion.div
-                  className="h-full rounded-full"
-                  style={{ background: 'var(--accent-100)' }}
-                  initial={{ width: '0%' }}
-                  animate={{
-                    width: isCompleted
-                      ? '100%'
-                      : isActive
-                        ? '50%'
-                        : '0%',
-                  }}
-                  transition={{ duration: 0.5, ease: 'easeInOut' }}
-                />
               </div>
             );
           })}

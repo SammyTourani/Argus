@@ -2,8 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
-import { stepVariants } from '@/components/onboarding/animations';
+import { AnimatePresence } from 'framer-motion';
 import type { CreateWorkspaceData } from './types';
 import WizardProgress from './WizardProgress';
 import StepName from './StepName';
@@ -11,11 +10,12 @@ import StepPlan from './StepPlan';
 
 export default function CreateWorkspaceFlow() {
   const [step, setStep] = useState(0);
-  const [direction, setDirection] = useState(1);
   const router = useRouter();
 
   const [data, setData] = useState<CreateWorkspaceData>({
     name: '',
+    emoji: '',
+    description: '',
   });
 
   const updateData = useCallback((partial: Partial<CreateWorkspaceData>) => {
@@ -23,7 +23,6 @@ export default function CreateWorkspaceFlow() {
   }, []);
 
   const nextStep = useCallback(() => {
-    setDirection(1);
     setStep((s) => s + 1);
   }, []);
 
@@ -32,7 +31,6 @@ export default function CreateWorkspaceFlow() {
       router.push('/workspace');
       return;
     }
-    setDirection(-1);
     setStep((s) => s - 1);
   }, [step, router]);
 
@@ -42,43 +40,45 @@ export default function CreateWorkspaceFlow() {
 
   return (
     <div
-      className="fixed inset-0 z-50 font-mono overflow-hidden"
-      style={{ background: 'var(--bg-100)' }}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 50,
+        background: 'var(--bg-100)',
+        overflow: 'auto',
+      }}
     >
       {/* Progress bar */}
       <WizardProgress currentStep={step} totalSteps={2} />
 
-      {/* Content area */}
+      {/* Content area — uses CSS transition instead of framer-motion for performance */}
       <div
-        className="relative z-10 flex items-center justify-center h-full"
-        style={{ padding: '80px 24px 40px' }}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '100%',
+          padding: '80px 24px 40px',
+        }}
       >
-        <AnimatePresence mode="wait" custom={direction}>
-          <motion.div
-            key={step}
-            custom={direction}
-            variants={stepVariants}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            style={{ width: '100%', maxWidth: step === 1 ? '1060px' : '640px' }}
-          >
-            {step === 0 && (
-              <StepName
-                data={data}
-                onUpdate={updateData}
-                onNext={nextStep}
-                onBack={prevStep}
-              />
-            )}
-            {step === 1 && (
-              <StepPlan
-                data={data}
-                onBack={prevStep}
-                onComplete={handleComplete}
-              />
-            )}
-          </motion.div>
+        <AnimatePresence mode="wait">
+          {step === 0 && (
+            <StepName
+              key="name"
+              data={data}
+              onUpdate={updateData}
+              onNext={nextStep}
+              onBack={prevStep}
+            />
+          )}
+          {step === 1 && (
+            <StepPlan
+              key="plan"
+              data={data}
+              onBack={prevStep}
+              onComplete={handleComplete}
+            />
+          )}
         </AnimatePresence>
       </div>
     </div>
