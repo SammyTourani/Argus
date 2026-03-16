@@ -390,9 +390,15 @@ Pay close attention to EVERY visual property and match it exactly:
 - Create one React component per major section (Header, Hero, Features, Pricing, Footer, etc.)
 - Each component in its own file under src/components/
 - Match the HTML structure — if the original has <nav> inside <header>, do the same
-- App.jsx imports and renders all section components in order
 - Keep components focused — under 100 lines when possible
 - NEVER create tailwind.config.js, vite.config.js, or package.json — they already exist
+
+## FILE ORDER (CRITICAL — prevents broken imports):
+- Generate ALL component files FIRST (Header.jsx, Hero.jsx, Features.jsx, etc.)
+- Generate App.jsx LAST — it must ONLY import components that were already generated above
+- NEVER import a component in App.jsx that you did not generate as a <file> block above
+- If you are running low on space, generate fewer sections but keep App.jsx consistent with what was generated
+- Aim for 3-6 component files for a typical landing page. Do NOT plan more than you can complete.
 
 ## STYLING RULES:
 - Use ONLY Tailwind CSS classes. No inline styles, no CSS-in-JS, no component CSS files.

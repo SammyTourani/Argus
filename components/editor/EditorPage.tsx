@@ -399,8 +399,12 @@ ${storedInstructions ? `\nADDITIONAL CONTEXT: ${storedInstructions}` : ''}`;
                     ? EDITOR_CONFIG.sandbox.packageInstallRefreshDelay
                     : EDITOR_CONFIG.sandbox.refreshDelay;
                   setTimeout(() => {
-                    if (iframeRef.current && sandboxData?.url) {
-                      iframeRef.current.src = `${sandboxData.url}?t=${Date.now()}&applied=true`;
+                    if (iframeRef.current) {
+                      // Use sandboxData from closure, or fall back to iframe's current base URL
+                      const url = sandboxData?.url || iframeRef.current.src.split('?')[0];
+                      if (url) {
+                        iframeRef.current.src = `${url}?t=${Date.now()}&applied=true`;
+                      }
                     }
                   }, refreshDelay);
 
