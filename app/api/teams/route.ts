@@ -4,8 +4,16 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/ratelimit';
+
+function getSupabaseAdmin() {
+  return createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 export async function GET() {
   try {
@@ -81,7 +89,11 @@ export async function POST(request: NextRequest) {
     // Add random suffix to prevent collisions
     slug = slug + '-' + Math.random().toString(36).substring(2, 6);
 
-    const { data: team, error } = await supabase
+    // Use service role client to bypass RLS for team creation
+    // (auth is already validated above via getUser)
+    const admin = getSupabaseAdmin();
+
+    const { data: team, error } = await admin
       .from('teams')
       .insert({
         name: name.trim(),
@@ -98,7 +110,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Add creator as owner member
-    const { error: memberError } = await supabase
+    const { error: memberError } = await admin
       .from('team_members')
       .insert({
         team_id: team.id,
@@ -109,7 +121,7 @@ export async function POST(request: NextRequest) {
     if (memberError) {
       console.error('[POST /api/teams] member insert failed:', memberError);
       // Clean up: delete the orphaned team
-      await supabase.from('teams').delete().eq('id', team.id);
+      await admin.from('teams').delete().eq('id', team.id);
       return NextResponse.json({ error: 'Failed to initialize team membership' }, { status: 500 });
     }
 
