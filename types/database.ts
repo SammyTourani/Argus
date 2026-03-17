@@ -91,6 +91,7 @@ export interface Team {
   id: string;
   name: string;
   slug: string;
+  description: string;
   avatar_url: string | null;
   plan: TeamPlan;
   stripe_customer_id: string | null;

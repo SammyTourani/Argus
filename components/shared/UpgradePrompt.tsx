@@ -76,7 +76,7 @@ export function UpgradePrompt({
       const { url } = await res.json();
       if (url) window.location.href = url;
     } catch {
-      window.location.href = '/account';
+      window.location.href = '/settings';
     }
   };
 

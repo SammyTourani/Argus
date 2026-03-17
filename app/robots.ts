@@ -6,7 +6,7 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: '*',
         allow: '/',
-        disallow: ['/workspace', '/onboarding', '/api/', '/auth/', '/app', '/dashboard', '/account'],
+        disallow: ['/workspace', '/onboarding', '/api/', '/auth/', '/app', '/dashboard', '/settings'],
       },
     ],
     sitemap: 'https://buildargus.dev/sitemap.xml',

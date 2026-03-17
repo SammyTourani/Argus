@@ -100,7 +100,7 @@ export function useSubscription(): SubscriptionState {
         window.location.href = url;
       }
     } catch {
-      window.location.href = '/account?billing=upgrade';
+      window.location.href = '/settings?billing=upgrade';
     }
   }, []);
 

@@ -111,8 +111,8 @@ export async function POST(req: NextRequest) {
       customer: customerId,
       mode: 'subscription',
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${appUrl}/account?billing=success`,
-      cancel_url: `${appUrl}/account?billing=cancelled`,
+      success_url: `${appUrl}/settings?billing=success`,
+      cancel_url: `${appUrl}/settings?billing=cancelled`,
       metadata: {
         supabase_user_id: user.id,
         plan,

@@ -29,7 +29,7 @@ describe('User Error Messages', () => {
     const result = toUserError(makeStatusError(403, 'Build limit exceeded'));
     expect(result.retryable).toBe(false);
     expect(result.action).toBe('Upgrade');
-    expect(result.actionUrl).toBe('/account');
+    expect(result.actionUrl).toBe('/settings');
   });
 
   it('403 without build limit → generic access denied', () => {

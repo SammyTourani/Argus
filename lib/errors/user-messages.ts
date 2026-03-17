@@ -130,7 +130,7 @@ export function toUserError(error: unknown, context?: string): UserError {
         message:
           "You've used all your builds for this period. Upgrade to Pro for unlimited builds.",
         action: 'Upgrade',
-        actionUrl: '/account',
+        actionUrl: '/settings',
         retryable: false,
       };
     }
@@ -189,7 +189,7 @@ export function toUserError(error: unknown, context?: string): UserError {
       message:
         "You've used all your builds for this period. Upgrade to Pro for unlimited builds.",
       action: 'Upgrade',
-      actionUrl: '/account',
+      actionUrl: '/settings',
       retryable: false,
     };
   }

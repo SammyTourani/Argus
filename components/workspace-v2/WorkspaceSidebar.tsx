@@ -18,7 +18,7 @@ export default function WorkspaceSidebar() {
 
     function handleUpgradeClick() {
       if (sidebarTier === 'team' || sidebarTier === 'enterprise') {
-        window.location.href = '/account';
+        window.location.href = '/settings';
       } else {
         window.location.href = '/upgrade';
       }
