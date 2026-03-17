@@ -4,8 +4,7 @@
 import { useEffect } from 'react';
 import DiscoverTab from './DiscoverTab';
 import TemplatesTab from './TemplatesTab';
-import ModelsTab from './ModelsTab';
-import ConnectorsTab from './ConnectorsTab';
+// ModelsTab and ConnectorsTab moved to /settings/api-keys and /settings/connectors
 import { fetchCurrentUser, fetchRecents, escapeHtml } from './workspace-api';
 
 export default function ResourcesPage() {
@@ -213,21 +212,15 @@ export default function ResourcesPage() {
               <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="14" height="14" rx="2" /><path d="M3 8h14M8 3v14" /></svg>
               Templates
             </button>
-            <button className="tab-btn" data-tab="models">
-              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="10" cy="10" r="3" /><path d="M10 3v4M10 13v4M3 10h4M13 10h4M5.5 5.5l2.8 2.8M11.7 11.7l2.8 2.8M5.5 14.5l2.8-2.8M11.7 8.3l2.8-2.8" /></svg>
-              Models
-            </button>
-            <button className="tab-btn" data-tab="connectors">
-              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M7 3v4a2 2 0 01-2 2H3M13 3v4a2 2 0 002 2h2M7 17v-4a2 2 0 00-2-2H3M13 17v-4a2 2 0 012-2h2" /></svg>
-              Connectors
-            </button>
+            <a className="tab-settings-link" href="/settings/api-keys" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', fontSize: '13px', color: 'var(--fg-muted)', borderRadius: '8px', transition: 'color 0.15s' }}>
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="10" cy="10" r="3" /><path d="M10 3v4M10 13v4M3 10h4M13 10h4" /></svg>
+              API Keys &amp; Connectors →
+            </a>
           </div>
 
           {/* Tab Contents */}
           <DiscoverTab />
           <TemplatesTab />
-          <ModelsTab />
-          <ConnectorsTab />
 
         </div>
       </main>

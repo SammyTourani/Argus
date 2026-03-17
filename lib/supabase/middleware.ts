@@ -43,7 +43,7 @@ export async function updateSession(request: NextRequest) {
   }
 
   // Protected routes — require auth
-  if (!user && (pathname.startsWith('/workspace') || pathname.startsWith('/resources') || pathname.startsWith('/upgrade') || pathname.startsWith('/account'))) {
+  if (!user && (pathname.startsWith('/workspace') || pathname.startsWith('/resources') || pathname.startsWith('/upgrade') || pathname.startsWith('/account') || pathname.startsWith('/settings'))) {
     const url = request.nextUrl.clone();
     url.pathname = '/sign-in';
     url.searchParams.set('redirect', pathname);
