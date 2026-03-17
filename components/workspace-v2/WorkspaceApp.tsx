@@ -6,6 +6,7 @@ import WorkspaceSidebar from './WorkspaceSidebar';
 import HomePage from './HomePage';
 import SearchModal from './SearchModal';
 import ReferralModal from './ReferralModal';
+import TemplatePreviewModal from './TemplatePreviewModal';
 
 export default function WorkspaceApp() {
   // ===== Claim pending referral from localStorage (if any) =====
@@ -63,6 +64,9 @@ export default function WorkspaceApp() {
 
       {/* Referral Modal */}
       <ReferralModal />
+
+      {/* Template Preview Modal */}
+      <TemplatePreviewModal />
 
       {/* Toast element */}
       <div className="toast" id="toast"></div>

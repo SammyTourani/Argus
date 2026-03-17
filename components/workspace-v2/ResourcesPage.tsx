@@ -7,6 +7,7 @@ import TemplatesTab from './TemplatesTab';
 import ModelsTab from './ModelsTab';
 import ConnectorsTab from './ConnectorsTab';
 import { fetchCurrentUser, fetchRecents, escapeHtml } from './workspace-api';
+import TemplatePreviewModal from './TemplatePreviewModal';
 
 export default function ResourcesPage() {
 
@@ -38,7 +39,16 @@ export default function ResourcesPage() {
     });
 
     // Init indicator
-    var initTimer = setTimeout(function() { setIndicator(tabBar.querySelector('.tab-btn.active')); }, 50);
+    var initTimer = setTimeout(function() {
+      setIndicator(tabBar.querySelector('.tab-btn.active'));
+
+      // Check if navigated here with a specific tab requested (e.g., from "Browse all" on home page)
+      var requestedTab = sessionStorage.getItem('argus-resources-tab');
+      if (requestedTab) {
+        sessionStorage.removeItem('argus-resources-tab');
+        switchTab(requestedTab);
+      }
+    }, 50);
 
     var resizeHandler = function() { setIndicator(tabBar.querySelector('.tab-btn.active')); };
     window.addEventListener('resize', resizeHandler);
@@ -231,6 +241,9 @@ export default function ResourcesPage() {
 
         </div>
       </main>
+
+      {/* Template Preview Modal */}
+      <TemplatePreviewModal />
     </div>
   );
 }

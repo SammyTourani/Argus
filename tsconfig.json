@@ -39,6 +39,7 @@
     "node_modules",
     "examples",
     "tests",
+    "scripts",
     "lib/e2b-backends/archive",
     "styles"
   ]

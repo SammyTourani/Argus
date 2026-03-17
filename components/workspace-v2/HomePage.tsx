@@ -7,7 +7,7 @@ import { startMatrixAnimation, stopMatrixAnimation } from './HeroBackground';
 import ChatBox from './ChatBox';
 import FireCrawlCarousel from './FireCrawlCarousel';
 import ProjectsDashboard from './ProjectsDashboard';
-import { fetchCurrentUser, fetchProjects, fetchTemplates, fetchRecents, generateGradient, formatRelativeTime, escapeHtml } from './workspace-api';
+import { fetchCurrentUser, fetchProjects, fetchRecents, generateGradient, formatRelativeTime, escapeHtml } from './workspace-api';
 import { getActiveWorkspace, onWorkspaceChange } from './workspace-active';
 import { useUser } from '@/components/providers/UserProvider';
 
@@ -309,26 +309,52 @@ export default function HomePage() {
       }).catch(function() {});
     });
 
-    // Populate "Templates" tab with marketplace data
-    fetchTemplates().then(function(listings) {
+    // Populate "Templates" tab with curated templates
+    var HOME_TEMPLATES = [];
+    fetch('/api/templates/curated?featured=true&limit=8').then(function(res) { return res.json(); }).then(function(data) {
       if (cancelled) return;
       var templatesPanel = document.querySelector('.tab-panel[data-panel="templates"] .template-grid');
       if (!templatesPanel) return;
-      if (!listings || listings.length === 0) {
+      HOME_TEMPLATES = data.templates || [];
+      if (HOME_TEMPLATES.length === 0) {
         templatesPanel.innerHTML = '<div style="padding:24px;text-align:center;color:var(--fg-muted);font-size:13px">No templates available</div>';
         return;
       }
       var html = '';
-      var display = listings.slice(0, 4);
-      display.forEach(function(t) {
-        var grad = t.gradient || generateGradient(t.id);
-        html += '<div class="template-card">';
-        html += '<div class="template-preview"><div class="template-preview-inner" style="background:' + grad + '"></div></div>';
-        html += '<div class="template-info"><div class="template-name">' + escapeHtml(t.title || '') + '</div>';
-        html += '<div class="template-desc">' + escapeHtml(t.description || '') + '</div></div></div>';
+      HOME_TEMPLATES.slice(0, 8).forEach(function(t) {
+        html += '<div class="template-card" data-template-id="' + t.id + '" style="cursor:pointer">';
+        if (t.thumbnail) {
+          html += '<div class="template-preview"><img src="' + t.thumbnail + '" class="card-screenshot" loading="lazy" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'" />';
+          html += '<div class="template-preview-inner" style="background:' + (t.gradient || generateGradient(t.id)) + ';display:none"></div></div>';
+        } else {
+          html += '<div class="template-preview"><div class="template-preview-inner" style="background:' + (t.gradient || generateGradient(t.id)) + '"></div></div>';
+        }
+        html += '<div class="template-info"><div class="template-name">' + escapeHtml(t.name || '') + '</div>';
+        html += '<div class="template-desc">' + escapeHtml(t.desc || '') + '</div></div></div>';
       });
       templatesPanel.innerHTML = html;
+
+      // Click handler for template cards
+      templatesPanel.addEventListener('click', function(e) {
+        var card = (e.target as HTMLElement).closest('.template-card');
+        if (!card) return;
+        var templateId = card.getAttribute('data-template-id');
+        var template = HOME_TEMPLATES.find(function(t) { return t.id === templateId; });
+        if (template && window.__templatePreviewModal) {
+          window.__templatePreviewModal.open(template);
+        }
+      });
     }).catch(function() {});
+
+    // Wire "Browse all" button
+    var browseAllBtn = document.getElementById('browseAllBtn');
+    if (browseAllBtn) {
+      browseAllBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        sessionStorage.setItem('argus-resources-tab', 'templates');
+        window.location.href = '/resources';
+      });
+    }
 
     return () => { cancelled = true; removeWsListener(); };
   }, []);
