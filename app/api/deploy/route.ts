@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { checkRateLimit } from '@/lib/ratelimit';
-import { getUserSubscriptionGate } from '@/lib/subscription/gate';
+import { getWorkspaceSubscriptionGate } from '@/lib/subscription/gate';
 
 interface FileEntry {
   path: string;
@@ -28,15 +28,6 @@ export async function POST(request: Request) {
 
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Subscription gate: only paid users can deploy
-    const gate = await getUserSubscriptionGate(user.id);
-    if (!gate.canDeploy) {
-      return NextResponse.json(
-        { error: 'Deploy is available on Pro and above. Upgrade to deploy your builds.', code: 'DEPLOY_GATED' },
-        { status: 403 }
-      );
     }
 
     // Rate limit: 3 deploys per hour per user
@@ -69,12 +60,21 @@ export async function POST(request: Request) {
     // Verify project access
     const { data: project } = await supabase
       .from('projects')
-      .select('id, name, created_by')
+      .select('id, name, created_by, team_id')
       .eq('id', projectId)
       .single();
 
     if (!project) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+    }
+
+    // Subscription gate: only paid users can deploy (workspace-scoped)
+    const gate = await getWorkspaceSubscriptionGate(user.id, project.team_id ?? null);
+    if (!gate.canDeploy) {
+      return NextResponse.json(
+        { error: 'Deploy is available on Pro and above. Upgrade to deploy your builds.', code: 'DEPLOY_GATED' },
+        { status: 403 }
+      );
     }
 
     const VERCEL_TOKEN = process.env.VERCEL_TOKEN;

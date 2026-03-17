@@ -3,7 +3,7 @@
 
 import { useEffect } from 'react';
 import WorkspaceDropdown from './WorkspaceDropdown';
-import { fetchCurrentUser, fetchRecents, fetchSubscription, escapeHtml } from './workspace-api';
+import { fetchCurrentUser, fetchRecents, fetchSubscription, invalidateSubscriptionCache, escapeHtml } from './workspace-api';
 import { getActiveWorkspace, onWorkspaceChange } from './workspace-active';
 import { useUser } from '@/components/providers/UserProvider';
 
@@ -52,6 +52,34 @@ export default function WorkspaceSidebar() {
         ? escapeHtml(sidebarUser.name) + '\'s Workspace'
         : escapeHtml(ws.name);
       title.innerHTML = text + chevronSvg;
+
+      // Re-fetch subscription for the new workspace
+      invalidateSubscriptionCache();
+      fetchSubscription().then(function(sub) {
+        if (cancelled) return;
+        sidebarTier = sub.tier || 'free';
+        var btnLabel = document.querySelector('#upgradeProBtn > div > div:first-child');
+        var btnDesc = document.querySelector('#upgradeProBtn > div > .desc');
+        if (!btnLabel || !btnDesc) return;
+        // Reset to defaults first
+        btnLabel.textContent = 'Upgrade to Pro';
+        btnDesc.textContent = 'Unlock all features';
+        // Remove any existing dot
+        var existingDot = document.querySelector('#upgradeProBtn .plan-active-dot');
+        if (existingDot) existingDot.remove();
+
+        if (sidebarTier === 'pro') {
+          btnLabel.textContent = 'Upgrade to Team';
+          btnDesc.textContent = 'Add collaboration';
+        } else if (sidebarTier === 'team' || sidebarTier === 'enterprise') {
+          btnLabel.textContent = 'Manage Subscription';
+          btnDesc.textContent = sidebarTier.charAt(0).toUpperCase() + sidebarTier.slice(1) + ' plan active';
+          var dot = document.createElement('span');
+          dot.className = 'plan-active-dot';
+          var btn = document.getElementById('upgradeProBtn');
+          if (btn) btn.appendChild(dot);
+        }
+      }).catch(function() {});
     });
 
     // Fetch recently viewed projects

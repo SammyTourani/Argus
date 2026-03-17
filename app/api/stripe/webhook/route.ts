@@ -3,6 +3,7 @@ import { getStripe } from '@/lib/stripe/config';
 import Stripe from 'stripe';
 import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { sendSubscriptionConfirmed, sendSubscriptionCanceled } from '@/lib/email';
+import { TIER_CREDITS } from '@/lib/subscription/gate';
 
 function getSupabaseAdmin() {
   return createServiceClient(
@@ -53,13 +54,28 @@ export async function POST(request: Request) {
     case 'checkout.session.completed': {
       const session = event.data.object as Stripe.Checkout.Session;
       const userId = session.metadata?.supabase_user_id;
-      if (userId) {
-        const isTeam = session.metadata?.plan === 'team';
-        const creditAllocation = isTeam ? 500 : 300;
-        const nextReset = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString();
+      const teamId = session.metadata?.team_id;
+      const plan = session.metadata?.plan ?? 'pro';
+      const tier = plan === 'team' ? 'team' : 'pro';
+      const creditAllocation = TIER_CREDITS[tier as keyof typeof TIER_CREDITS] ?? 300;
+      const nextReset = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString();
 
+      if (teamId) {
+        // ── Team workspace subscription ──────────────────────────────────
+        await supabaseAdmin.from('teams').update({
+          plan: tier,
+          subscription_status: 'active',
+          stripe_customer_id: session.customer as string,
+          stripe_subscription_id: session.subscription as string,
+          credits_remaining: creditAllocation,
+          credits_total: creditAllocation,
+          credits_reset_at: nextReset,
+          updated_at: new Date().toISOString(),
+        }).eq('id', teamId);
+      } else if (userId) {
+        // ── Personal workspace subscription ──────────────────────────────
         await supabaseAdmin.from('profiles').update({
-          subscription_status: isTeam ? 'team' : 'pro',
+          subscription_status: tier,
           stripe_customer_id: session.customer as string,
           subscription_id: session.subscription as string,
           credits_remaining: creditAllocation,
@@ -67,36 +83,64 @@ export async function POST(request: Request) {
           credits_reset_at: nextReset,
           updated_at: new Date().toISOString(),
         }).eq('id', userId);
+      }
 
-        // Send subscription confirmed email
-        try {
+      // Send subscription confirmed email
+      try {
+        if (userId) {
           const { data: profile } = await supabaseAdmin
             .from('profiles')
             .select('email, full_name')
             .eq('id', userId)
             .single();
           if (profile?.email) {
-            await sendSubscriptionConfirmed(profile.email, profile.full_name);
+            await sendSubscriptionConfirmed(profile.email, profile.full_name ?? undefined);
           }
-        } catch (e) { console.error('[webhook] Failed to send subscription email:', e); }
-      }
+        }
+      } catch (e) { console.error('[webhook] Failed to send subscription email:', e); }
       break;
     }
 
     case 'customer.subscription.deleted': {
       const subscription = event.data.object as Stripe.Subscription;
       const customerId = subscription.customer as string;
+
+      // Dual-lookup scoped by subscription ID to avoid cross-contamination
+      const subId = subscription.id;
+
+      const { data: team } = await supabaseAdmin
+        .from('teams')
+        .select('id')
+        .eq('stripe_customer_id', customerId)
+        .eq('stripe_subscription_id', subId)
+        .single();
+
       const { data: profile } = await supabaseAdmin
         .from('profiles')
         .select('id, email, full_name')
         .eq('stripe_customer_id', customerId)
+        .eq('subscription_id', subId)
         .single();
+
+      if (team) {
+        // Team subscription cancelled
+        await supabaseAdmin.from('teams').update({
+          plan: 'free',
+          subscription_status: 'cancelled',
+          stripe_subscription_id: null,
+          credits_total: TIER_CREDITS.free,
+          credits_remaining: TIER_CREDITS.free,
+          updated_at: new Date().toISOString(),
+        }).eq('id', team.id);
+      }
+
       if (profile) {
+        // Personal subscription cancelled
         await supabaseAdmin.from('profiles').update({
           subscription_status: 'free',
           subscription_id: null,
-          credits_total: 30,
-          credits_remaining: 30, // Reset to free tier allocation
+          credits_total: TIER_CREDITS.free,
+          credits_remaining: TIER_CREDITS.free,
           updated_at: new Date().toISOString(),
         }).eq('id', profile.id);
 
@@ -118,25 +162,49 @@ export async function POST(request: Request) {
     case 'customer.subscription.updated': {
       const subscription = event.data.object as Stripe.Subscription;
       const customerId = subscription.customer as string;
+      const subId = subscription.id;
       const eventTime = new Date(event.created * 1000).toISOString();
 
-      const { data: profile } = await supabaseAdmin
+      // Dual-lookup scoped by subscription ID
+      const { data: updTeam } = await supabaseAdmin
+        .from('teams')
+        .select('id, updated_at, plan')
+        .eq('stripe_customer_id', customerId)
+        .eq('stripe_subscription_id', subId)
+        .single();
+
+      const { data: updProfile } = await supabaseAdmin
         .from('profiles')
         .select('id, updated_at, subscription_status')
         .eq('stripe_customer_id', customerId)
+        .eq('subscription_id', subId)
         .single();
 
-      if (profile) {
-        // Guard against out-of-order events: only apply if this event is newer
-        if (!profile.updated_at || eventTime > profile.updated_at) {
-          // Preserve existing tier when active; downgrade to free when inactive
+      if (updTeam) {
+        if (!updTeam.updated_at || eventTime > updTeam.updated_at) {
+          const teamTier = subscription.status === 'active' ? updTeam.plan : 'free';
+          const teamCredits = TIER_CREDITS[teamTier as keyof typeof TIER_CREDITS] ?? TIER_CREDITS.free;
+          await supabaseAdmin.from('teams').update({
+            plan: teamTier,
+            subscription_status: subscription.status === 'active' ? 'active' : 'cancelled',
+            // Sync credits to match the current tier
+            credits_total: teamCredits,
+            updated_at: eventTime,
+          }).eq('id', updTeam.id);
+        }
+      }
+
+      if (updProfile) {
+        if (!updProfile.updated_at || eventTime > updProfile.updated_at) {
           const newStatus = subscription.status === 'active'
-            ? (profile.subscription_status || 'pro')
+            ? (updProfile.subscription_status || 'pro')
             : 'free';
+          const profileCredits = TIER_CREDITS[newStatus as keyof typeof TIER_CREDITS] ?? TIER_CREDITS.free;
           await supabaseAdmin.from('profiles').update({
             subscription_status: newStatus,
+            credits_total: profileCredits,
             updated_at: eventTime,
-          }).eq('id', profile.id);
+          }).eq('id', updProfile.id);
         }
       }
       break;

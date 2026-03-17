@@ -3,7 +3,8 @@
 
 import { useEffect } from 'react';
 import { MODELS as REAL_MODELS } from '@/lib/models';
-import { fetchSubscription, createCheckoutSession, fetchApiKeys, addApiKey, deleteApiKey, escapeHtml } from './workspace-api';
+import { fetchSubscription, createCheckoutSession, fetchApiKeys, addApiKey, deleteApiKey, invalidateSubscriptionCache, escapeHtml } from './workspace-api';
+import { onWorkspaceChange } from './workspace-active';
 
 const MODELS = [
   { id:'auto', name:'Auto', provider:'Argus', desc:'Automatically selects the best model for each task', tags:[], cost:'', color:'#ff4801', badge:null, badgeColor:'', enabled:true, alwaysOn:true },
@@ -160,11 +161,62 @@ export default function ModelsTab() {
       });
     });
 
+    // Re-fetch subscription on workspace change
+    var removeWsListener = onWorkspaceChange(function() {
+      invalidateSubscriptionCache();
+      fetchSubscription().then(function(sub) {
+        if (cancelled) return;
+        modelsTier = sub.tier || 'free';
+        // Re-apply current plan highlighting
+        var cards = document.querySelectorAll('.sub-card');
+        cards.forEach(function(card) { card.classList.remove('current-plan'); });
+        var currentBadges = document.querySelectorAll('.current-badge');
+        currentBadges.forEach(function(b) { b.remove(); });
+        // Reset all CTAs
+        cards.forEach(function(card) {
+          var cta = card.querySelector('.sub-cta');
+          if (cta) { cta.classList.remove('disabled'); cta.removeAttribute('disabled'); }
+        });
+        var freeCard = document.querySelector('.sub-card.stagger-2');
+        var proCard = document.querySelector('.sub-card.popular');
+        var freeCta = freeCard && freeCard.querySelector('.sub-cta');
+        var proCta = proCard && proCard.querySelector('.sub-cta');
+        if (freeCta) freeCta.textContent = 'Start for free';
+        if (proCta) proCta.textContent = 'Go Pro';
+
+        var targetCard = null;
+        if (sub.tier === 'pro') targetCard = proCard;
+        else if (sub.tier === 'team') targetCard = document.querySelector('.sub-card.stagger-4');
+        else targetCard = freeCard;
+        if (targetCard) {
+          targetCard.classList.add('current-plan');
+          var badge = document.createElement('span');
+          badge.className = 'current-badge';
+          badge.textContent = 'Current Plan';
+          targetCard.insertBefore(badge, targetCard.firstChild);
+        }
+        if (sub.tier !== 'free' && proCta) {
+          proCta.textContent = 'Current Plan';
+          proCta.classList.add('disabled');
+          proCta.setAttribute('disabled', 'true');
+        }
+        var tierOrder = { free: 0, pro: 1, team: 2, enterprise: 2 };
+        var currentOrder = tierOrder[sub.tier] || 0;
+        cards.forEach(function(card, i) {
+          if (i < currentOrder && !card.classList.contains('current-plan')) {
+            var cta = card.querySelector('.sub-cta');
+            if (cta) { cta.textContent = 'Included in your plan'; cta.classList.add('disabled'); cta.setAttribute('disabled', 'true'); }
+          }
+        });
+      }).catch(function() {});
+    });
+
     return () => {
       cancelled = true;
       searchInput.removeEventListener('input', inputHandler);
       addModelBtn.removeEventListener('click', addModelHandler);
       if (goProBtn) goProBtn.removeEventListener('click', handleGoPro);
+      removeWsListener();
     };
   }, []);
 

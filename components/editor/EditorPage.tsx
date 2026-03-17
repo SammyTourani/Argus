@@ -176,8 +176,37 @@ export default function EditorPage({ projectId, buildId }: EditorPageProps) {
         if ((data as any)?.github_repo_url) setRepoUrl((data as any).github_repo_url);
       });
 
-    const history = loadConversation(projectId, buildId);
-    if (history.length > 0) setChatMessages(history);
+    // Load chat: DB first, localStorage fallback
+    if (buildId && buildId !== 'new' && buildId !== 'latest') {
+      (async () => {
+        try {
+          const res = await fetch(`/api/projects/${projectId}/builds/${buildId}/messages`);
+          if (res.ok) {
+            const { messages } = await res.json();
+            if (messages && messages.length > 0) {
+              const roleMap: Record<string, EditorChatMessage['type']> = {
+                assistant: 'ai',
+                user: 'user',
+                system: 'system',
+              };
+              const mapped: EditorChatMessage[] = messages.map((m: any) => ({
+                content: m.content,
+                type: roleMap[m.role] || 'system',
+                timestamp: new Date(m.created_at),
+                metadata: m.file_changes?.length ? { appliedFiles: m.file_changes } : undefined,
+              }));
+              setChatMessages(mapped);
+              return;
+            }
+          }
+        } catch { /* fall through to localStorage */ }
+        const history = loadConversation(projectId, buildId);
+        if (history.length > 0) setChatMessages(history);
+      })();
+    } else {
+      const history = loadConversation(projectId, buildId);
+      if (history.length > 0) setChatMessages(history);
+    }
   }, [projectId, buildId]);
 
   /* ─── Persist conversation ─── */
@@ -213,11 +242,55 @@ export default function EditorPage({ projectId, buildId }: EditorPageProps) {
     }
   }, [addChatMessage]);
 
-  /* ─── Sandbox init + cleanup ─── */
+  /* ─── Sandbox init + restore + cleanup ─── */
   useEffect(() => {
+    let cancelled = false;
+
+    const initSandbox = async () => {
+      // 1. Create fresh sandbox
+      const sandbox = await createSandbox();
+      if (cancelled || !sandbox) return sandbox;
+
+      // 2. If existing build, restore files from DB
+      if (buildId && buildId !== 'new' && buildId !== 'latest') {
+        try {
+          const res = await fetch(`/api/projects/${projectId}/builds/${buildId}`);
+          if (res.ok) {
+            const { build } = await res.json();
+            const snapshot = build?.files_json;
+            // Parse both formats: { files: [...] } or flat array
+            const files: Array<{ path: string; content: string }> = Array.isArray(snapshot)
+              ? snapshot
+              : Array.isArray(snapshot?.files)
+              ? snapshot.files
+              : [];
+
+            if (files.length > 0 && !cancelled) {
+              addChatMessage('Restoring your previous build...', 'system');
+              const codePayload = files
+                .map((f: { path: string; content: string }) => `<file path="${f.path}">${f.content}</file>`)
+                .join('\n');
+              await applyGeneratedCode(codePayload, false);
+              if (!cancelled) {
+                addChatMessage('Build restored!', 'system');
+              }
+            }
+          }
+        } catch {
+          if (!cancelled) {
+            addChatMessage('Starting fresh sandbox.', 'system');
+          }
+        }
+      }
+
+      return sandbox;
+    };
+
     // Store the promise so auto-start can await sandbox readiness
-    sandboxPromiseRef.current = createSandbox();
+    sandboxPromiseRef.current = initSandbox();
+
     return () => {
+      cancelled = true;
       const id = sandboxIdRef.current;
       if (id) {
         fetch('/api/kill-sandbox', {
@@ -338,6 +411,23 @@ ${storedInstructions ? `\nADDITIONAL CONTEXT: ${storedInstructions}` : ''}`;
           imageUrls: scrapeData.imageUrls,
           branding: scrapeData.branding,
         });
+
+        // Save clone screenshot as build + project thumbnail
+        if (scrapeData.screenshot && buildId && buildId !== 'new' && buildId !== 'latest') {
+          const thumbnailUrl = scrapeData.screenshot;
+          // Update build thumbnail
+          fetch(`/api/projects/${projectId}/builds/${buildId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ thumbnail_url: thumbnailUrl }),
+          }).catch(() => {});
+          // Also update project thumbnail directly (trigger won't fire since status is already 'complete')
+          fetch(`/api/projects/${projectId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ thumbnail_url: thumbnailUrl }),
+          }).catch(() => {});
+        }
       } catch (err: any) {
         if (cancelled) return;
         addChatMessage(`Failed to clone website: ${err.message}`, 'error');
@@ -363,6 +453,8 @@ ${storedInstructions ? `\nADDITIONAL CONTEXT: ${storedInstructions}` : ''}`;
             response: code,
             isEdit,
             sandboxId: sandboxData?.sandboxId || sandboxIdRef.current,
+            projectId,
+            buildId,
           }),
         });
 
@@ -483,6 +575,7 @@ ${storedInstructions ? `\nADDITIONAL CONTEXT: ${storedInstructions}` : ''}`;
           body: JSON.stringify({
             prompt,
             model: selectedModelId,
+            projectId,
             chatMode: 'build',
             lockedFiles,
             designScheme: designScheme.getPromptInjection(),
@@ -644,6 +737,15 @@ ${storedInstructions ? `\nADDITIONAL CONTEXT: ${storedInstructions}` : ''}`;
           setUrlScreenshot(null);
           setIsPreparingDesign(false);
           setScreenshotError(null);
+
+          // Capture screenshot for non-clone builds (clone screenshots saved separately)
+          if (!urlScreenshot && sandboxData?.url && buildId && buildId !== 'new' && buildId !== 'latest') {
+            fetch('/api/capture-screenshot', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ url: sandboxData.url, projectId, buildId }),
+            }).catch(() => {}); // Fire-and-forget
+          }
         }
       } catch (err: any) {
         addChatMessage(`Error: ${err.message}`, 'error');
@@ -917,7 +1019,7 @@ ${storedInstructions ? `\nADDITIONAL CONTEXT: ${storedInstructions}` : ''}`;
         <KeyboardShortcuts isOpen={keyboardShortcutsOpen} onClose={() => setKeyboardShortcutsOpen(false)} />
         <BuildStatusBar status={buildStatus} message={buildStatusMessage} filesChanged={buildFilesChanged} duration={buildDuration} />
         {showDeployBanner && deployUrl && <DeploySuccessBanner url={deployUrl} onDismiss={() => setShowDeployBanner(false)} />}
-        {showUpgrade && <UpgradePrompt feature="more builds" currentTier="free" onDismiss={() => setShowUpgrade(false)} />}
+        {showUpgrade && <UpgradePrompt feature="more builds" currentTier={subscription.tier} onDismiss={() => setShowUpgrade(false)} />}
         <DeployHistory projectId={projectId} isOpen={deployHistoryOpen} onClose={() => setDeployHistoryOpen(false)} />
       </div>
     </>

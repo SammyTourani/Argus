@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { X, Zap, Lock } from 'lucide-react';
 import type { SubscriptionTier } from '@/lib/subscription/gate';
 import { cn } from '@/lib/utils';
+import { getActiveTeamId } from '@/lib/workspace/active-workspace';
 
 interface UpgradePromptProps {
   feature: string; // e.g., "deploy", "premium models", "more builds"
@@ -65,7 +66,7 @@ export function UpgradePrompt({
       const res = await fetch('/api/stripe/create-checkout-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: 'pro' }),
+        body: JSON.stringify({ plan: 'pro', ...(getActiveTeamId() ? { team_id: getActiveTeamId() } : {}) }),
       });
       if (res.status === 401) {
         window.location.href = '/sign-up';

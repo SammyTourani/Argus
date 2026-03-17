@@ -3,6 +3,7 @@
 // All functions handle errors gracefully and return null on auth failure.
 
 import { createClient } from '@/lib/supabase/client';
+import { getActiveTeamId } from '@/lib/workspace/active-workspace';
 
 // ===== Types =====
 
@@ -26,6 +27,7 @@ export interface ProjectBuildSummary {
   id: string;
   status: string;
   preview_url: string | null;
+  thumbnail_url: string | null;
   version_number: number;
   model: string | null;
   created_at: string;
@@ -51,6 +53,7 @@ export interface ApiProject {
   created_at: string;
   default_model: string | null;
   default_style: string | null;
+  thumbnail_url: string | null;
   latest_build?: ProjectBuildSummary | null;
   project_collaborators?: ProjectCollaboratorSummary[];
 }
@@ -66,6 +69,7 @@ export interface DisplayProject {
   starred: boolean;
   shared: boolean;
   gradient: string;
+  thumbnailUrl: string | null;
 }
 
 export interface SearchResult {
@@ -79,8 +83,8 @@ export interface SearchResult {
 
 export interface SubscriptionInfo {
   tier: string;
-  buildsRemaining: number;
-  maxBuilds: number;
+  buildsRemaining: number | null;
+  maxBuilds: number | null;
   canBuild: boolean;
   canDeploy: boolean;
   canUseAllModels: boolean;
@@ -132,7 +136,7 @@ export interface CreateBuildData {
 
 // ===== CACHING =====
 const _projectsCacheMap = new Map<string, CacheEntry<ApiProject[]>>();
-let _subscriptionCache: CacheEntry<SubscriptionInfo> = { data: null, ts: 0 };
+const _subscriptionCacheMap = new Map<string, CacheEntry<SubscriptionInfo>>();
 let _userCache: CacheEntry<WorkspaceUser> = { data: null, ts: 0 };
 const CACHE_TTL = 30000; // 30 seconds
 
@@ -258,8 +262,8 @@ export async function searchWeb(query: string): Promise<SearchResult[]> {
 // ===== SUBSCRIPTION =====
 const DEFAULT_FREE_SUB: SubscriptionInfo = {
   tier: 'free',
-  buildsRemaining: 3,
-  maxBuilds: 3,
+  buildsRemaining: null,
+  maxBuilds: null,
   canBuild: true,
   canDeploy: false,
   canUseAllModels: false,
@@ -268,25 +272,39 @@ const DEFAULT_FREE_SUB: SubscriptionInfo = {
   creditsTotal: 30,
 };
 
-export async function fetchSubscription(): Promise<SubscriptionInfo> {
-  if (isFresh(_subscriptionCache)) return _subscriptionCache.data;
+/** Fetch subscription for the active workspace (or a specific teamId). */
+export async function fetchSubscription(teamId?: string | null): Promise<SubscriptionInfo> {
+  // Resolve workspace: use passed teamId, or read active workspace
+  const resolvedTeamId = teamId !== undefined ? teamId : getActiveTeamId();
+  const cacheKey = resolvedTeamId || 'personal';
+  const cached = _subscriptionCacheMap.get(cacheKey);
+  if (cached && isFresh(cached)) return cached.data;
   try {
-    const res = await fetch('/api/user/subscription');
+    const url = resolvedTeamId
+      ? `/api/user/subscription?team_id=${resolvedTeamId}`
+      : '/api/user/subscription';
+    const res = await fetch(url);
     if (!res.ok) return DEFAULT_FREE_SUB;
     const data: SubscriptionInfo = await res.json();
-    _subscriptionCache = { data, ts: Date.now() };
+    _subscriptionCacheMap.set(cacheKey, { data, ts: Date.now() });
     return data;
   } catch {
     return DEFAULT_FREE_SUB;
   }
 }
 
+/** Invalidate the subscription cache (call on workspace switch). */
+export function invalidateSubscriptionCache(): void {
+  _subscriptionCacheMap.clear();
+}
+
 // ===== STRIPE =====
-export async function createCheckoutSession(plan?: string): Promise<string | null> {
+export async function createCheckoutSession(plan?: string, teamId?: string | null): Promise<string | null> {
+  const resolvedTeamId = teamId !== undefined ? teamId : getActiveTeamId();
   const res = await fetch('/api/stripe/create-checkout-session', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ plan: plan || 'pro' }),
+    body: JSON.stringify({ plan: plan || 'pro', ...(resolvedTeamId ? { team_id: resolvedTeamId } : {}) }),
   });
   if (res.status === 401) {
     window.location.href = '/sign-in';
@@ -572,5 +590,6 @@ export function mapProjectToDisplay(apiProject: ApiProject, currentUser: Workspa
     starred: !!apiProject.is_starred,
     shared: !!shared,
     gradient: generateGradient(apiProject.id),
+    thumbnailUrl: apiProject.thumbnail_url ?? apiProject.latest_build?.thumbnail_url ?? null,
   };
 }

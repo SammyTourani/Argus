@@ -210,3 +210,165 @@ export async function incrementBuildCount(userId: string): Promise<void> {
   const { error } = await supabase.rpc('increment_build_count', { p_user_id: userId });
   if (error) console.error('[incrementBuildCount] RPC error:', error);
 }
+
+// ─── Workspace-Scoped Subscription ─────────────────────────────────────────
+
+/**
+ * Returns a subscription gate for the active workspace.
+ * - If teamId is null → personal workspace, delegates to getUserSubscriptionGate.
+ * - If teamId is a UUID → reads from teams table (pooled credits per workspace).
+ *
+ * Verifies the user is a member of the team before returning team subscription.
+ */
+export async function getWorkspaceSubscriptionGate(
+  userId: string,
+  teamId: string | null
+): Promise<SubscriptionGate> {
+  // Personal workspace: use user-level gate (no behavior change)
+  if (!teamId) {
+    return getUserSubscriptionGate(userId);
+  }
+
+  const supabase = getSupabaseAdmin();
+
+  // Verify user is a member of the team
+  const { data: membership } = await supabase
+    .from('team_members')
+    .select('role')
+    .eq('team_id', teamId)
+    .eq('user_id', userId)
+    .single();
+
+  if (!membership) {
+    // Not a team member — fall back to free with no access
+    return {
+      tier: 'free',
+      canBuild: false,
+      canDeploy: false,
+      canUseAllModels: false,
+      canCollaborate: false,
+      buildsRemaining: 0,
+      maxBuildsPerMonth: null,
+      creditsRemaining: 0,
+      creditsTotal: 30,
+    };
+  }
+
+  // Fetch team subscription data
+  const { data: team, error } = await supabase
+    .from('teams')
+    .select('plan, subscription_status, credits_remaining, credits_total, credits_reset_at, builds_this_month, builds_reset_at')
+    .eq('id', teamId)
+    .single();
+
+  if (error || !team) {
+    return {
+      tier: 'free',
+      canBuild: false,
+      canDeploy: false,
+      canUseAllModels: false,
+      canCollaborate: false,
+      buildsRemaining: 0,
+      maxBuildsPerMonth: null,
+      creditsRemaining: 0,
+      creditsTotal: 30,
+    };
+  }
+
+  // Determine tier: plan is the tier, subscription_status controls whether it's active
+  const tier: SubscriptionTier =
+    team.subscription_status === 'active' &&
+    (team.plan === 'pro' || team.plan === 'team' || team.plan === 'enterprise')
+      ? (team.plan as SubscriptionTier)
+      : 'free';
+
+  const config = TIER_CONFIG[tier];
+
+  let buildsThisMonth: number = team.builds_this_month ?? 0;
+  let creditsRemaining: number = team.credits_remaining ?? TIER_CREDITS[tier];
+  let creditsTotal: number = team.credits_total ?? TIER_CREDITS[tier];
+
+  // Auto-reset credits if the billing period has expired
+  const now = new Date();
+  const creditsResetAt = team.credits_reset_at ?? team.builds_reset_at;
+
+  if (creditsResetAt && new Date(creditsResetAt) <= now) {
+    const nextReset = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
+    buildsThisMonth = 0;
+    creditsTotal = TIER_CREDITS[tier];
+    creditsRemaining = creditsTotal;
+
+    // Persist the reset (fire-and-forget)
+    supabase
+      .from('teams')
+      .update({
+        builds_this_month: 0,
+        builds_reset_at: nextReset,
+        credits_remaining: creditsRemaining,
+        credits_total: creditsTotal,
+        credits_reset_at: nextReset,
+        updated_at: now.toISOString(),
+      })
+      .eq('id', teamId)
+      .then(() => { /* best effort */ });
+  }
+
+  // Initialize reset date if missing
+  if (!team.builds_reset_at) {
+    const nextReset = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
+    supabase
+      .from('teams')
+      .update({ builds_reset_at: nextReset, credits_reset_at: nextReset })
+      .eq('id', teamId)
+      .then(() => { /* best effort */ });
+  }
+
+  const buildsRemaining = config.maxBuildsPerMonth === null
+    ? null
+    : Math.max(0, config.maxBuildsPerMonth - buildsThisMonth);
+
+  const canBuild = config.maxBuildsPerMonth === null || buildsThisMonth < config.maxBuildsPerMonth;
+
+  return {
+    tier,
+    canBuild,
+    canDeploy: config.canDeploy,
+    canUseAllModels: config.canUseAllModels,
+    canCollaborate: config.canCollaborate,
+    buildsRemaining,
+    maxBuildsPerMonth: config.maxBuildsPerMonth,
+    creditsRemaining,
+    creditsTotal,
+  };
+}
+
+/**
+ * Deduct credits from the active workspace.
+ * Routes to user-level or team-level deduction based on teamId.
+ */
+export async function deductWorkspaceCredits(
+  userId: string,
+  teamId: string | null,
+  amount: number
+): Promise<{ success: boolean; remaining: number }> {
+  if (!teamId) {
+    return deductCredits(userId, amount);
+  }
+
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase.rpc('deduct_team_credits', {
+    p_team_id: teamId,
+    p_amount: amount,
+  });
+
+  if (error) {
+    console.error('[deductWorkspaceCredits] RPC error:', error);
+    return { success: false, remaining: 0 };
+  }
+
+  const result = Array.isArray(data) ? data[0] : data;
+  return {
+    success: result?.success ?? false,
+    remaining: result?.remaining ?? 0,
+  };
+}

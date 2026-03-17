@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { SubscriptionTier } from '@/lib/subscription/gate';
+import { getActiveTeamId, onWorkspaceChange } from '@/lib/workspace/active-workspace';
 
 interface SubscriptionState {
   tier: SubscriptionTier;
@@ -15,6 +16,7 @@ interface SubscriptionState {
   creditsTotal: number;
   loading: boolean;
   error: string | null;
+  teamId: string | null;
   openUpgrade: (plan?: 'pro' | 'team') => void;
   refresh: () => Promise<void>;
 }
@@ -31,14 +33,20 @@ export function useSubscription(): SubscriptionState {
   const [creditsTotal, setCreditsTotal] = useState(30);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [teamId, setTeamId] = useState<string | null>(null);
 
   const fetchSubscription = useCallback(async () => {
     try {
       setError(null);
-      const res = await fetch('/api/user/subscription');
+      setLoading(true);
+      const currentTeamId = getActiveTeamId();
+      setTeamId(currentTeamId);
+      const url = currentTeamId
+        ? `/api/user/subscription?team_id=${currentTeamId}`
+        : '/api/user/subscription';
+      const res = await fetch(url);
       if (!res.ok) {
         if (res.status === 401) {
-          // Not logged in — keep defaults
           setLoading(false);
           return;
         }
@@ -63,17 +71,24 @@ export function useSubscription(): SubscriptionState {
 
   useEffect(() => {
     fetchSubscription();
+
+    // Re-fetch when workspace changes
+    const removeListener = onWorkspaceChange(() => {
+      fetchSubscription();
+    });
+
+    return removeListener;
   }, [fetchSubscription]);
 
   const openUpgrade = useCallback(async (plan: 'pro' | 'team' = 'pro') => {
     try {
+      const currentTeamId = getActiveTeamId();
       const res = await fetch('/api/stripe/create-checkout-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan }),
+        body: JSON.stringify({ plan, ...(currentTeamId ? { team_id: currentTeamId } : {}) }),
       });
       if (!res.ok) {
-        // If not logged in, redirect to sign-up
         if (res.status === 401) {
           window.location.href = '/sign-up';
           return;
@@ -85,7 +100,6 @@ export function useSubscription(): SubscriptionState {
         window.location.href = url;
       }
     } catch {
-      // Fallback: redirect to account billing page
       window.location.href = '/account?billing=upgrade';
     }
   }, []);
@@ -102,6 +116,7 @@ export function useSubscription(): SubscriptionState {
     creditsTotal,
     loading,
     error,
+    teamId,
     openUpgrade,
     refresh: fetchSubscription,
   };

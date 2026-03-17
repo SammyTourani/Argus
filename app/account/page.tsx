@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/components/ui/Toast';
 import { MODELS as SHARED_MODELS } from '@/lib/models';
 import { useSubscription } from '@/hooks/use-subscription';
+import { getActiveTeamId } from '@/lib/workspace/active-workspace';
 import DashboardShell from '@/components/layout/dashboard-shell';
 
 type Section = 'profile' | 'model' | 'billing' | 'notifications';
@@ -95,7 +96,7 @@ function AccountPageInner() {
     try {
       const res = await fetch('/api/stripe/create-checkout-session', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: planName }),
+        body: JSON.stringify({ plan: planName, ...(getActiveTeamId() ? { team_id: getActiveTeamId() } : {}) }),
       });
       if (!res.ok) { const { error } = await res.json(); toast.error(error || 'Failed to start checkout.'); return; }
       const { url } = await res.json();
@@ -108,7 +109,9 @@ function AccountPageInner() {
   const handleManageBilling = async () => {
     setManagingBilling(true);
     try {
-      const res = await fetch('/api/stripe/billing-portal');
+      const teamId = getActiveTeamId();
+      const portalUrl = teamId ? `/api/stripe/billing-portal?team_id=${teamId}` : '/api/stripe/billing-portal';
+      const res = await fetch(portalUrl);
       if (!res.ok) { toast.error('Could not open billing portal.'); return; }
       const { url } = await res.json();
       if (url) window.location.href = url;

@@ -17,7 +17,7 @@ import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit, getClientIp } from '@/lib/ratelimit';
 import { checkTieredRateLimit, type RateLimitTier } from '@/lib/ratelimit-tiered';
 import { validatePrompt, validateModel } from '@/lib/validation';
-import { getUserSubscriptionGate, incrementBuildCount, deductCredits } from '@/lib/subscription/gate';
+import { getWorkspaceSubscriptionGate, incrementBuildCount, deductCredits, deductWorkspaceCredits } from '@/lib/subscription/gate';
 import { getModelCreditCost, isModelFreeAfterDepletion } from '@/lib/models';
 import { getSandbox } from '@/lib/sandbox/registry';
 import { getConversationState } from '@/lib/conversation/per-user-state';
@@ -83,8 +83,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // ── Resolve workspace context from projectId ────────────────────────────
+    const rawBody_peek = await request.clone().json().catch(() => ({}));
+    let wsTeamId: string | null = null;
+    if (rawBody_peek.projectId) {
+      const { data: proj } = await supabase
+        .from('projects').select('team_id').eq('id', rawBody_peek.projectId).single();
+      if (proj) wsTeamId = proj.team_id;
+    }
+
     // ── Subscription Gate ─────────────────────────────────────────────────────
-    const gate = await getUserSubscriptionGate(user.id);
+    const gate = await getWorkspaceSubscriptionGate(user.id, wsTeamId);
     if (!gate.canBuild) {
       return new Response(
         JSON.stringify({ error: 'Build limit reached. Upgrade to Pro for unlimited builds.', code: 'BUILD_LIMIT_REACHED' }),
@@ -162,7 +171,7 @@ export async function POST(request: NextRequest) {
         incrementBuildCount(user.id).catch(err => console.error('[generate] increment error:', err));
       } else {
         // Deduct credits atomically (also increments build count)
-        const deduction = await deductCredits(user.id, effectiveCreditCost);
+        const deduction = await deductWorkspaceCredits(user.id, wsTeamId, effectiveCreditCost);
         if (!deduction.success) {
           return new Response(
             JSON.stringify({
