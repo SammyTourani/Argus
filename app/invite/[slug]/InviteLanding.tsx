@@ -37,7 +37,7 @@ export default function InviteLanding({
   const signupUrl = `/sign-up?ref=${encodeURIComponent(referralCode)}`;
 
   return (
-    <div className="min-h-screen bg-[#080808] relative overflow-hidden">
+    <div className="min-h-screen bg-[var(--background-base,#080808)] relative overflow-hidden">
       {/* Ambient glow */}
       <GradientOrbs />
 
@@ -64,15 +64,7 @@ export default function InviteLanding({
             className="mb-16"
           >
             <Link href="/">
-              <span
-                style={{
-                  fontFamily: '"JetBrains Mono", monospace',
-                  fontSize: '18px',
-                  fontWeight: 700,
-                  color: '#FA4500',
-                  letterSpacing: '0.08em',
-                }}
-              >
+              <span className="font-mono text-label-large tracking-[0.08em] text-heat-100 font-bold">
                 ARGUS
               </span>
             </Link>
@@ -90,25 +82,14 @@ export default function InviteLanding({
               <img
                 src={referrerAvatarUrl}
                 alt={referrerName}
-                className="w-14 h-14 rounded-full mb-5 ring-2 ring-[#FA4500]/30"
+                className="w-14 h-14 rounded-full mb-5 ring-2 ring-heat-100/30"
               />
             ) : (
-              <div
-                className="w-14 h-14 rounded-full mb-5 flex items-center justify-center text-white text-xl font-bold ring-2 ring-[#FA4500]/30"
-                style={{ background: 'linear-gradient(135deg, #FA4500, #ff7038)' }}
-              >
+              <div className="w-14 h-14 rounded-full mb-5 flex items-center justify-center text-white text-xl font-bold ring-2 ring-heat-100/30 bg-gradient-to-br from-heat-100 to-[var(--heat-200,#ff6600)]">
                 {referrerInitial}
               </div>
             )}
-            <h1
-              className="text-white leading-tight"
-              style={{
-                fontFamily: '"JetBrains Mono", monospace',
-                fontSize: 'clamp(24px, 5vw, 32px)',
-                fontWeight: 800,
-                letterSpacing: '-0.02em',
-              }}
-            >
+            <h1 className="text-title-h4 sm:text-title-h3 font-mono text-white leading-tight">
               {firstName} invited you to try Argus
             </h1>
           </motion.div>
@@ -123,7 +104,7 @@ export default function InviteLanding({
           >
             <TextScramble
               phrases={VALUE_PHRASES}
-              className="text-white/50 text-base"
+              className="text-body-large text-white/50"
               speed={30}
               revealDelay={4000}
             />
@@ -137,18 +118,12 @@ export default function InviteLanding({
             variants={fadeInUp}
             className="mb-10 mx-auto max-w-sm"
           >
-            <div
-              className="rounded-xl px-6 py-4 text-center"
-              style={{
-                background: 'rgba(250, 69, 0, 0.06)',
-                border: '1px solid rgba(250, 69, 0, 0.15)',
-              }}
-            >
-              <p className="text-white/80 text-sm">
+            <div className="rounded-xl px-6 py-4 text-center bg-heat-4 border border-heat-100/15">
+              <p className="text-body-medium text-white/80">
                 Sign up and get{' '}
                 <span className="text-white font-semibold">40 credits</span>
               </p>
-              <p className="text-xs mt-1" style={{ color: '#FA4500' }}>
+              <p className="text-body-small text-heat-100 mt-1">
                 10 bonus from {firstName}&apos;s invite
               </p>
             </div>
@@ -164,18 +139,13 @@ export default function InviteLanding({
           >
             <Link
               href={signupUrl}
-              className="inline-block w-full max-w-xs text-center text-white font-semibold py-3.5 px-8 transition-all duration-150 active:scale-[0.97]"
-              style={{
-                borderRadius: '10px',
-                background: '#FA4500',
-                boxShadow: '0 1px 6px rgba(250, 69, 0, 0.25)',
-              }}
+              className="inline-block w-full max-w-xs text-center text-white text-label-medium font-semibold py-3.5 px-8 rounded-[10px] bg-heat-100 shadow-[0_1px_6px_rgba(250,69,0,0.25)] transition-all duration-150 active:scale-[0.97] hover:brightness-110"
             >
               Create free account
             </Link>
             <Link
               href="/"
-              className="text-white/40 text-sm hover:text-white/60 transition-colors duration-150"
+              className="text-body-small text-white/40 hover:text-white/60 transition-colors duration-150"
             >
               Learn more about Argus &rarr;
             </Link>

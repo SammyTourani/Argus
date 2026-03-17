@@ -89,30 +89,23 @@ export default async function InvitePage({
   // Invalid referral slug — show fallback
   if (!referrer) {
     return (
-      <div className="min-h-screen bg-[#080808] flex flex-col items-center justify-center text-center px-6">
-        <div
-          className="text-sm mb-4"
-          style={{ fontFamily: '"JetBrains Mono", monospace', color: '#FA4500' }}
-        >
+      <div className="min-h-screen bg-[var(--background-base,#080808)] flex flex-col items-center justify-center text-center px-6">
+        <div className="text-mono-medium text-heat-100 mb-4 tracking-wider">
           INVALID LINK
         </div>
-        <h1 className="text-3xl font-bold text-white mb-4">
+        <h1 className="text-title-h4 font-mono text-white mb-4">
           This referral link doesn&apos;t exist
         </h1>
-        <p className="text-white/50 mb-8 max-w-md">
+        <p className="text-body-medium text-white/50 mb-8 max-w-md">
           The link may have expired or is incorrect. You can still try Argus for free.
         </p>
         <Link
           href="/sign-up"
-          className="inline-block text-white font-semibold py-3 px-8 transition-all duration-150 active:scale-[0.98]"
-          style={{
-            borderRadius: '10px',
-            background: '#FA4500',
-          }}
+          className="inline-block text-white text-label-medium font-semibold py-3 px-8 rounded-[10px] bg-heat-100 transition-all duration-150 active:scale-[0.98] hover:brightness-110"
         >
           Create free account
         </Link>
-        <Link href="/" className="mt-6 text-white/40 text-sm hover:text-white/60 transition-colors">
+        <Link href="/" className="mt-6 text-body-small text-white/40 hover:text-white/60 transition-colors">
           &larr; Back to home
         </Link>
       </div>
