@@ -125,10 +125,12 @@ export default function SettingsPage() {
 
   /* ===== ACCOUNT SECTION: SAVE HANDLERS ===== */
   useEffect(() => {
+    var cleanups = [];
+
     // Save profile
     var saveProfileBtn = document.getElementById('settingsSaveProfile');
     if (saveProfileBtn) {
-      saveProfileBtn.addEventListener('click', function() {
+      var profileHandler = function() {
         var nameInput = document.getElementById('settingsProfileName');
         if (!nameInput) return;
         saveProfileBtn.textContent = 'Saving...';
@@ -138,18 +140,22 @@ export default function SettingsPage() {
           saveProfileBtn.textContent = '✓ Saved';
           setTimeout(function() { saveProfileBtn.textContent = 'Save profile'; saveProfileBtn.disabled = false; }, 2000);
         });
-      });
+      };
+      saveProfileBtn.addEventListener('click', profileHandler);
+      cleanups.push(function() { saveProfileBtn.removeEventListener('click', profileHandler); });
     }
 
     // Notification toggles
     document.querySelectorAll('.settings-notif-toggle').forEach(function(toggle) {
-      toggle.addEventListener('click', function() { toggle.classList.toggle('active'); });
+      var toggleHandler = function() { toggle.classList.toggle('active'); };
+      toggle.addEventListener('click', toggleHandler);
+      cleanups.push(function() { toggle.removeEventListener('click', toggleHandler); });
     });
 
     // Save notifications
     var saveNotifBtn = document.getElementById('settingsSaveNotifications');
     if (saveNotifBtn) {
-      saveNotifBtn.addEventListener('click', function() {
+      var notifHandler = function() {
         var prefs = {};
         ['notifyBuilds', 'notifyInvites', 'notifyMarketing'].forEach(function(key) {
           var el = document.getElementById('settings-' + key);
@@ -158,16 +164,20 @@ export default function SettingsPage() {
         try { localStorage.setItem('argus_notification_prefs', JSON.stringify(prefs)); } catch(e) {}
         saveNotifBtn.textContent = '✓ Saved';
         setTimeout(function() { saveNotifBtn.textContent = 'Save preferences'; }, 2000);
-      });
+      };
+      saveNotifBtn.addEventListener('click', notifHandler);
+      cleanups.push(function() { saveNotifBtn.removeEventListener('click', notifHandler); });
     }
 
     // Sign out
     var signOutBtn = document.getElementById('settingsSignOut');
     if (signOutBtn) {
-      signOutBtn.addEventListener('click', function() {
+      var signOutHandler = function() {
         var supabase = createClient();
         supabase.auth.signOut().then(function() { window.location.href = '/'; });
-      });
+      };
+      signOutBtn.addEventListener('click', signOutHandler);
+      cleanups.push(function() { signOutBtn.removeEventListener('click', signOutHandler); });
     }
 
     // Delete account
@@ -178,26 +188,30 @@ export default function SettingsPage() {
     var deleteAcctInput = document.getElementById('settingsDeleteInput');
 
     if (deleteAcctBtn) {
-      deleteAcctBtn.addEventListener('click', function() {
+      var showDeleteHandler = function() {
         if (deleteAcctReveal) deleteAcctReveal.style.display = 'block';
         deleteAcctBtn.style.display = 'none';
-      });
+      };
+      deleteAcctBtn.addEventListener('click', showDeleteHandler);
+      cleanups.push(function() { deleteAcctBtn.removeEventListener('click', showDeleteHandler); });
     }
     if (deleteAcctCancel) {
-      deleteAcctCancel.addEventListener('click', function() {
+      var cancelDeleteHandler = function() {
         if (deleteAcctReveal) deleteAcctReveal.style.display = 'none';
         if (deleteAcctBtn) deleteAcctBtn.style.display = '';
         if (deleteAcctInput) deleteAcctInput.value = '';
-      });
+      };
+      deleteAcctCancel.addEventListener('click', cancelDeleteHandler);
+      cleanups.push(function() { deleteAcctCancel.removeEventListener('click', cancelDeleteHandler); });
     }
     if (deleteAcctConfirm && deleteAcctInput) {
-      deleteAcctInput.addEventListener('input', function() {
+      var inputHandler = function() {
         var container = document.querySelector('.page-settings');
         var email = container ? container.getAttribute('data-user-email') : '';
         deleteAcctConfirm.disabled = deleteAcctInput.value.trim().toLowerCase() !== (email || '').toLowerCase();
         deleteAcctConfirm.style.opacity = deleteAcctConfirm.disabled ? '0.5' : '1';
-      });
-      deleteAcctConfirm.addEventListener('click', function() {
+      };
+      var confirmHandler = function() {
         deleteAcctConfirm.textContent = 'Deleting...';
         deleteAcctConfirm.disabled = true;
         fetch('/api/user/delete-account', {
@@ -208,8 +222,13 @@ export default function SettingsPage() {
           var supabase = createClient();
           supabase.auth.signOut().then(function() { window.location.href = '/'; });
         }).catch(function() { alert('Something went wrong.'); deleteAcctConfirm.textContent = 'Delete my account'; deleteAcctConfirm.disabled = false; });
-      });
+      };
+      deleteAcctInput.addEventListener('input', inputHandler);
+      deleteAcctConfirm.addEventListener('click', confirmHandler);
+      cleanups.push(function() { deleteAcctInput.removeEventListener('input', inputHandler); deleteAcctConfirm.removeEventListener('click', confirmHandler); });
     }
+
+    return function() { cleanups.forEach(function(fn) { fn(); }); };
   }, []);
 
   /* ===== PLANS & CREDITS: LOAD SUBSCRIPTION ===== */
@@ -284,6 +303,8 @@ export default function SettingsPage() {
       if (nameInput) { nameInput.value = data.team.name || ''; if (charCount) charCount.textContent = (data.team.name || '').length + ' / 50 characters'; }
       if (descInput) descInput.value = data.team.description || '';
       if (slugEl) slugEl.textContent = data.team.slug || '';
+      var wsAvatar = document.getElementById('settingsWsAvatar');
+      if (wsAvatar) wsAvatar.textContent = (data.team.name || 'W').charAt(0).toUpperCase();
       var container = document.querySelector('.page-settings');
       if (container) container.setAttribute('data-team-role', data.team.role || '');
       var dangerZone = document.getElementById('settingsDangerZone');
@@ -349,12 +370,14 @@ export default function SettingsPage() {
     return () => { cancelled = true; };
   }, []);
 
-  /* ===== PEOPLE: LOAD MEMBERS ===== */
+  /* ===== PEOPLE: LOAD MEMBERS + INVITE HANDLERS ===== */
   useEffect(() => {
     var teamId = getActiveTeamId();
     if (!teamId) return;
     var cancelled = false;
+    var cleanups = [];
 
+    // Load members
     fetch('/api/teams/' + teamId + '/members').then(function(r) { return r.json(); }).then(function(data) {
       if (cancelled || !data.members) return;
       var tbody = document.getElementById('settingsMembersList');
@@ -375,35 +398,45 @@ export default function SettingsPage() {
           '</div>';
       });
       tbody.innerHTML = html || '<div style="padding:16px;color:var(--fg-muted);font-size:14px">No members yet.</div>';
-
-      // Invite form
-      var inviteBtn = document.getElementById('settingsInviteBtn');
-      var inviteForm = document.getElementById('settingsInviteForm');
-      var inviteCancel = document.getElementById('settingsInviteCancel');
-      var inviteSubmit = document.getElementById('settingsInviteSubmit');
-      var inviteEmail = document.getElementById('settingsInviteEmail');
-      var inviteMsg = document.getElementById('settingsInviteMsg');
-
-      if (inviteBtn) inviteBtn.addEventListener('click', function() { if (inviteForm) inviteForm.style.display = 'block'; inviteBtn.style.display = 'none'; });
-      if (inviteCancel) inviteCancel.addEventListener('click', function() { if (inviteForm) inviteForm.style.display = 'none'; if (inviteBtn) inviteBtn.style.display = ''; if (inviteEmail) inviteEmail.value = ''; if (inviteMsg) inviteMsg.textContent = ''; });
-      if (inviteSubmit && inviteEmail) {
-        inviteSubmit.addEventListener('click', function() {
-          var email = inviteEmail.value.trim();
-          if (!email) return;
-          inviteSubmit.textContent = 'Inviting...';
-          inviteSubmit.disabled = true;
-          fetch('/api/teams/' + teamId + '/members', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: email }),
-          }).then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); }).then(function(result) {
-            if (result.ok) { window.location.reload(); }
-            else { if (inviteMsg) { inviteMsg.textContent = result.data.error || 'Failed'; inviteMsg.style.color = '#dc2626'; } inviteSubmit.textContent = 'Invite'; inviteSubmit.disabled = false; }
-          });
-        });
-      }
     });
 
-    return () => { cancelled = true; };
+    // Invite form handlers (attached once, outside fetch callback)
+    var inviteBtn = document.getElementById('settingsInviteBtn');
+    var inviteForm = document.getElementById('settingsInviteForm');
+    var inviteCancel = document.getElementById('settingsInviteCancel');
+    var inviteSubmit = document.getElementById('settingsInviteSubmit');
+    var inviteEmail = document.getElementById('settingsInviteEmail');
+    var inviteMsg = document.getElementById('settingsInviteMsg');
+
+    if (inviteBtn) {
+      var showInviteHandler = function() { if (inviteForm) inviteForm.style.display = 'block'; inviteBtn.style.display = 'none'; };
+      inviteBtn.addEventListener('click', showInviteHandler);
+      cleanups.push(function() { inviteBtn.removeEventListener('click', showInviteHandler); });
+    }
+    if (inviteCancel) {
+      var cancelInviteHandler = function() { if (inviteForm) inviteForm.style.display = 'none'; if (inviteBtn) inviteBtn.style.display = ''; if (inviteEmail) inviteEmail.value = ''; if (inviteMsg) inviteMsg.textContent = ''; };
+      inviteCancel.addEventListener('click', cancelInviteHandler);
+      cleanups.push(function() { inviteCancel.removeEventListener('click', cancelInviteHandler); });
+    }
+    if (inviteSubmit && inviteEmail) {
+      var submitInviteHandler = function() {
+        var email = inviteEmail.value.trim();
+        if (!email) return;
+        inviteSubmit.textContent = 'Inviting...';
+        inviteSubmit.disabled = true;
+        fetch('/api/teams/' + teamId + '/members', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email }),
+        }).then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); }).then(function(result) {
+          if (result.ok) { window.location.reload(); }
+          else { if (inviteMsg) { inviteMsg.textContent = result.data.error || 'Failed'; inviteMsg.style.color = '#dc2626'; } inviteSubmit.textContent = 'Invite'; inviteSubmit.disabled = false; }
+        });
+      };
+      inviteSubmit.addEventListener('click', submitInviteHandler);
+      cleanups.push(function() { inviteSubmit.removeEventListener('click', submitInviteHandler); });
+    }
+
+    return function() { cancelled = true; cleanups.forEach(function(fn) { fn(); }); };
   }, []);
 
   /* ===== CONNECTORS: LOAD STATUS ===== */
@@ -511,6 +544,12 @@ export default function SettingsPage() {
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="10" cy="7" r="3.5" /><path d="M4 17c0-3.3 2.7-6 6-6s6 2.7 6 6" /></svg>
             Your account
           </div>
+          {!hasTeam && (
+            <div className="nav-item settings-nav-item" data-section="plans">
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="5" width="16" height="11" rx="2" /><path d="M2 9h16" /></svg>
+              Plans &amp; credits
+            </div>
+          )}
           <div className="nav-item settings-nav-item" data-section="labs">
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8 3v5l-4 8h12l-4-8V3M6 3h8" /></svg>
             Labs
