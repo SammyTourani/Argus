@@ -54,7 +54,7 @@ export default function TemplatesTab() {
           '<div class="tpl-preview">' + previewHtml +
           (t.isNew ? '<div class="new-badge"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1l1.8 3.6L14 5.3l-3 2.9.7 4.1L8 10.3l-3.7 2 .7-4.1-3-2.9 4.2-.7z"/></svg> NEW</div>' : '') +
           '<div class="hover-overlay"><button class="view-btn">Clone Site <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12L12 4M12 4H6M12 4v6"/></svg></button></div></div>' +
-          '<div class="tpl-info"><div class="tpl-top"><div class="tpl-name">' + escapeHtml(t.name) + '</div>' +
+          '<div class="tpl-info"><div class="tpl-top"><div class="tpl-name-row"><img src="' + (t.icon || '') + '" class="tpl-icon" loading="lazy" onerror="this.style.display=\'none\'" /><div class="tpl-name">' + escapeHtml(t.name) + '</div></div>' +
           '<span class="diff-badge ' + diffClass + '"><span class="dot"></span> ' + escapeHtml(t.diff || 'beginner') + '</span></div>' +
           '<div class="tpl-desc">' + escapeHtml(t.desc) + '</div>' +
           '<div class="tech-pills">' + (t.tech || []).map(function(p) { return '<span class="tech-pill">' + escapeHtml(p) + '</span>'; }).join('') + '</div>' +
@@ -134,11 +134,17 @@ export default function TemplatesTab() {
       <div className="filter-chips stagger-2" id="templateFilters">
         <button className="filter-chip active" data-category="All">All</button>
         <button className="filter-chip" data-category="landing-pages">Landing Pages</button>
+        <button className="filter-chip" data-category="ai-ml">AI & ML</button>
+        <button className="filter-chip" data-category="startup">Startups</button>
         <button className="filter-chip" data-category="portfolios">Portfolios</button>
         <button className="filter-chip" data-category="e-commerce">E-commerce</button>
         <button className="filter-chip" data-category="dashboards">Dashboards</button>
-        <button className="filter-chip" data-category="blogs-content">Blogs</button>
         <button className="filter-chip" data-category="saas-apps">SaaS Apps</button>
+        <button className="filter-chip" data-category="docs">Docs</button>
+        <button className="filter-chip" data-category="creative-agency">Agencies</button>
+        <button className="filter-chip" data-category="pricing">Pricing</button>
+        <button className="filter-chip" data-category="changelog">Changelogs</button>
+        <button className="filter-chip" data-category="blogs-content">Blogs</button>
         <button className="filter-chip" data-category="animations-effects">Animations</button>
       </div>
       <div className="style-filter-row stagger-2" id="templateStyleFilters">

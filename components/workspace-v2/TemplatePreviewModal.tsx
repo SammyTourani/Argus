@@ -71,7 +71,10 @@ export default function TemplatePreviewModal() {
       html += '<div class="tpl-modal-body">';
 
       // Title + description
+      html += '<div class="tpl-modal-title-row">';
+      html += '<img src="' + (t.icon || '') + '" class="tpl-modal-icon" loading="lazy" onerror="this.style.display=\'none\'" />';
       html += '<h2 class="tpl-modal-title">' + escapeHtml(t.name) + '</h2>';
+      html += '</div>';
       html += '<p class="tpl-modal-desc">' + escapeHtml(t.desc) + '</p>';
 
       // Badges

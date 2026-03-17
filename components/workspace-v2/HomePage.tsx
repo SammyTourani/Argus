@@ -329,7 +329,7 @@ export default function HomePage() {
         } else {
           html += '<div class="template-preview"><div class="template-preview-inner" style="background:' + (t.gradient || generateGradient(t.id)) + '"></div></div>';
         }
-        html += '<div class="template-info"><div class="template-name">' + escapeHtml(t.name || '') + '</div>';
+        html += '<div class="template-info"><div class="tpl-name-row"><img src="' + (t.icon || '') + '" class="tpl-icon" loading="lazy" onerror="this.style.display=\'none\'" /><div class="template-name">' + escapeHtml(t.name || '') + '</div></div>';
         html += '<div class="template-desc">' + escapeHtml(t.desc || '') + '</div></div></div>';
       });
       templatesPanel.innerHTML = html;

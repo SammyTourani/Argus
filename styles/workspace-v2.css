@@ -4391,6 +4391,40 @@
   cursor: not-allowed;
 }
 
+/* Favicon icons on template cards */
+.tpl-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+.tpl-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.tpl-name-row .tpl-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Favicon in preview modal */
+.tpl-modal-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.tpl-modal-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
 /* Screenshot in template cards */
 .card-screenshot {
   width: 100%;
@@ -4404,12 +4438,25 @@
   transform: scale(1.03);
 }
 
+/* Horizontal scroll for filter chips (13+ categories) */
+.filter-chips {
+  flex-wrap: nowrap !important;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 4px;
+}
+.filter-chips::-webkit-scrollbar { height: 0; }
+.filter-chip { flex-shrink: 0; scroll-snap-align: start; }
+
 /* Style filter row for TemplatesTab */
 .style-filter-row {
   display: flex;
   gap: 6px;
   margin-bottom: 20px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* ===================================================================
