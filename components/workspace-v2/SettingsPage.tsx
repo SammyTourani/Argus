@@ -31,8 +31,11 @@ export default function SettingsPage() {
       }
     }
 
+    var navCleanups = [];
     navItems.forEach(function(item) {
-      item.addEventListener('click', function() { switchSection(item.getAttribute('data-section')); });
+      var handler = function() { switchSection(item.getAttribute('data-section')); };
+      item.addEventListener('click', handler);
+      navCleanups.push(function() { item.removeEventListener('click', handler); });
     });
 
     var params = new URLSearchParams(window.location.search);
@@ -44,7 +47,8 @@ export default function SettingsPage() {
     var target = document.getElementById('section-' + section);
     if (!target) section = 'account';
 
-    setTimeout(function() { switchSection(section); }, 50);
+    var initTimer = setTimeout(function() { switchSection(section); }, 50);
+    return function() { clearTimeout(initTimer); navCleanups.forEach(function(fn) { fn(); }); };
   }, []);
 
   /* ===== BILLING REDIRECT TOAST ===== */
@@ -239,22 +243,23 @@ export default function SettingsPage() {
       if (teamId) body.team_id = teamId;
       fetch('/api/stripe/create-checkout-session', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(function(r) { return r.json(); }).then(function(d) { if (d.url) window.location.href = d.url; });
     }
+    var planCleanups = [];
     var proBtn = document.getElementById('settingsUpgradePro');
-    var teamBtn = document.getElementById('settingsUpgradeTeam');
-    if (proBtn) proBtn.addEventListener('click', function() { doUpgrade('pro'); });
-    if (teamBtn) teamBtn.addEventListener('click', function() { doUpgrade('team'); });
+    if (proBtn) { var ph = function() { doUpgrade('pro'); }; proBtn.addEventListener('click', ph); planCleanups.push(function() { proBtn.removeEventListener('click', ph); }); }
 
     var manageBtn = document.getElementById('settingsManageBtn');
     if (manageBtn) {
-      manageBtn.addEventListener('click', function() {
+      var mh = function() {
         manageBtn.textContent = 'Opening...';
         var teamId = getActiveTeamId();
         var url = teamId ? '/api/stripe/billing-portal?team_id=' + teamId : '/api/stripe/billing-portal';
         fetch(url).then(function(r) { return r.json(); }).then(function(d) { if (d.url) window.location.href = d.url; else manageBtn.textContent = 'Manage'; }).catch(function() { manageBtn.textContent = 'Manage'; });
-      });
+      };
+      manageBtn.addEventListener('click', mh);
+      planCleanups.push(function() { manageBtn.removeEventListener('click', mh); });
     }
 
-    return () => { cancelled = true; };
+    return function() { cancelled = true; planCleanups.forEach(function(fn) { fn(); }); };
   }, []);
 
   /* ===== GENERAL: WORKSPACE SETTINGS ===== */
@@ -273,8 +278,14 @@ export default function SettingsPage() {
       if (nameInput) { nameInput.value = data.team.name || ''; if (charCount) charCount.textContent = (data.team.name || '').length + ' / 50 characters'; }
       if (descInput) descInput.value = data.team.description || '';
       if (wsAvatar) wsAvatar.textContent = (data.team.name || 'W').charAt(0).toUpperCase();
+      // Update sidebar mini avatar too
+      var sidebarAvatar = document.getElementById('settingsWsAvatarSidebar');
+      if (sidebarAvatar) sidebarAvatar.textContent = (data.team.name || 'W').charAt(0).toUpperCase();
+      // Show delete zone for owners, leave zone for non-owners
       var dangerZone = document.getElementById('settingsDangerZone');
+      var leaveZone = document.getElementById('settingsLeaveZone');
       if (dangerZone) dangerZone.style.display = data.team.role === 'owner' ? '' : 'none';
+      if (leaveZone) leaveZone.style.display = data.team.role === 'owner' ? 'none' : '';
     });
 
     var nameInput = document.getElementById('settingsWsName');
@@ -382,6 +393,18 @@ export default function SettingsPage() {
     return function() { cancelled=true; cleanups.forEach(function(fn){fn();}); };
   }, []);
 
+  /* ===== GENERIC TOGGLE CLICK HANDLERS (hollow toggles in Account) ===== */
+  useEffect(() => {
+    var toggles = document.querySelectorAll('.stoggle:not(#settingsDarkModeToggle)');
+    var cleanups = [];
+    toggles.forEach(function(t) {
+      var h = function() { t.classList.toggle('active'); };
+      t.addEventListener('click', h);
+      cleanups.push(function() { t.removeEventListener('click', h); });
+    });
+    return function() { cleanups.forEach(function(fn) { fn(); }); };
+  }, []);
+
   /* ===== LABS: DARK MODE ===== */
   useEffect(() => {
     var toggle = document.getElementById('settingsDarkModeToggle');
@@ -434,7 +457,7 @@ export default function SettingsPage() {
           {hasTeam && (<>
             <div className="nav-section-label">Workspace</div>
             <div className="nav-item settings-nav-item active" data-section="general" style={{fontWeight:'500'}}>
-              <div style={{width:'18px',height:'18px',borderRadius:'4px',background:'linear-gradient(135deg,var(--accent-100),var(--accent-200))',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontSize:'10px',fontWeight:'700',flexShrink:0}}>S</div>
+              <div id="settingsWsAvatarSidebar" style={{width:'18px',height:'18px',borderRadius:'4px',background:'linear-gradient(135deg,var(--accent-100),var(--accent-200))',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontSize:'10px',fontWeight:'700',flexShrink:0}}>S</div>
               <span id="settingsWsNavLabel">Workspace</span>
             </div>
             <div className="nav-item settings-nav-item" data-section="people">
@@ -505,6 +528,10 @@ export default function SettingsPage() {
                   <div><div className="sr-label">Workspace handle</div><div className="sr-desc">Set a handle for the workspace profile page.</div></div>
                   <button className="sb-secondary" style={{padding:'8px 16px',fontSize:'13px'}}>Set handle</button>
                 </div>
+                <div className="sr" style={{borderBottom:'1px solid var(--border-100)',paddingBottom:'20px',marginBottom:'20px'}}>
+                  <div><div className="sr-label">Description</div><div className="sr-desc">A brief description of this workspace.</div></div>
+                  <div style={{width:'300px'}}><textarea id="settingsWsDesc" className="si" rows={3} maxLength={500} placeholder="What is this workspace for?" style={{resize:'none'}}></textarea></div>
+                </div>
                 <div className="sr">
                   <div><div className="sr-label">Default monthly member credit limit</div><div className="sr-desc">The default monthly credit limit for members of this workspace. Leave empty to use no limit.</div></div>
                   <input type="number" className="si" style={{width:'280px'}} placeholder="Enter default monthly member credit limit (optional)"/>
@@ -512,10 +539,23 @@ export default function SettingsPage() {
               </div>
               <div style={{marginTop:'16px'}}><button id="settingsSaveWorkspace" className="sb-primary">Save changes</button></div>
 
-              <div className="sc" style={{marginTop:'24px'}} id="settingsDangerZone">
+              {/* Leave workspace (visible to non-owners) */}
+              <div className="sc" style={{marginTop:'24px'}} id="settingsLeaveZone">
                 <div className="sr-label">Leave workspace</div>
                 <p style={{fontSize:'13px',color:'var(--fg-muted)',margin:'8px 0 16px'}}>You cannot leave your last workspace. Your account must be a member of at least one workspace.</p>
                 <button className="sb-danger" disabled style={{opacity:0.5}}>Leave workspace</button>
+              </div>
+
+              {/* Delete workspace (visible to owners only) */}
+              <div className="sc settings-card-danger" style={{marginTop:'16px',display:'none'}} id="settingsDangerZone">
+                <div className="sr-label" style={{color:'#dc2626'}}>Delete workspace</div>
+                <p style={{fontSize:'13px',color:'var(--fg-muted)',margin:'8px 0 16px'}}>Permanently delete this workspace. All team members will lose access and any active subscription will be cancelled.</p>
+                <button id="settingsDeleteWsBtn" className="sb-danger">Delete workspace</button>
+                <div id="settingsDeleteWsReveal" style={{display:'none',marginTop:'12px',padding:'16px',border:'1px solid #fca5a5',borderRadius:'10px',background:'rgba(254,226,226,0.15)'}}>
+                  <p style={{fontSize:'13px',color:'#b91c1c',fontWeight:'500',marginBottom:'8px'}}>Type the workspace name to confirm:</p>
+                  <input type="text" id="settingsDeleteWsInput" className="si" style={{borderColor:'#fca5a5',marginBottom:'12px'}}/>
+                  <div style={{display:'flex',gap:'8px'}}><button id="settingsDeleteWsConfirm" disabled className="sb-danger" style={{opacity:0.5}}>Yes, delete workspace</button><button id="settingsDeleteWsCancel" style={{fontSize:'13px',color:'var(--fg-muted)',background:'none',border:'none',cursor:'pointer'}}>Cancel</button></div>
+                </div>
               </div>
             </div>
           )}
