@@ -117,7 +117,7 @@ export async function POST(request: Request, { params }: RouteParams) {
 
     try {
       await resend.emails.send({
-        from: 'Argus <noreply@argus.build>',
+        from: 'Argus <noreply@buildargus.dev>',
         to: [email],
         subject: `${inviterName} invited you to collaborate on "${projectName}"`,
         html: `

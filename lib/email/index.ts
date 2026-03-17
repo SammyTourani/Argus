@@ -4,8 +4,8 @@ function getResend() {
   return new Resend(process.env.RESEND_API_KEY || 're_placeholder')
 }
 
-const FROM = 'Argus <hello@argus.build>'
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://buildargus.com'
+const FROM = 'Argus <hello@buildargus.dev>'
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://buildargus.dev'
 
 function baseLayout(content: string) {
   return `

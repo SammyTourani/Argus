@@ -27,7 +27,7 @@ export async function GET(request: Request) {
 
           if (isNewUser && resend) {
             await resend.emails.send({
-              from: 'Argus <hello@argus.build>',
+              from: 'Argus <hello@buildargus.dev>',
               to: user.email,
               subject: 'Welcome to Argus — start cloning',
               html: `<!DOCTYPE html>
@@ -40,7 +40,7 @@ export async function GET(request: Request) {
   <p style="color: rgba(255,255,255,0.6); line-height: 1.6; margin-bottom: 24px;">
     You have 30 free credits. Enter any URL and watch Argus clone it in seconds — powered by Claude, GPT-4o, Gemini, and more.
   </p>
-  <a href="https://argus.build/app" style="display: inline-block; background: #FA4500; color: white; padding: 14px 24px; border-radius: 10px; text-decoration: none; font-weight: 600;">
+  <a href="https://buildargus.dev/workspace" style="display: inline-block; background: #FA4500; color: white; padding: 14px 24px; border-radius: 10px; text-decoration: none; font-weight: 600;">
     Start cloning &rarr;
   </a>
   <p style="color: rgba(255,255,255,0.3); font-size: 13px; margin-top: 40px;">

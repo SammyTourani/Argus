@@ -194,7 +194,6 @@ function SignUpContent() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -240,8 +239,8 @@ function SignUpContent() {
       return;
     }
 
-    setSuccess(true);
-    setLoading(false);
+    router.push(`/sign-up/confirm?email=${encodeURIComponent(email)}`);
+    return;
   };
 
   const handleGoogleSignUp = async () => {
@@ -270,48 +269,6 @@ function SignUpContent() {
       },
     });
   };
-
-  /* ── Success state ── */
-  if (success) {
-    return (
-      <AuthLayout mode="signup">
-        <div className="text-center py-8">
-          <div
-            className="w-11 h-11 rounded-full mx-auto mb-4 flex items-center justify-center"
-            style={{ background: '#FA4500' }}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-          </div>
-          <h2
-            className="text-lg font-semibold mb-2"
-            style={{
-              color: '#1A1A1A',
-              fontFamily: '"JetBrains Mono", monospace',
-            }}
-          >
-            Check your email
-          </h2>
-          <p className="text-sm" style={{ color: '#888' }}>
-            We sent a confirmation link to{' '}
-            <strong style={{ color: '#555' }}>{email}</strong>.
-            <br />
-            Click it to activate your account.
-          </p>
-          <Link
-            href="/sign-in"
-            className="inline-block mt-6 text-xs font-medium transition-colors duration-150"
-            style={{ color: '#FA4500' }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = '#D63D00')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = '#FA4500')}
-          >
-            Back to sign in
-          </Link>
-        </div>
-      </AuthLayout>
-    );
-  }
 
   return (
     <AuthLayout mode="signup">

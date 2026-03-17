@@ -188,13 +188,22 @@ function ErrorMessage({ message }: { message: string }) {
 function SignInContent() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [authMode, setAuthMode] = useState<'password' | 'magiclink'>('password');
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get('redirect') || '/workspace';
+
+  // Handle error query params from auth redirects
+  const urlError = searchParams.get('error');
+  const errorMessages: Record<string, string> = {
+    confirmation_failed: 'Email confirmation failed or link expired. Please try signing up again.',
+    auth_callback_failed: 'Authentication failed. Please try again.',
+  };
+  const [error, setError] = useState<string | null>(
+    urlError ? errorMessages[urlError] || 'An error occurred. Please try again.' : null
+  );
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
