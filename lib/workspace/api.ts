@@ -105,9 +105,10 @@ export interface ApiKeyEntry {
 
 export interface ReferralStats {
   referral_code: string;
+  referral_slug: string;
   referral_url: string;
   stats: { signed_up: number; converted: number };
-  total_builds_earned: number;
+  total_credits_earned: number;
 }
 
 export interface MarketplaceParams {
@@ -400,9 +401,10 @@ export async function deleteApiKey(keyId: string): Promise<boolean> {
 // ===== REFERRALS =====
 const DEFAULT_REFERRAL_STATS: ReferralStats = {
   referral_code: '',
+  referral_slug: '',
   referral_url: '',
   stats: { signed_up: 0, converted: 0 },
-  total_builds_earned: 0,
+  total_credits_earned: 0,
 };
 
 export async function fetchReferralStats(): Promise<ReferralStats> {

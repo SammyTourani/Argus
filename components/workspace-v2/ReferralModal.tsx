@@ -125,7 +125,7 @@ export default function ReferralModal() {
       if (signedUpEl && data.stats) signedUpEl.textContent = String(data.stats.signed_up || 0);
       if (convertedEl && data.stats) convertedEl.textContent = String(data.stats.converted || 0);
       var buildsEarnedEl = document.getElementById('referralBuildsEarned');
-      if (buildsEarnedEl) buildsEarnedEl.textContent = String(data.total_builds_earned || 0);
+      if (buildsEarnedEl) buildsEarnedEl.textContent = String(data.total_credits_earned || 0);
     }).catch(function() {});
 
     return () => {
@@ -161,14 +161,14 @@ export default function ReferralModal() {
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M8 1v4M8 11v4M1 8h4M11 8h4M3.05 3.05l2.83 2.83M10.12 10.12l2.83 2.83M12.95 3.05l-2.83 2.83M5.88 10.12l-2.83 2.83" />
             </svg>
-            Earn 5 bonus builds
+            Earn 50 bonus credits
           </div>
         </div>
 
         {/* Body */}
         <div className="referral-body">
           <div className="referral-heading">Share Argus with friends</div>
-          <div className="referral-subheading">and earn free builds for every referral</div>
+          <div className="referral-subheading">and earn free credits for every referral</div>
 
           {/* How it works */}
           <div className="referral-steps-label">How it works</div>
@@ -193,8 +193,8 @@ export default function ReferralModal() {
                 </svg>
               </div>
               <div className="referral-step-text">
-                <div className="referral-step-title">Friend signs up and gets 4 builds</div>
-                <div className="referral-step-desc">They start with 1 extra build (4 instead of 3) as your gift</div>
+                <div className="referral-step-title">Friend signs up and gets 40 credits</div>
+                <div className="referral-step-desc">They start with 10 extra credits (40 instead of 30) as your gift</div>
               </div>
             </div>
 
@@ -205,7 +205,7 @@ export default function ReferralModal() {
                 </svg>
               </div>
               <div className="referral-step-text">
-                <div className="referral-step-title">They upgrade to Pro &mdash; you earn 5 builds</div>
+                <div className="referral-step-title">They upgrade to Pro &mdash; you earn 50 credits</div>
                 <div className="referral-step-desc">When your referral converts to the $19/mo Pro plan, you get rewarded</div>
               </div>
             </div>
@@ -223,7 +223,7 @@ export default function ReferralModal() {
             </div>
             <div className="referral-stat-dot"></div>
             <div className="referral-stat">
-              <span className="referral-stat-value" id="referralBuildsEarned">0</span> builds earned
+              <span className="referral-stat-value" id="referralBuildsEarned">0</span> credits earned
             </div>
           </div>
 

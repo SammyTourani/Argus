@@ -4,6 +4,7 @@ import Stripe from 'stripe';
 import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { sendSubscriptionConfirmed, sendSubscriptionCanceled } from '@/lib/email';
 import { TIER_CREDITS } from '@/lib/subscription/gate';
+import { REFERRAL_CONVERSION_BONUS } from '@/lib/referral/constants';
 
 function getSupabaseAdmin() {
   return createServiceClient(
@@ -83,6 +84,36 @@ export async function POST(request: Request) {
           credits_reset_at: nextReset,
           updated_at: new Date().toISOString(),
         }).eq('id', userId);
+      }
+
+      // ── Referral conversion tracking ─────────────────────────
+      // Only for personal subscriptions (team checkout has teamId)
+      if (userId && !teamId) {
+        try {
+          const { data: referral } = await supabaseAdmin
+            .from('referrals')
+            .select('id, referrer_id, referrer_credits_awarded')
+            .eq('referred_user_id', userId)
+            .eq('status', 'signed_up')
+            .maybeSingle();
+
+          if (referral && referral.referrer_credits_awarded === 0) {
+            await supabaseAdmin.from('referrals').update({
+              status: 'converted',
+              converted_at: new Date().toISOString(),
+              referrer_credits_awarded: REFERRAL_CONVERSION_BONUS,
+            }).eq('id', referral.id);
+
+            await supabaseAdmin.rpc('award_referral_credits', {
+              p_user_id: referral.referrer_id,
+              p_amount: REFERRAL_CONVERSION_BONUS,
+            });
+
+            console.log('[webhook] Referral converted:', referral.id, '→ awarded', REFERRAL_CONVERSION_BONUS, 'credits to', referral.referrer_id);
+          }
+        } catch (e) {
+          console.error('[webhook] Failed to process referral conversion:', e);
+        }
       }
 
       // Send subscription confirmed email

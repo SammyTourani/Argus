@@ -33,6 +33,7 @@ export interface Profile {
   credits_total: number;
   credits_reset_at: string | null;
   referral_code: string | null;
+  referral_slug: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -228,6 +229,8 @@ export interface Referral {
   signed_up_at: string | null;
   converted_at: string | null;
   builds_awarded: number;
+  credits_awarded: number;
+  referrer_credits_awarded: number;
   created_at: string;
 }
 
