@@ -67,6 +67,56 @@ supabase/
 hooks/                  # React hooks
 ```
 
+## Styling & Design System (CRITICAL)
+
+**NEVER use hardcoded inline `style={{ }}` for fonts, colors, sizes, or spacing.** Always use the Tailwind design system classes defined in `styles/fire.css`, `styles/design-system/typography.css`, and `styles/design-system/colors.css`.
+
+The design system files to reference before writing ANY frontend code:
+- `styles/fire.css` — main orchestrator, imports all design tokens
+- `styles/design-system/typography.css` — `text-title-h1` through `text-title-h5`, `text-body-*`, `text-label-*`, `text-mono-*`
+- `styles/design-system/colors.css` — `--heat-4` through `--heat-100`, `--accent-*`, `--border-*`, `--background-*`, `--foreground-*`
+- `tailwind.config.ts` — all custom utilities, font families (`font-mono`, `font-body`, `font-sans`)
+
+### Font Rules
+- **Primary display font:** Geist Mono (loaded as `--font-geist-mono`)
+- **Use:** `className="font-mono"` — resolves to `Geist Mono → JetBrains Mono → monospace`
+- **NEVER** write `style={{ fontFamily: '"JetBrains Mono", monospace' }}` — this bypasses Geist Mono
+
+### Typography Classes (use these, not inline fontSize/fontWeight)
+| Class | Size | Weight |
+|-------|------|--------|
+| `text-title-h1` | 60px | 500 |
+| `text-title-h2` | 52px | 500 |
+| `text-title-h3` | 40px | 500 |
+| `text-title-h4` | 32px | 500 |
+| `text-title-h5` | 24px | 500 |
+| `text-body-large` | 16px | 400 |
+| `text-body-medium` | 14px | 400 |
+| `text-body-small` | 13px | 400 |
+| `text-label-large` | 16px | 450 |
+| `text-label-medium` | 14px | 450 |
+| `text-mono-medium` | 14px | 400, monospace |
+
+### Color Classes (use these, not inline color/#hex)
+- Brand orange: `text-heat-100`, `bg-heat-100` (#FA5D19)
+- Subtle orange bg: `bg-heat-4` (4% opacity)
+- Borders: `border-border-muted`, `border-border-faint`
+- Text: `text-foreground`, `text-foreground-dimmer`
+- Background: `bg-[var(--background-base)]`, `bg-[var(--landing-bg)]`
+
+### Example — RIGHT vs WRONG
+```tsx
+// WRONG — hardcoded inline styles
+<h1 style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '32px', color: '#FA4500' }}>
+  Heading
+</h1>
+
+// RIGHT — design system classes
+<h1 className="text-title-h4 font-mono text-heat-100">
+  Heading
+</h1>
+```
+
 ## Key Patterns
 
 ### Supabase Client
