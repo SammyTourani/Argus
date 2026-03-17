@@ -1,7 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
-import { Monitor, Tablet, Smartphone, RefreshCw, ExternalLink, MousePointer2, Terminal } from 'lucide-react';
+import { useRef } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { FiChevronDown, FiChevronRight } from '@/lib/icons';
@@ -28,7 +27,6 @@ interface EditorRightPanelProps {
   isPreparingDesign: boolean;
   loading: boolean;
   screenshotError: string | null;
-  onComingSoon?: (feature: string) => void;
 }
 
 function getFileIcon(name: string) {
@@ -37,7 +35,7 @@ function getFileIcon(name: string) {
   if (ext === 'js' || ext === 'ts') return <SiJavascript style={{ width: '14px', height: '14px' }} className="text-yellow-400" />;
   if (ext === 'css') return <SiCss3 style={{ width: '14px', height: '14px' }} className="text-blue-500" />;
   if (ext === 'json') return <SiJson style={{ width: '14px', height: '14px' }} className="text-green-400" />;
-  return <FiFile style={{ width: '14px', height: '14px' }} className="text-[var(--editor-fg-muted)]" />;
+  return <FiFile style={{ width: '14px', height: '14px' }} className="text-gray-400" />;
 }
 
 function getLanguage(path: string): string {
@@ -66,15 +64,13 @@ export default function EditorRightPanel({
   isPreparingDesign,
   loading,
   screenshotError,
-  onComingSoon,
 }: EditorRightPanelProps) {
   const codeDisplayRef = useRef<HTMLDivElement>(null);
-  const [previewDevice, setPreviewDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
 
   const renderGenerationTab = () => {
     if (!generationProgress.isGenerating && generationProgress.files.length === 0) {
       return (
-        <div className="flex items-center justify-center h-full text-[var(--editor-fg-tertiary)]">
+        <div className="flex items-center justify-center h-full text-gray-500">
           <p className="text-sm">Start chatting to create your first app</p>
         </div>
       );
@@ -84,17 +80,17 @@ export default function EditorRightPanel({
       <div className="absolute inset-0 flex overflow-hidden">
         {/* File Explorer */}
         {!generationProgress.isEdit && (
-          <div className="w-[250px] border-r border-[var(--editor-border)] bg-[var(--editor-bg-base)] flex flex-col flex-shrink-0">
-            <div className="p-3 bg-[var(--editor-bg-card)] text-[var(--editor-fg-primary)] flex items-center gap-2">
+          <div className="w-[250px] border-r border-gray-200 bg-white flex flex-col flex-shrink-0">
+            <div className="p-3 bg-gray-100 text-gray-900 flex items-center gap-2">
               <BsFolderFill style={{ width: '16px', height: '16px' }} />
               <span className="text-sm font-medium">Explorer</span>
             </div>
             <div className="flex-1 overflow-y-auto p-3 scrollbar-hide">
               <div className="text-sm">
-                <div className="flex items-center gap-2 py-0.5 px-3 hover:bg-[var(--editor-bg-card)] rounded cursor-pointer text-[var(--editor-fg-secondary)]" onClick={() => onToggleFolder('app')}>
-                  {expandedFolders.has('app') ? <FiChevronDown style={{ width: '16px', height: '16px' }} className="text-[var(--editor-fg-tertiary)]" /> : <FiChevronRight style={{ width: '16px', height: '16px' }} className="text-[var(--editor-fg-tertiary)]" />}
+                <div className="flex items-center gap-2 py-0.5 px-3 hover:bg-gray-100 rounded cursor-pointer text-gray-700" onClick={() => onToggleFolder('app')}>
+                  {expandedFolders.has('app') ? <FiChevronDown style={{ width: '16px', height: '16px' }} className="text-gray-600" /> : <FiChevronRight style={{ width: '16px', height: '16px' }} className="text-gray-600" />}
                   {expandedFolders.has('app') ? <BsFolder2Open style={{ width: '16px', height: '16px' }} className="text-blue-500" /> : <BsFolderFill style={{ width: '16px', height: '16px' }} className="text-blue-500" />}
-                  <span className="font-medium text-[var(--editor-fg-primary)]">app</span>
+                  <span className="font-medium text-gray-800">app</span>
                 </div>
                 {expandedFolders.has('app') && (
                   <div className="ml-6">
@@ -110,10 +106,10 @@ export default function EditorRightPanel({
                       return Object.entries(fileTree).map(([dir, files]) => (
                         <div key={dir} className="mb-1">
                           {dir && (
-                            <div className="flex items-center gap-2 py-0.5 px-3 hover:bg-[var(--editor-bg-card)] rounded cursor-pointer text-[var(--editor-fg-secondary)]" onClick={() => onToggleFolder(dir)}>
-                              {expandedFolders.has(dir) ? <FiChevronDown style={{ width: '16px', height: '16px' }} className="text-[var(--editor-fg-tertiary)]" /> : <FiChevronRight style={{ width: '16px', height: '16px' }} className="text-[var(--editor-fg-tertiary)]" />}
+                            <div className="flex items-center gap-2 py-0.5 px-3 hover:bg-gray-100 rounded cursor-pointer text-gray-700" onClick={() => onToggleFolder(dir)}>
+                              {expandedFolders.has(dir) ? <FiChevronDown style={{ width: '16px', height: '16px' }} className="text-gray-600" /> : <FiChevronRight style={{ width: '16px', height: '16px' }} className="text-gray-600" />}
                               {expandedFolders.has(dir) ? <BsFolder2Open style={{ width: '16px', height: '16px' }} className="text-yellow-600" /> : <BsFolderFill style={{ width: '16px', height: '16px' }} className="text-yellow-600" />}
-                              <span className="text-[var(--editor-fg-secondary)]">{dir.split('/').pop()}</span>
+                              <span className="text-gray-700">{dir.split('/').pop()}</span>
                             </div>
                           )}
                           {(!dir || expandedFolders.has(dir)) && (
@@ -122,7 +118,7 @@ export default function EditorRightPanel({
                                 const fullPath = dir ? `${dir}/${fileInfo.name}` : fileInfo.name;
                                 const isSelected = selectedFile === fullPath;
                                 return (
-                                  <div key={fullPath} className={`flex items-center gap-2 py-0.5 px-3 rounded cursor-pointer transition-all ${isSelected ? 'bg-[var(--editor-accent)] text-white' : 'text-[var(--editor-fg-secondary)] hover:bg-[var(--editor-bg-card)]'}`} onClick={() => onSelectFile(fullPath)}>
+                                  <div key={fullPath} className={`flex items-center gap-2 py-0.5 px-3 rounded cursor-pointer transition-all ${isSelected ? 'bg-blue-500 text-white' : 'text-gray-700 hover:bg-gray-100'}`} onClick={() => onSelectFile(fullPath)}>
                                     {getFileIcon(fileInfo.name)}
                                     <span className={`text-xs flex items-center gap-1 ${isSelected ? 'font-medium' : ''}`}>
                                       {fileInfo.name}
@@ -166,7 +162,7 @@ export default function EditorRightPanel({
           <div className="flex-1 rounded-lg p-4 flex flex-col min-h-0 overflow-hidden">
             <div className="flex-1 overflow-y-auto min-h-0 scrollbar-hide" ref={codeDisplayRef}>
               {selectedFile ? (
-                <div className="bg-black border border-[var(--editor-border)] rounded-lg overflow-hidden shadow-sm">
+                <div className="bg-black border border-gray-200 rounded-lg overflow-hidden shadow-sm">
                   <div className="px-4 py-2 bg-[#36322F] text-white flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       {getFileIcon(selectedFile)}
@@ -185,16 +181,16 @@ export default function EditorRightPanel({
                   <div className="flex items-center justify-center h-full">
                     <div className="text-center">
                       <div className="w-12 h-12 mx-auto mb-4 relative">
-                        <div className="absolute inset-0 border-4 border-[var(--editor-fg-ghost)] rounded-full" />
+                        <div className="absolute inset-0 border-4 border-gray-300 rounded-full" />
                         <div className="absolute inset-0 border-4 border-green-500 rounded-full animate-spin border-t-transparent" />
                       </div>
-                      <h3 className="text-lg font-medium text-[var(--editor-fg-primary)] mb-2">AI is analyzing your request</h3>
-                      <p className="text-[var(--editor-fg-tertiary)] text-sm">{generationProgress.status || 'Preparing to generate code...'}</p>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">AI is analyzing your request</h3>
+                      <p className="text-gray-500 text-sm">{generationProgress.status || 'Preparing to generate code...'}</p>
                     </div>
                   </div>
                 ) : (
-                  <div className="bg-black border border-[var(--editor-border)] rounded-lg overflow-hidden">
-                    <div className="px-4 py-2 bg-[var(--editor-bg-card)] text-[var(--editor-fg-primary)] flex items-center gap-2">
+                  <div className="bg-black border border-gray-200 rounded-lg overflow-hidden">
+                    <div className="px-4 py-2 bg-gray-100 text-gray-900 flex items-center gap-2">
                       <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
                       <span className="font-mono text-sm">Streaming code...</span>
                     </div>
@@ -207,11 +203,11 @@ export default function EditorRightPanel({
               ) : (
                 <div className="space-y-4">
                   {generationProgress.currentFile && (
-                    <div className="bg-black border-2 border-[var(--editor-border-hover)] rounded-lg overflow-hidden shadow-sm">
+                    <div className="bg-black border-2 border-gray-400 rounded-lg overflow-hidden shadow-sm">
                       <div className="px-4 py-2 bg-[#36322F] text-white flex items-center gap-2">
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                         <span className="font-mono text-sm">{generationProgress.currentFile.path}</span>
-                        <span className={`px-2 py-0.5 text-xs rounded ${generationProgress.currentFile.type === 'css' ? 'bg-blue-600' : generationProgress.currentFile.type === 'javascript' ? 'bg-yellow-600' : generationProgress.currentFile.type === 'json' ? 'bg-green-600' : 'bg-[var(--editor-fg-muted)]'} text-white`}>
+                        <span className={`px-2 py-0.5 text-xs rounded ${generationProgress.currentFile.type === 'css' ? 'bg-blue-600' : generationProgress.currentFile.type === 'javascript' ? 'bg-yellow-600' : generationProgress.currentFile.type === 'json' ? 'bg-green-600' : 'bg-gray-600'} text-white`}>
                           {generationProgress.currentFile.type === 'javascript' ? 'JSX' : generationProgress.currentFile.type.toUpperCase()}
                         </span>
                       </div>
@@ -222,13 +218,13 @@ export default function EditorRightPanel({
                     </div>
                   )}
                   {generationProgress.files.map((file, idx) => (
-                    <div key={idx} className="bg-[var(--editor-bg-base)] border border-[var(--editor-border)] rounded-lg overflow-hidden">
+                    <div key={idx} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
                       <div className="px-4 py-2 bg-[#36322F] text-white flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className="text-green-500">✓</span>
                           <span className="font-mono text-sm">{file.path}</span>
                         </div>
-                        <span className={`px-2 py-0.5 text-xs rounded ${file.type === 'css' ? 'bg-blue-600' : file.type === 'javascript' ? 'bg-yellow-600' : file.type === 'json' ? 'bg-green-600' : 'bg-[var(--editor-fg-muted)]'} text-white`}>
+                        <span className={`px-2 py-0.5 text-xs rounded ${file.type === 'css' ? 'bg-blue-600' : file.type === 'javascript' ? 'bg-yellow-600' : file.type === 'json' ? 'bg-green-600' : 'bg-gray-600'} text-white`}>
                           {file.type === 'javascript' ? 'JSX' : file.type.toUpperCase()}
                         </span>
                       </div>
@@ -246,7 +242,7 @@ export default function EditorRightPanel({
 
           {generationProgress.components.length > 0 && (
             <div className="mx-6 mb-4">
-              <div className="h-1.5 bg-[var(--editor-bg-hover)] rounded-full overflow-hidden">
+              <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
                 <div className="h-full bg-gradient-to-r from-orange-500 to-orange-400 transition-all duration-300" style={{ width: `${(generationProgress.currentComponent / Math.max(generationProgress.components.length, 1)) * 100}%` }} />
               </div>
             </div>
@@ -262,7 +258,7 @@ export default function EditorRightPanel({
 
     if (isInitialGeneration) {
       return (
-        <div className="relative w-full h-full bg-[var(--editor-bg-deep)]">
+        <div className="relative w-full h-full bg-gray-900">
           {urlScreenshot && (
             /* eslint-disable-next-line @next/next/no-img-element */
             <img src={urlScreenshot} alt="Website preview" className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700" style={{ opacity: isScreenshotLoaded ? 1 : 0 }} onLoad={onScreenshotLoad} loading="eager" />
@@ -289,46 +285,17 @@ export default function EditorRightPanel({
     }
 
     if (sandboxData?.url) {
-      const deviceWidths = { desktop: '100%', tablet: '768px', mobile: '375px' };
       return (
-        <div className="relative w-full h-full flex flex-col">
-          {/* URL bar + Device toggle */}
-          <div className="flex items-center justify-between px-3 py-1.5 border-b border-[var(--editor-border-faint)] bg-[var(--editor-bg-surface)] flex-shrink-0">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="w-1.5 h-1.5 rounded-full bg-[var(--editor-success)]" />
-              <span className="text-xs font-mono text-[var(--editor-fg-muted)] truncate">{(() => { try { return new URL(sandboxData.url).hostname; } catch { return 'preview'; } })()}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              {([
-                { id: 'desktop' as const, Icon: Monitor },
-                { id: 'tablet' as const, Icon: Tablet },
-                { id: 'mobile' as const, Icon: Smartphone },
-              ]).map(({ id, Icon }) => (
-                <button key={id} onClick={() => setPreviewDevice(id)} className={`p-1 rounded transition-colors ${previewDevice === id ? 'text-[var(--editor-fg-primary)] bg-[var(--editor-bg-hover)]' : 'text-[var(--editor-fg-dim)] hover:text-[var(--editor-fg-muted)]'}`} title={id}>
-                  <Icon className="w-3.5 h-3.5" />
-                </button>
-              ))}
-              <div className="w-px h-4 bg-[var(--editor-border)] mx-1" />
-              <button onClick={() => { if (iframeRef.current && sandboxData?.url) iframeRef.current.src = `${sandboxData.url}?t=${Date.now()}&manual=true`; }} className="p-1 rounded text-[var(--editor-fg-dim)] hover:text-[var(--editor-fg-muted)] transition-colors" title="Refresh">
-                <RefreshCw className="w-3.5 h-3.5" />
-              </button>
-              <a href={sandboxData.url} target="_blank" rel="noopener noreferrer" className="p-1 rounded text-[var(--editor-fg-dim)] hover:text-[var(--editor-fg-muted)] transition-colors" title="Open in new tab">
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
-            </div>
-          </div>
-          {/* Preview iframe */}
-          <div className="flex-1 flex items-start justify-center overflow-auto bg-[var(--editor-bg-deep)] relative">
-            <div style={{ width: deviceWidths[previewDevice], height: '100%', maxWidth: '100%' }} className="transition-all duration-300 relative">
-              <iframe ref={iframeRef} src={sandboxData.url} className="w-full h-full border-none" title="Live Preview" allow="clipboard-write" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals" />
+        <div className="relative w-full h-full">
+          <iframe ref={iframeRef} src={sandboxData.url} className="w-full h-full border-none" title="Live Preview" allow="clipboard-write" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals" />
           {codeApplicationState.stage && codeApplicationState.stage !== 'complete' && (
-            <div className="absolute inset-0 bg-[var(--editor-bg-base)]/95 backdrop-blur-sm flex items-center justify-center z-10">
+            <div className="absolute inset-0 bg-white/95 backdrop-blur-sm flex items-center justify-center z-10">
               <div className="text-center max-w-md">
-                <svg className="w-12 h-12 mx-auto animate-spin text-[var(--editor-fg-tertiary)] mb-4" fill="none" viewBox="0 0 24 24">
+                <svg className="w-12 h-12 mx-auto animate-spin text-gray-600 mb-4" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
-                <h3 className="text-lg font-semibold text-[var(--editor-fg-primary)] mb-2">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
                   {codeApplicationState.stage === 'analyzing' && 'Analyzing code...'}
                   {codeApplicationState.stage === 'installing' && 'Installing packages...'}
                   {codeApplicationState.stage === 'applying' && 'Applying changes...'}
@@ -336,13 +303,13 @@ export default function EditorRightPanel({
                 {codeApplicationState.stage === 'installing' && codeApplicationState.packages && (
                   <div className="flex flex-wrap gap-2 justify-center mb-4">
                     {codeApplicationState.packages.map((pkg, i) => (
-                      <span key={i} className={`px-2 py-1 text-xs rounded-full ${codeApplicationState.installedPackages?.includes(pkg) ? 'bg-green-100 text-green-700' : 'bg-[var(--editor-bg-card)] text-[var(--editor-fg-tertiary)]'}`}>
+                      <span key={i} className={`px-2 py-1 text-xs rounded-full ${codeApplicationState.installedPackages?.includes(pkg) ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
                         {pkg}{codeApplicationState.installedPackages?.includes(pkg) && ' ✓'}
                       </span>
                     ))}
                   </div>
                 )}
-                <p className="text-sm text-[var(--editor-fg-tertiary)]">{codeApplicationState.stage === 'analyzing' ? 'Parsing generated code...' : codeApplicationState.stage === 'installing' ? 'Installing npm packages...' : 'Writing files to sandbox...'}</p>
+                <p className="text-sm text-gray-500">{codeApplicationState.stage === 'analyzing' ? 'Parsing generated code...' : codeApplicationState.stage === 'installing' ? 'Installing npm packages...' : 'Writing files to sandbox...'}</p>
               </div>
             </div>
           )}
@@ -352,18 +319,25 @@ export default function EditorRightPanel({
               <span className="text-white text-xs font-medium">Generating code...</span>
             </div>
           )}
-            </div>
-          </div>
+          <button
+            onClick={() => { if (iframeRef.current && sandboxData?.url) iframeRef.current.src = `${sandboxData.url}?t=${Date.now()}&manual=true`; }}
+            className="absolute bottom-4 right-4 bg-white/90 hover:bg-white text-gray-700 p-2 rounded-lg shadow-lg transition-all hover:scale-105"
+            title="Refresh sandbox"
+          >
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </button>
         </div>
       );
     }
 
     return (
-      <div className="flex items-center justify-center h-full bg-[var(--editor-bg-surface)] text-[var(--editor-fg-tertiary)]">
+      <div className="flex items-center justify-center h-full bg-gray-50 text-gray-600">
         {screenshotError ? (
-          <div className="text-center"><p className="mb-2">Failed to capture screenshot</p><p className="text-sm text-[var(--editor-fg-tertiary)]">{screenshotError}</p></div>
+          <div className="text-center"><p className="mb-2">Failed to capture screenshot</p><p className="text-sm text-gray-500">{screenshotError}</p></div>
         ) : sandboxData ? (
-          <div className="text-center"><div className="w-8 h-8 border-2 border-[var(--editor-fg-ghost)] border-t-transparent rounded-full animate-spin mx-auto mb-2" /><p className="text-sm">Loading preview...</p></div>
+          <div className="text-center"><div className="w-8 h-8 border-2 border-gray-300 border-t-transparent rounded-full animate-spin mx-auto mb-2" /><p className="text-sm">Loading preview...</p></div>
         ) : (
           <p className="text-sm">Start chatting to create your first app</p>
         )}
@@ -374,50 +348,38 @@ export default function EditorRightPanel({
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Tab bar */}
-      <div className="px-3 pt-3 pb-3 bg-[var(--editor-bg-base)] border-b border-[var(--editor-border-faint)] flex justify-between items-center">
-        <div className="inline-flex bg-[var(--editor-bg-surface)] border border-[var(--editor-border-faint)] rounded-lg p-1">
-          <button onClick={() => onTabChange('generation')} className={`px-3 py-1 rounded-md transition-all text-xs font-mono font-medium ${activeTab === 'generation' ? 'bg-[var(--editor-accent)] text-white' : 'bg-transparent text-[var(--editor-fg-tertiary)] hover:text-[var(--editor-fg-primary)]'}`}>
+      <div className="px-3 pt-3 pb-3 bg-white border-b border-gray-200 flex justify-between items-center">
+        <div className="inline-flex bg-gray-100 border border-gray-200 rounded-md p-0.5">
+          <button onClick={() => onTabChange('generation')} className={`px-3 py-1 rounded transition-all text-xs font-medium ${activeTab === 'generation' ? 'bg-white text-gray-900 shadow-sm' : 'bg-transparent text-gray-600 hover:text-gray-900'}`}>
             <div className="flex items-center gap-1.5">
               <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
               <span>Code</span>
             </div>
           </button>
-          <button onClick={() => onTabChange('preview')} className={`px-3 py-1 rounded-md transition-all text-xs font-mono font-medium ${activeTab === 'preview' ? 'bg-[var(--editor-accent)] text-white' : 'bg-transparent text-[var(--editor-fg-tertiary)] hover:text-[var(--editor-fg-primary)]'}`}>
+          <button onClick={() => onTabChange('preview')} className={`px-3 py-1 rounded transition-all text-xs font-medium ${activeTab === 'preview' ? 'bg-white text-gray-900 shadow-sm' : 'bg-transparent text-gray-600 hover:text-gray-900'}`}>
             <div className="flex items-center gap-1.5">
               <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
               <span>View</span>
             </div>
           </button>
-          <button onClick={() => onComingSoon?.('Visual editing')} className="px-3 py-1 rounded-md transition-all text-xs font-mono font-medium bg-transparent text-[var(--editor-fg-tertiary)] hover:text-[var(--editor-fg-primary)]">
-            <div className="flex items-center gap-1.5">
-              <MousePointer2 className="w-3.5 h-3.5" />
-              <span>Visual</span>
-            </div>
-          </button>
-          <button onClick={() => onComingSoon?.('Live console')} className="px-3 py-1 rounded-md transition-all text-xs font-mono font-medium bg-transparent text-[var(--editor-fg-tertiary)] hover:text-[var(--editor-fg-primary)]">
-            <div className="flex items-center gap-1.5">
-              <Terminal className="w-3.5 h-3.5" />
-              <span>Console</span>
-            </div>
-          </button>
         </div>
         <div className="flex gap-2 items-center">
           {activeTab === 'generation' && !generationProgress.isEdit && generationProgress.files.length > 0 && (
-            <span className="text-[var(--editor-fg-muted)] text-xs font-mono font-medium">{generationProgress.files.length} files generated</span>
+            <span className="text-gray-500 text-xs font-medium">{generationProgress.files.length} files generated</span>
           )}
           {activeTab === 'generation' && generationProgress.isGenerating && (
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[var(--editor-bg-card)] border border-[var(--editor-border)] rounded-md text-xs font-mono font-medium text-[var(--editor-fg-secondary)]">
-              <div className="w-1.5 h-1.5 bg-[var(--editor-success)] rounded-full animate-pulse" />
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 border border-gray-200 rounded-md text-xs font-medium text-gray-700">
+              <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
               {generationProgress.isEdit ? 'Editing code' : 'Live generation'}
             </div>
           )}
           {sandboxData && (
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[var(--editor-bg-card)] border border-[var(--editor-border)] rounded-md text-xs font-mono font-medium text-[var(--editor-fg-secondary)]">
-              <div className="w-1.5 h-1.5 bg-[var(--editor-success)] rounded-full" />Sandbox active
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 border border-gray-200 rounded-md text-xs font-medium text-gray-700">
+              <div className="w-1.5 h-1.5 bg-green-500 rounded-full" />Sandbox active
             </div>
           )}
           {sandboxData?.url && (
-            <a href={sandboxData.url} target="_blank" rel="noopener noreferrer" title="Open in new tab" className="p-1.5 rounded-md text-[var(--editor-fg-muted)] hover:text-[var(--editor-fg-primary)] hover:bg-[var(--editor-bg-hover)]">
+            <a href={sandboxData.url} target="_blank" rel="noopener noreferrer" title="Open in new tab" className="p-1.5 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100">
               <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
             </a>
           )}

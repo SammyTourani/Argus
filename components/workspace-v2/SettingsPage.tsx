@@ -115,14 +115,15 @@ export default function SettingsPage() {
           var provider = identity.provider || 'unknown';
           var providerName = provider.charAt(0).toUpperCase() + provider.slice(1);
           var email = identity.identity_data?.email || user.email || '';
-          var icon = provider === 'google' ? GOOGLE_SVG : provider === 'github' ? GITHUB_SVG : '<span style="font-size:16px;font-weight:700;color:var(--fg-muted)">' + providerName.charAt(0) + '</span>';
+          var EMAIL_SVG = '<svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="var(--fg-muted)" stroke-width="1.5"><rect x="2" y="4" width="16" height="12" rx="2"/><path d="M2 4l8 6 8-6"/></svg>';
+          var icon = provider === 'google' ? GOOGLE_SVG : provider === 'github' ? GITHUB_SVG : provider === 'email' ? EMAIL_SVG : '<svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="var(--fg-muted)" stroke-width="1.5"><circle cx="10" cy="7" r="3.5"/><path d="M4 17c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>';
           var isPrimary = idx === 0;
           html += '<div style="display:flex;align-items:center;gap:14px;padding:16px;border:1px solid var(--border-100);border-radius:10px;margin-bottom:8px">' +
             '<div style="width:36px;height:36px;display:flex;align-items:center;justify-content:center">' + icon + '</div>' +
             '<div style="flex:1"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:14px;font-weight:600">' + escapeHtml(providerName) + '</span>' + (isPrimary ? '<span style="padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:var(--bg-300);color:var(--fg-200)">Primary</span>' : '') + '</div><div style="font-size:13px;color:var(--fg-muted)">' + escapeHtml(email) + '</div></div></div>';
         });
         // Link company account (hollow)
-        html += '<div style="display:flex;align-items:center;gap:14px;padding:16px;border:1px dashed var(--border-200);border-radius:10px">' +
+        html += '<div style="display:flex;align-items:center;gap:14px;padding:16px;border:1px dashed var(--border-200);border-radius:10px;margin-bottom:8px">' +
           '<div style="width:36px;height:36px;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="var(--fg-muted)" stroke-width="1.5"><circle cx="10" cy="10" r="7"/></svg></div>' +
           '<div style="flex:1"><div style="font-size:14px;font-weight:600">Link company account</div><div style="font-size:13px;color:var(--fg-muted)">Use your organization\'s single sign-on</div></div>' +
           '<button style="padding:6px 16px;border:1px solid var(--border-100);border-radius:8px;background:var(--bg-100);font-size:13px;font-weight:500;cursor:pointer;color:var(--fg-100);font-family:inherit">Link</button></div>';
@@ -221,11 +222,15 @@ export default function SettingsPage() {
       if (el('settingsTier')) el('settingsTier').textContent = "You're on " + tier.charAt(0).toUpperCase() + tier.slice(1) + ' Plan';
       if (el('settingsCreditsCount')) el('settingsCreditsCount').textContent = (sub.creditsRemaining || 0) + ' of ' + (sub.creditsTotal || 30);
       if (el('settingsCreditProgress')) { var pct = Math.min(100, Math.round(((sub.creditsRemaining || 0) / (sub.creditsTotal || 30)) * 100)); el('settingsCreditProgress').style.width = pct + '%'; }
-      if (el('settingsUpgradeSection')) el('settingsUpgradeSection').style.display = tier === 'free' ? '' : 'none';
       if (el('settingsManageBtn')) el('settingsManageBtn').style.display = tier !== 'free' ? '' : 'none';
-      // Mark current plan
-      if (tier === 'pro' && el('settingsProCard')) el('settingsProCard').style.borderColor = 'var(--accent-100)';
-      if (tier === 'team' && el('settingsTeamCard')) el('settingsTeamCard').style.borderColor = 'var(--accent-100)';
+      // Update plan subtitle
+      if (el('settingsPlanSubtitle')) el('settingsPlanSubtitle').textContent = "You're on the " + tier.charAt(0).toUpperCase() + tier.slice(1) + ' plan. See what\'s available.';
+      // Mark current plan card with orange border + badge
+      var tierCard = tier === 'free' ? 'settingsFreeCard' : tier === 'pro' ? 'settingsProCard' : tier === 'team' ? 'settingsTeamCard' : null;
+      if (tierCard && el(tierCard)) { el(tierCard).style.borderColor = 'var(--accent-100)'; el(tierCard).style.borderWidth = '2px'; }
+      if (el('settingsCurrentBadge')) el('settingsCurrentBadge').style.display = tier === 'pro' ? '' : 'none';
+      // Update Pro button if current
+      if (tier === 'pro' && el('settingsUpgradePro')) { el('settingsUpgradePro').textContent = 'Current Plan'; el('settingsUpgradePro').disabled = true; el('settingsUpgradePro').classList.remove('sb-primary'); el('settingsUpgradePro').classList.add('sb-secondary'); }
     });
 
     function doUpgrade(plan) {
@@ -470,7 +475,7 @@ export default function SettingsPage() {
 
           <div className="nav-section-label">Connectors</div>
           <div className="nav-item settings-nav-item" data-section="github">
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M10 2C5.6 2 2 5.6 2 10c0 3.5 2.3 6.5 5.5 7.5.4.1.5-.2.5-.4v-1.4c-2.2.5-2.7-1.1-2.7-1.1-.4-.9-.9-1.2-.9-1.2-.7-.5.1-.5.1-.5.8.1 1.2.8 1.2.8.7 1.2 1.9.9 2.3.7.1-.5.3-.9.5-1.1-1.8-.2-3.7-.9-3.7-4 0-.9.3-1.6.8-2.1-.1-.2-.4-1 .1-2.1 0 0 .7-.2 2.2.8a7.4 7.4 0 014 0c1.5-1 2.2-.8 2.2-.8.5 1.1.2 1.9.1 2.1.5.6.8 1.3.8 2.1 0 3.1-1.9 3.8-3.7 4 .3.3.6.8.6 1.6v2.4c0 .2.1.5.6.4A8 8 0 0018 10c0-4.4-3.6-8-8-8z"/></svg>
+            <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
             GitHub
           </div>
         </nav>
@@ -579,21 +584,22 @@ export default function SettingsPage() {
             <h1 className="page-title">Plans &amp; credits</h1>
             <p className="page-subtitle" style={{marginBottom:'24px'}}>Manage your subscription plan and credit balance.</p>
 
+            {/* Top row: current plan + credits */}
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'16px',marginBottom:'24px'}}>
               <div className="sc">
-                <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'4px'}}>
-                  <div style={{width:'32px',height:'32px',borderRadius:'8px',background:'linear-gradient(135deg,var(--accent-100),var(--accent-200))',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontWeight:'700',fontSize:'14px'}}>A</div>
-                  <div><div id="settingsTier" style={{fontSize:'15px',fontWeight:'600'}}>You're on Free Plan</div><div style={{fontSize:'12px',color:'var(--fg-muted)'}}>Upgrade anytime</div></div>
+                <div style={{display:'flex',alignItems:'center',gap:'12px',marginBottom:'8px'}}>
+                  <div style={{width:'40px',height:'40px',borderRadius:'10px',background:'linear-gradient(135deg,var(--accent-100),var(--accent-200))',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontWeight:'700',fontSize:'16px'}}>A</div>
+                  <div><div id="settingsTier" style={{fontSize:'16px',fontWeight:'700'}}>You're on Free Plan</div><div style={{fontSize:'13px',color:'var(--fg-muted)'}}>Upgrade anytime</div></div>
                 </div>
-                <button id="settingsManageBtn" className="sb-secondary" style={{display:'none',marginTop:'12px',padding:'6px 14px',fontSize:'13px'}}>Manage</button>
+                <button id="settingsManageBtn" className="sb-secondary" style={{display:'none',marginTop:'16px',padding:'8px 16px',fontSize:'13px'}}>Manage</button>
               </div>
               <div className="sc">
-                <div style={{display:'flex',justifyContent:'space-between',marginBottom:'10px'}}>
-                  <span style={{fontSize:'14px',fontWeight:'600'}}>Credits remaining</span>
-                  <span id="settingsCreditsCount" style={{fontSize:'14px',fontWeight:'600'}}>0 of 30</span>
+                <div style={{display:'flex',justifyContent:'space-between',marginBottom:'12px'}}>
+                  <span style={{fontSize:'15px',fontWeight:'700'}}>Credits remaining</span>
+                  <span id="settingsCreditsCount" style={{fontSize:'15px',fontWeight:'700'}}>0 of 30</span>
                 </div>
-                <div style={{height:'6px',borderRadius:'3px',background:'var(--border-100)',overflow:'hidden',marginBottom:'12px'}}><div id="settingsCreditProgress" style={{height:'100%',borderRadius:'3px',background:'var(--accent-100)',width:'100%',transition:'width 0.5s'}}></div></div>
-                <div style={{fontSize:'12px',color:'var(--fg-muted)',lineHeight:'1.8'}}>
+                <div style={{height:'8px',borderRadius:'4px',background:'var(--border-100)',overflow:'hidden',marginBottom:'16px'}}><div id="settingsCreditProgress" style={{height:'100%',borderRadius:'4px',background:'var(--accent-100)',width:'100%',transition:'width 0.5s'}}></div></div>
+                <div style={{fontSize:'13px',color:'var(--fg-muted)',lineHeight:'2'}}>
                   <div>● Credits used on each generation</div>
                   <div>✕ No credits will rollover</div>
                   <div>✓ Credits reset monthly</div>
@@ -601,48 +607,86 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <div id="settingsUpgradeSection" style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'16px'}}>
-              <div className="sc" id="settingsProCard">
-                <div style={{fontSize:'20px',fontWeight:'700',marginBottom:'4px'}}>Pro</div>
-                <div style={{fontSize:'13px',color:'var(--fg-muted)',marginBottom:'20px'}}>For individuals building seriously.</div>
-                <div style={{fontSize:'28px',fontWeight:'700'}}>$19<span style={{fontSize:'14px',fontWeight:'400',color:'var(--fg-muted)'}}> per month</span></div>
-                <div style={{fontSize:'12px',color:'var(--fg-muted)',marginBottom:'16px'}}>shared across unlimited users</div>
-                <button id="settingsUpgradePro" className="sb-primary" style={{width:'100%'}}>Upgrade</button>
-                <div style={{fontSize:'12px',color:'var(--fg-muted)',marginTop:'12px',padding:'6px 12px',border:'1px solid var(--border-100)',borderRadius:'8px'}}>300 credits / month</div>
-                <ul style={{listStyle:'none',padding:0,marginTop:'16px',fontSize:'13px',color:'var(--fg-200)',lineHeight:'2'}}>
-                  <li>✓ 300 monthly credits</li>
-                  <li>✓ All 9 AI models</li>
-                  <li>✓ Deploy to Vercel</li>
-                  <li>✓ Priority queue</li>
-                </ul>
+            {/* Choose your plan — 3 cards matching upgrade page */}
+            <div id="settingsUpgradeSection">
+              <p id="settingsPlanSubtitle" style={{fontSize:'14px',color:'var(--fg-muted)',marginBottom:'20px',fontFamily:'var(--font-mono)'}}>You're on the Free plan. See what's available.</p>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'16px',marginBottom:'24px'}}>
+                {/* Free */}
+                <div className="sc" id="settingsFreeCard">
+                  <div style={{fontSize:'22px',fontWeight:'800',marginBottom:'8px'}}>Free</div>
+                  <div style={{marginBottom:'16px'}}><span style={{fontSize:'32px',fontWeight:'800'}}>$0</span><span style={{fontSize:'14px',color:'var(--fg-muted)',marginLeft:'4px'}}>forever</span></div>
+                  <div style={{fontSize:'13px',color:'var(--fg-muted)',marginBottom:'20px'}}>No strings.</div>
+                  <button className="sb-secondary" style={{width:'100%',marginBottom:'20px'}}>Included in your plan</button>
+                  <div style={{borderTop:'1px solid var(--border-100)',paddingTop:'16px'}}>
+                    <ul style={{listStyle:'none',padding:0,fontSize:'13px',color:'var(--fg-200)',lineHeight:'2.2'}}>
+                      <li><span style={{color:'var(--fg-muted)'}}>✓</span> 30 credits / month</li>
+                      <li><span style={{color:'var(--fg-muted)'}}>✓</span> All 8 style transforms</li>
+                      <li><span style={{color:'var(--fg-muted)'}}>✓</span> Download as ZIP</li>
+                      <li><span style={{color:'var(--fg-muted)'}}>✓</span> Community support</li>
+                    </ul>
+                  </div>
+                </div>
+                {/* Pro */}
+                <div className="sc" id="settingsProCard" style={{position:'relative'}}>
+                  <div id="settingsCurrentBadge" style={{display:'none',position:'absolute',top:'-12px',left:'50%',transform:'translateX(-50)',padding:'4px 16px',borderRadius:'99px',background:'var(--accent-100)',color:'white',fontSize:'11px',fontWeight:'700',letterSpacing:'0.05em'}}>Current plan</div>
+                  <div style={{fontSize:'22px',fontWeight:'800',marginBottom:'8px'}}>Pro</div>
+                  <div style={{marginBottom:'16px'}}><span style={{fontSize:'32px',fontWeight:'800'}}>$19</span><span style={{fontSize:'14px',color:'var(--fg-muted)',marginLeft:'4px'}}>/month</span></div>
+                  <div style={{fontSize:'13px',color:'var(--fg-muted)',marginBottom:'20px'}}>For power builders.</div>
+                  <button id="settingsUpgradePro" className="sb-primary" style={{width:'100%',marginBottom:'20px'}}>Upgrade</button>
+                  <div style={{borderTop:'1px solid var(--border-100)',paddingTop:'16px'}}>
+                    <ul style={{listStyle:'none',padding:0,fontSize:'13px',lineHeight:'2.2'}}>
+                      <li><span style={{color:'var(--accent-100)'}}>✓</span> 300 credits / month</li>
+                      <li><span style={{color:'var(--accent-100)'}}>✓</span> All 9 AI models — use any model</li>
+                      <li><span style={{color:'var(--accent-100)'}}>✓</span> Priority generation queue</li>
+                      <li><span style={{color:'var(--accent-100)'}}>✓</span> Push to Vercel in 1 click</li>
+                      <li><span style={{color:'var(--accent-100)'}}>✓</span> Brand extraction mode</li>
+                      <li><span style={{color:'var(--accent-100)'}}>✓</span> Email support</li>
+                    </ul>
+                  </div>
+                </div>
+                {/* Team */}
+                <div className="sc" id="settingsTeamCard">
+                  <div style={{fontSize:'22px',fontWeight:'800',marginBottom:'8px'}}>Team</div>
+                  <div style={{marginBottom:'16px'}}><span style={{fontSize:'32px',fontWeight:'800'}}>$49</span><span style={{fontSize:'14px',color:'var(--fg-muted)',marginLeft:'4px'}}>/month</span></div>
+                  <div style={{fontSize:'13px',color:'var(--fg-muted)',marginBottom:'20px'}}>Coming soon.</div>
+                  <div style={{display:'flex',gap:'8px',marginBottom:'20px'}}><input className="si" placeholder="you@email.com" style={{flex:1,fontSize:'13px'}}/><button className="sb-secondary" style={{padding:'8px 14px',fontSize:'13px',flexShrink:0}}>Join waitlist</button></div>
+                  <div style={{borderTop:'1px solid var(--border-100)',paddingTop:'16px'}}>
+                    <ul style={{listStyle:'none',padding:0,fontSize:'13px',color:'var(--fg-200)',lineHeight:'2.2'}}>
+                      <li><span style={{color:'var(--fg-muted)'}}>✓</span> Everything in Pro</li>
+                      <li><span style={{color:'var(--fg-muted)'}}>✓</span> 5 team members</li>
+                      <li><span style={{color:'var(--fg-muted)'}}>✓</span> Shared project library</li>
+                      <li><span style={{color:'var(--fg-muted)'}}>✓</span> Custom AI model config</li>
+                      <li><span style={{color:'var(--fg-muted)'}}>✓</span> SSO &amp; audit logs</li>
+                      <li><span style={{color:'var(--fg-muted)'}}>✓</span> Dedicated support</li>
+                    </ul>
+                  </div>
+                </div>
               </div>
-              <div className="sc" id="settingsTeamCard">
-                <div style={{fontSize:'20px',fontWeight:'700',marginBottom:'4px'}}>Team</div>
-                <div style={{fontSize:'13px',color:'var(--fg-muted)',marginBottom:'20px'}}>For teams building together.</div>
-                <div style={{fontSize:'28px',fontWeight:'700'}}>$49<span style={{fontSize:'14px',fontWeight:'400',color:'var(--fg-muted)'}}> per month</span></div>
-                <div style={{fontSize:'12px',color:'var(--fg-muted)',marginBottom:'16px'}}>shared across unlimited users</div>
-                <button id="settingsUpgradeTeam" className="sb-secondary" style={{width:'100%'}}>Upgrade</button>
-                <div style={{fontSize:'12px',color:'var(--fg-muted)',marginTop:'12px',padding:'6px 12px',border:'1px solid var(--border-100)',borderRadius:'8px'}}>500 credits / month</div>
-                <ul style={{listStyle:'none',padding:0,marginTop:'16px',fontSize:'13px',color:'var(--fg-200)',lineHeight:'2'}}>
-                  <li>✓ Everything in Pro</li>
-                  <li>✓ 500 monthly credits</li>
-                  <li>✓ 5 team members</li>
-                  <li>✓ Shared library &amp; SSO</li>
-                </ul>
+            </div>
+
+            {/* Gift cards */}
+            <div className="sc" style={{marginBottom:'16px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <div><div className="sr-label" style={{fontSize:'16px'}}>Gift cards</div><div className="sr-desc" style={{marginTop:'4px'}}>Send a gift card to your friends.</div><button className="sb-secondary" style={{marginTop:'12px',padding:'8px 16px',fontSize:'13px'}}>See all gift cards</button></div>
+              <div style={{width:'120px',height:'80px',borderRadius:'8px',background:'linear-gradient(135deg,#ff4801,#ff7038,#f0f)',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontWeight:'700',fontSize:'11px',textAlign:'center',lineHeight:'1.3',transform:'rotate(3deg)'}}>Argus<br/>Gift card</div>
+            </div>
+
+            {/* Student discount */}
+            <div className="sc" style={{marginBottom:'16px'}}>
+              <div className="sr">
+                <div><div className="sr-label" style={{fontSize:'16px'}}>Student discount</div><div className="sr-desc" style={{marginTop:'4px'}}>Verify student status and get access to up to 50% off Argus Pro.</div></div>
+                <button className="sb-secondary" style={{padding:'10px 24px',fontSize:'13px'}}>Learn more</button>
               </div>
-              <div className="sc">
-                <div style={{fontSize:'20px',fontWeight:'700',marginBottom:'4px'}}>Enterprise</div>
-                <div style={{fontSize:'13px',color:'var(--fg-muted)',marginBottom:'20px'}}>Built for large organizations.</div>
-                <div style={{fontSize:'28px',fontWeight:'700'}}>Custom</div>
-                <div style={{fontSize:'12px',color:'var(--fg-muted)',marginBottom:'16px'}}>Flexible plans</div>
-                <button className="sb-secondary" style={{width:'100%'}}>Book a demo</button>
-                <ul style={{listStyle:'none',padding:0,marginTop:'28px',fontSize:'13px',color:'var(--fg-200)',lineHeight:'2'}}>
-                  <li>✓ Everything in Team</li>
-                  <li>✓ Dedicated support</li>
-                  <li>✓ Custom integrations</li>
-                  <li>✓ SLA &amp; security review</li>
-                </ul>
+            </div>
+
+            {/* Security and compliance */}
+            <div className="sc" style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <div><div className="sr-label" style={{fontSize:'16px'}}>Security and compliance</div><div className="sr-desc" style={{marginTop:'4px'}}>Enterprise-grade security and compliance certifications</div></div>
+              <div style={{display:'flex',gap:'12px',alignItems:'center'}}>
+                <div style={{width:'48px',height:'48px',borderRadius:'50%',background:'var(--fg-100)',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontSize:'8px',fontWeight:'700',textAlign:'center',lineHeight:'1.2'}}>SOC 2<br/>TYPE II</div>
+                <div style={{width:'48px',height:'48px',borderRadius:'50%',background:'var(--fg-100)',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontSize:'9px',fontWeight:'700'}}>GDPR</div>
+                <div style={{width:'48px',height:'48px',borderRadius:'50%',background:'var(--fg-100)',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontSize:'7px',fontWeight:'700',textAlign:'center',lineHeight:'1.2'}}>ISO<br/>27001</div>
               </div>
+              <button className="sb-secondary" style={{padding:'10px 24px',fontSize:'13px'}}>Learn more</button>
             </div>
           </div>
 

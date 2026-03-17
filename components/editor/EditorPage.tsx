@@ -6,14 +6,13 @@ import { nanoid } from 'nanoid';
 import { createClient } from '@/lib/supabase/client';
 import { parseGeneratedFiles } from '@/lib/ai/parse-files';
 import { History, Palette, Rocket } from 'lucide-react';
-import type { ChatMode } from '@/lib/ai/chat-modes';
 
 import Link from 'next/link';
 import PublishButton from '@/components/builder/PublishButton';
 import DeploySuccessBanner from '@/components/builder/DeploySuccessBanner';
-import ModelSelector, { MODELS } from '@/components/builder/ModelSelector';
+import { MODELS } from '@/components/builder/ModelSelector';
 import { useSubscription } from '@/hooks/use-subscription';
-import { DEFAULT_MODEL_ID } from '@/lib/models';
+import { DEFAULT_MODEL_ID, isModelFreeAfterDepletion } from '@/lib/models';
 import VersionHistoryPanel from '@/components/builder/VersionHistoryPanel';
 import VersionDiffBadge from '@/components/builder/VersionDiffBadge';
 import GitSyncButton from '@/components/builder/GitSyncButton';
@@ -29,9 +28,6 @@ import type { FileEntry } from '@/components/builder/CodePanel';
 
 import EditorLeftPanel from './EditorLeftPanel';
 import EditorRightPanel from './EditorRightPanel';
-import EditorThemeToggle from './EditorThemeToggle';
-import AISuggestions from './AISuggestions';
-import { ComingSoonToast, useComingSoon } from './ComingSoonToast';
 
 import type {
   SandboxData,
@@ -120,11 +116,8 @@ export default function EditorPage({ projectId, buildId }: EditorPageProps) {
   const [buildDuration, setBuildDuration] = useState(0);
   const buildStartTime = useRef(0);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [chatMode, setChatMode] = useState<ChatMode>('build');
-  const { toast: comingSoonToast, showComingSoon } = useComingSoon();
 
   /* ─── Panels & overlays ─── */
-  const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(false);
   const [versionHistoryOpen, setVersionHistoryOpen] = useState(false);
   const [keyboardShortcutsOpen, setKeyboardShortcutsOpen] = useState(false);
   const [deployHistoryOpen, setDeployHistoryOpen] = useState(false);
@@ -230,7 +223,7 @@ export default function EditorPage({ projectId, buildId }: EditorPageProps) {
       const res = await fetch('/api/create-ai-sandbox-v2', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId, buildId }),
+        body: JSON.stringify({}),
       });
       const data = await res.json();
       if (data.success) {
@@ -247,59 +240,50 @@ export default function EditorPage({ projectId, buildId }: EditorPageProps) {
       setLoading(false);
       sandboxCreationRef.current = false;
     }
-  }, [addChatMessage, projectId, buildId]);
+  }, [addChatMessage]);
 
-  /* ─── Sandbox init + cleanup ─── */
+  /* ─── Sandbox init + restore + cleanup ─── */
   useEffect(() => {
     let cancelled = false;
 
     const initSandbox = async () => {
-      const isExistingBuild = buildId && buildId !== 'new' && buildId !== 'latest';
+      // 1. Create fresh sandbox
+      const sandbox = await createSandbox();
+      if (cancelled || !sandbox) return sandbox;
 
-      if (isExistingBuild) {
-        // Use resume-sandbox for existing builds (3-tier: reconnect → template → rebuild)
-        setLoading(true);
+      // 2. If existing build, restore files from DB
+      if (buildId && buildId !== 'new' && buildId !== 'latest') {
         try {
-          addChatMessage('Connecting to preview...', 'system');
-          const res = await fetch('/api/resume-sandbox', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ projectId, buildId }),
-          });
-          if (cancelled) return null;
+          const res = await fetch(`/api/projects/${projectId}/builds/${buildId}`);
+          if (res.ok) {
+            const { build } = await res.json();
+            const snapshot = build?.files_json;
+            // Parse both formats: { files: [...] } or flat array
+            const files: Array<{ path: string; content: string }> = Array.isArray(snapshot)
+              ? snapshot
+              : Array.isArray(snapshot?.files)
+              ? snapshot.files
+              : [];
 
-          const data = await res.json();
-          if (data.success) {
-            setSandboxData(data);
-            sandboxIdRef.current = data.sandboxId;
-
-            // Show tier-appropriate message
-            if (data.resumeTier === 1) {
-              addChatMessage('Preview connected!', 'system');
-            } else if (data.resumeTier === 2) {
-              addChatMessage(`Project restored in ${Math.round(data.resumeTimeMs / 1000)}s`, 'system');
-            } else {
-              addChatMessage('Environment rebuilt — ready to go!', 'system');
+            if (files.length > 0 && !cancelled) {
+              addChatMessage('Restoring your previous build...', 'system');
+              const codePayload = files
+                .map((f: { path: string; content: string }) => `<file path="${f.path}">${f.content}</file>`)
+                .join('\n');
+              await applyGeneratedCode(codePayload, false);
+              if (!cancelled) {
+                addChatMessage('Build restored!', 'system');
+              }
             }
-            return data;
-          } else {
-            // Fallback to creating fresh sandbox
-            addChatMessage('Creating fresh sandbox...', 'system');
-            return await createSandbox();
           }
         } catch {
           if (!cancelled) {
-            addChatMessage('Creating fresh sandbox...', 'system');
-            return await createSandbox();
+            addChatMessage('Starting fresh sandbox.', 'system');
           }
-          return null;
-        } finally {
-          setLoading(false);
         }
-      } else {
-        // New build — create fresh sandbox
-        return await createSandbox();
       }
+
+      return sandbox;
     };
 
     // Store the promise so auto-start can await sandbox readiness
@@ -307,8 +291,14 @@ export default function EditorPage({ projectId, buildId }: EditorPageProps) {
 
     return () => {
       cancelled = true;
-      // Pause sandbox on leave (not kill — enables instant resume on return)
-      navigator.sendBeacon('/api/kill-sandbox');
+      const id = sandboxIdRef.current;
+      if (id) {
+        fetch('/api/kill-sandbox', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sandboxId: id }),
+        }).catch(() => { /* best-effort cleanup */ });
+      }
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -422,7 +412,22 @@ ${storedInstructions ? `\nADDITIONAL CONTEXT: ${storedInstructions}` : ''}`;
           branding: scrapeData.branding,
         });
 
-        // Screenshots captured automatically by backend after build completes
+        // Save clone screenshot as build + project thumbnail
+        if (scrapeData.screenshot && buildId && buildId !== 'new' && buildId !== 'latest') {
+          const thumbnailUrl = scrapeData.screenshot;
+          // Update build thumbnail
+          fetch(`/api/projects/${projectId}/builds/${buildId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ thumbnail_url: thumbnailUrl }),
+          }).catch(() => {});
+          // Also update project thumbnail directly (trigger won't fire since status is already 'complete')
+          fetch(`/api/projects/${projectId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ thumbnail_url: thumbnailUrl }),
+          }).catch(() => {});
+        }
       } catch (err: any) {
         if (cancelled) return;
         addChatMessage(`Failed to clone website: ${err.message}`, 'error');
@@ -733,7 +738,14 @@ ${storedInstructions ? `\nADDITIONAL CONTEXT: ${storedInstructions}` : ''}`;
           setIsPreparingDesign(false);
           setScreenshotError(null);
 
-          // Screenshots captured automatically by backend after build completes
+          // Capture screenshot for non-clone builds (clone screenshots saved separately)
+          if (!urlScreenshot && sandboxData?.url && buildId && buildId !== 'new' && buildId !== 'latest') {
+            fetch('/api/capture-screenshot', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ url: sandboxData.url, projectId, buildId }),
+            }).catch(() => {}); // Fire-and-forget
+          }
         }
       } catch (err: any) {
         addChatMessage(`Error: ${err.message}`, 'error');
@@ -784,7 +796,6 @@ ${storedInstructions ? `\nADDITIONAL CONTEXT: ${storedInstructions}` : ''}`;
     const handler = (e: KeyboardEvent) => {
       const meta = e.metaKey || e.ctrlKey;
       if (meta && e.key === '/') { e.preventDefault(); setKeyboardShortcutsOpen((v) => !v); }
-      if (meta && e.key === 'b') { e.preventDefault(); setLeftPanelCollapsed((v) => !v); }
       if (e.key === 'Escape') { setVersionHistoryOpen(false); setKeyboardShortcutsOpen(false); }
     };
     window.addEventListener('keydown', handler);
@@ -838,56 +849,47 @@ ${storedInstructions ? `\nADDITIONAL CONTEXT: ${storedInstructions}` : ''}`;
   return (
     <>
       {/* Mobile fallback */}
-      <div className="md:hidden flex flex-col items-center justify-center h-screen bg-[var(--editor-bg-base)] text-[var(--editor-fg-primary)] p-8 text-center editor-root">
-        <svg className="w-12 h-12 text-[var(--editor-fg-muted)] mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+      <div className="md:hidden flex flex-col items-center justify-center h-screen bg-white text-gray-900 p-8 text-center">
+        <svg className="w-12 h-12 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
         <h2 className="text-xl font-bold mb-2">Desktop Required</h2>
-        <p className="text-[var(--editor-fg-tertiary)] text-sm">The Argus builder requires a desktop browser.</p>
-        <Link href="/workspace" className="mt-6 text-[var(--editor-accent)] hover:underline text-sm">← Back to workspace</Link>
+        <p className="text-gray-500 text-sm">The Argus builder requires a desktop browser.</p>
+        <Link href="/workspace" className="mt-6 text-blue-600 hover:underline text-sm">← Back to workspace</Link>
       </div>
 
       {/* Desktop editor */}
-      <div className="hidden md:flex h-screen flex-col overflow-hidden editor-root">
+      <div className="hidden md:flex h-screen flex-col bg-white overflow-hidden font-sans">
         {/* Header */}
-        <div className="bg-[var(--editor-bg-base)] py-2 px-4 border-b border-[var(--editor-border-faint)] flex items-center justify-between">
+        <div className="bg-white py-2 px-4 border-b border-gray-200 flex items-center justify-between shadow-sm">
           <div className="flex items-center gap-3">
-            <button onClick={() => router.push('/workspace')} className="text-[var(--editor-fg-muted)] hover:text-[var(--editor-fg-primary)] transition-colors" title="Back to workspace">
+            <button onClick={() => router.push('/workspace')} className="text-gray-500 hover:text-gray-700 transition-colors" title="Back to workspace">
               <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
             </button>
-            <span className="text-sm font-mono font-medium tracking-tight text-[var(--editor-fg-primary)] truncate max-w-[200px]">{projectName || 'Untitled'}</span>
-            <button
-              onClick={() => setLeftPanelCollapsed((v) => !v)}
-              className="p-1.5 rounded-md text-[var(--editor-fg-muted)] hover:text-[var(--editor-fg-primary)] hover:bg-[var(--editor-bg-hover)] transition-colors"
-              title={leftPanelCollapsed ? 'Show chat (⌘B)' : 'Hide chat (⌘B)'}
-            >
-              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                {leftPanelCollapsed ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h7v18H3zM14 12l4-4M14 12l4 4" />
-                ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h7v18H3zM18 12l-4-4M18 12l-4 4" />
-                )}
-              </svg>
-            </button>
+            <span className="text-sm font-medium text-gray-900 truncate max-w-[200px]">{projectName || 'Untitled'}</span>
           </div>
           <div className="flex items-center gap-2">
             {subscription.creditsTotal > 0 && (
-              <span className="text-[11px] font-mono text-[var(--editor-fg-muted)] mr-1">
+              <span className="text-[11px] font-mono text-gray-400 mr-1">
                 {subscription.creditsRemaining}/{subscription.creditsTotal} cr
               </span>
             )}
-            <ModelSelector
-              projectId={projectId}
-              selectedModelId={selectedModelId}
-              onModelChange={handleModelChange}
-              compact
-              creditsRemaining={subscription.creditsRemaining}
-              creditsTotal={subscription.creditsTotal}
-              tier={subscription.tier}
-              onUpgrade={() => setShowUpgrade(true)}
-            />
-            <div className="w-px h-5 bg-[var(--editor-border)]" />
+            <select
+              value={selectedModelId}
+              onChange={(e) => handleModelChange(e.target.value)}
+              className="px-3 py-1.5 text-sm text-gray-900 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-gray-300 transition-colors"
+            >
+              {MODELS.map((m) => {
+                const isFree = isModelFreeAfterDepletion(m.id, subscription.tier);
+                const canAfford = subscription.creditsRemaining >= m.creditCost || isFree;
+                return (
+                  <option key={m.id} value={m.id} disabled={!canAfford}>
+                    {m.name} ({m.creditCost} cr{!canAfford ? ' - locked' : ''}{isFree && subscription.creditsRemaining <= 0 ? ' - FREE' : ''})
+                  </option>
+                );
+              })}
+            </select>
             <button
               onClick={() => createSandbox()}
-              className="p-2 rounded-lg transition-colors bg-[var(--editor-bg-elevated)] border border-[var(--editor-border)] text-[var(--editor-fg-secondary)] hover:bg-[var(--editor-bg-hover)] hover:text-[var(--editor-fg-primary)]"
+              className="p-2 rounded-lg transition-colors bg-gray-50 border border-gray-200 text-gray-700 hover:bg-gray-100"
               title="Create new sandbox"
             >
               <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
@@ -895,15 +897,14 @@ ${storedInstructions ? `\nADDITIONAL CONTEXT: ${storedInstructions}` : ''}`;
             <button
               onClick={handleDownloadZip}
               disabled={!sandboxData}
-              className="p-2 rounded-lg transition-colors bg-[var(--editor-bg-elevated)] border border-[var(--editor-border)] text-[var(--editor-fg-secondary)] hover:bg-[var(--editor-bg-hover)] hover:text-[var(--editor-fg-primary)] disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-2 rounded-lg transition-colors bg-gray-50 border border-gray-200 text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
               title="Download as ZIP"
             >
               <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" /></svg>
             </button>
-            <div className="w-px h-5 bg-[var(--editor-border)]" />
             <button
               onClick={() => setDeployHistoryOpen((o) => !o)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-mono text-[var(--editor-fg-secondary)] bg-[var(--editor-bg-elevated)] border border-[var(--editor-border)] hover:bg-[var(--editor-bg-hover)] hover:text-[var(--editor-fg-primary)] transition-colors"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-gray-700 bg-gray-50 border border-gray-200 hover:bg-gray-100 transition-colors"
               title="Deploy history"
             >
               <Rocket className="w-3.5 h-3.5" />
@@ -911,7 +912,7 @@ ${storedInstructions ? `\nADDITIONAL CONTEXT: ${storedInstructions}` : ''}`;
             </button>
             <button
               onClick={() => setDesignSchemeOpen((o) => !o)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-mono text-[var(--editor-fg-secondary)] bg-[var(--editor-bg-elevated)] border border-[var(--editor-border)] hover:bg-[var(--editor-bg-hover)] hover:text-[var(--editor-fg-primary)] transition-colors"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-gray-700 bg-gray-50 border border-gray-200 hover:bg-gray-100 transition-colors"
               title="Design scheme"
             >
               <Palette className="w-3.5 h-3.5" />
@@ -919,7 +920,7 @@ ${storedInstructions ? `\nADDITIONAL CONTEXT: ${storedInstructions}` : ''}`;
             </button>
             <button
               onClick={() => setVersionHistoryOpen((o) => !o)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-mono text-[var(--editor-fg-secondary)] bg-[var(--editor-bg-elevated)] border border-[var(--editor-border)] hover:bg-[var(--editor-bg-hover)] hover:text-[var(--editor-fg-primary)] transition-colors"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-gray-700 bg-gray-50 border border-gray-200 hover:bg-gray-100 transition-colors"
               title="Version history"
             >
               <History className="w-3.5 h-3.5" />
@@ -928,8 +929,6 @@ ${storedInstructions ? `\nADDITIONAL CONTEXT: ${storedInstructions}` : ''}`;
             {buildCount > 0 && (
               <VersionDiffBadge count={buildCount} onClick={() => setVersionHistoryOpen((o) => !o)} />
             )}
-            <div className="w-px h-5 bg-[var(--editor-border)]" />
-            <EditorThemeToggle />
             <GitSyncButton
               projectId={projectId}
               buildId={buildId}
@@ -949,29 +948,19 @@ ${storedInstructions ? `\nADDITIONAL CONTEXT: ${storedInstructions}` : ''}`;
         </div>
 
         {/* 2-panel layout: Left (Chat) | Right (Code/View) */}
-        <div className="flex-1 flex overflow-hidden relative">
-          {/* LEFT: Collapsible chat panel */}
-          <div className={`transition-all duration-300 ease-in-out overflow-hidden flex-shrink-0 ${leftPanelCollapsed ? 'w-0 min-w-0' : 'w-[400px] min-w-[320px]'}`}>
-            <EditorLeftPanel
-              messages={chatMessages}
-              chatInput={chatInput}
-              onChatInputChange={setChatInput}
-              onSendMessage={handleSendMessage}
-              isGenerating={isGenerating}
-              codeApplicationState={codeApplicationState}
-              generationProgress={generationProgress}
-              conversationContext={conversationContext}
-              selectedModelName={selectedModel.name}
-              chatMode={chatMode}
-              onChatModeChange={setChatMode}
-              projectContext={projectName || undefined}
-              onComingSoon={showComingSoon}
-            />
-            <AISuggestions
-              visible={buildStatus === 'success' && !isGenerating}
-              onSuggestionClick={(s) => showComingSoon('AI suggestions')}
-            />
-          </div>
+        <div className="flex-1 flex overflow-hidden">
+          {/* LEFT: Chat panel */}
+          <EditorLeftPanel
+            messages={chatMessages}
+            chatInput={chatInput}
+            onChatInputChange={setChatInput}
+            onSendMessage={handleSendMessage}
+            isGenerating={isGenerating}
+            codeApplicationState={codeApplicationState}
+            generationProgress={generationProgress}
+            conversationContext={conversationContext}
+            selectedModelName={selectedModel.name}
+          />
 
           {/* RIGHT: Code/View panel */}
           <EditorRightPanel
@@ -999,7 +988,6 @@ ${storedInstructions ? `\nADDITIONAL CONTEXT: ${storedInstructions}` : ''}`;
             isPreparingDesign={isPreparingDesign}
             loading={loading}
             screenshotError={screenshotError}
-            onComingSoon={showComingSoon}
           />
         </div>
 
@@ -1016,12 +1004,12 @@ ${storedInstructions ? `\nADDITIONAL CONTEXT: ${storedInstructions}` : ''}`;
           <div className="fixed inset-0 z-40" onClick={() => setDesignSchemeOpen(false)}>
             <div className="absolute inset-0 bg-black/40" />
             <div
-              className="fixed right-0 top-0 h-full w-[340px] bg-[var(--editor-bg-base)] border-l border-[var(--editor-border)] z-50 flex flex-col shadow-2xl overflow-y-auto"
+              className="fixed right-0 top-0 h-full w-[340px] bg-white border-l border-gray-200 z-50 flex flex-col shadow-2xl overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--editor-border)]">
-                <span className="text-sm font-mono font-medium text-[var(--editor-fg-primary)]">Design Scheme</span>
-                <button onClick={() => setDesignSchemeOpen(false)} className="text-[var(--editor-fg-muted)] hover:text-[var(--editor-fg-primary)] transition-colors">&times;</button>
+              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+                <span className="text-sm font-medium text-gray-900">Design Scheme</span>
+                <button onClick={() => setDesignSchemeOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors">&times;</button>
               </div>
               <DesignSchemePanel projectId={projectId} />
             </div>
@@ -1033,7 +1021,6 @@ ${storedInstructions ? `\nADDITIONAL CONTEXT: ${storedInstructions}` : ''}`;
         {showDeployBanner && deployUrl && <DeploySuccessBanner url={deployUrl} onDismiss={() => setShowDeployBanner(false)} />}
         {showUpgrade && <UpgradePrompt feature="more builds" currentTier={subscription.tier} onDismiss={() => setShowUpgrade(false)} />}
         <DeployHistory projectId={projectId} isOpen={deployHistoryOpen} onClose={() => setDeployHistoryOpen(false)} />
-        <ComingSoonToast message={comingSoonToast.message} visible={comingSoonToast.visible} />
       </div>
     </>
   );
