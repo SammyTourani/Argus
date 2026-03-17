@@ -2,9 +2,13 @@
 'use client';
 
 import { useEffect } from 'react';
-import { fetchCurrentUser, fetchSubscription, fetchConnectorStatuses, escapeHtml } from './workspace-api';
+import { fetchCurrentUser, fetchSubscription, escapeHtml } from './workspace-api';
 import { getActiveWorkspace, getActiveTeamId, setActiveWorkspace, onWorkspaceChange } from './workspace-active';
 import { createClient } from '@/lib/supabase/client';
+
+/* ── Brand SVGs (reused from sign-in page + shared icons) ── */
+var GOOGLE_SVG = '<svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>';
+var GITHUB_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>';
 
 export default function SettingsPage() {
 
@@ -20,20 +24,23 @@ export default function SettingsPage() {
       var section = document.getElementById('section-' + sectionId);
       if (navItem) navItem.classList.add('active');
       if (section) { section.style.display = 'block'; section.style.animation = 'settingsFadeIn 0.2s ease'; }
+      // Also switch People sub-tabs if entering people
+      if (sectionId === 'people') {
+        var allTab = document.querySelector('.people-tab[data-ptab="all"]');
+        if (allTab && !document.querySelector('.people-tab.active')) allTab.click();
+      }
     }
 
     navItems.forEach(function(item) {
       item.addEventListener('click', function() { switchSection(item.getAttribute('data-section')); });
     });
 
-    // Determine initial section from URL
     var params = new URLSearchParams(window.location.search);
     var section = params.get('section') || params.get('tab');
     var billing = params.get('billing');
     if (billing) section = 'plans';
     if (section === 'members') section = 'people';
     if (!section) section = getActiveTeamId() ? 'general' : 'account';
-    // If section doesn't exist (personal user accessing team section), fall back
     var target = document.getElementById('section-' + section);
     if (!target) section = 'account';
 
@@ -58,10 +65,7 @@ export default function SettingsPage() {
 
   /* ===== WORKSPACE CHANGE LISTENER ===== */
   useEffect(() => {
-    var cleanup = onWorkspaceChange(function() {
-      window.location.reload();
-    });
-    return cleanup;
+    return onWorkspaceChange(function() { window.location.reload(); });
   }, []);
 
   /* ===== MOBILE MENU ===== */
@@ -70,43 +74,61 @@ export default function SettingsPage() {
     var sidebar = document.querySelector('.page-settings .sidebar');
     var overlay = document.getElementById('settingsSidebarOverlay');
     if (!menuBtn || !sidebar || !overlay) return;
-
-    function toggle() {
-      sidebar.classList.toggle('open');
-      overlay.classList.toggle('active');
-    }
+    function toggle() { sidebar.classList.toggle('open'); overlay.classList.toggle('active'); }
     menuBtn.addEventListener('click', toggle);
     overlay.addEventListener('click', toggle);
-    return () => {
-      menuBtn.removeEventListener('click', toggle);
-      overlay.removeEventListener('click', toggle);
-    };
+    return () => { menuBtn.removeEventListener('click', toggle); overlay.removeEventListener('click', toggle); };
   }, []);
 
-  /* ===== LOAD USER PROFILE (Account section) ===== */
+  /* ===== SIDEBAR: POPULATE WORKSPACE NAME ===== */
   useEffect(() => {
     var cancelled = false;
     fetchCurrentUser().then(function(user) {
       if (cancelled || !user) return;
+      var wsLabel = document.getElementById('settingsWsNavLabel');
+      if (wsLabel) wsLabel.textContent = user.name + "'s Workspace";
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  /* ===== LOAD USER PROFILE + LINKED ACCOUNTS ===== */
+  useEffect(() => {
+    var cancelled = false;
+    var supabase = createClient();
+    supabase.auth.getUser().then(function(result) {
+      if (cancelled || !result.data.user) return;
+      var user = result.data.user;
+      // Profile fields
       var nameInput = document.getElementById('settingsProfileName');
       var emailInput = document.getElementById('settingsProfileEmail');
-      var avatarEl = document.getElementById('settingsProfileAvatar');
-      var avatarImg = document.getElementById('settingsProfileAvatarImg');
-      var avatarInitial = document.getElementById('settingsProfileAvatarInitial');
-      if (nameInput) nameInput.value = user.name || '';
+      if (nameInput) nameInput.value = user.user_metadata?.full_name || '';
       if (emailInput) emailInput.value = user.email || '';
-      // Show real avatar or fallback to initial
-      if (user.avatarUrl && avatarImg) {
-        avatarImg.src = user.avatarUrl;
-        avatarImg.style.display = 'block';
-        if (avatarInitial) avatarInitial.style.display = 'none';
-      } else if (avatarInitial) {
-        avatarInitial.textContent = user.initial;
-      }
       // Store email for delete confirmation
       var container = document.querySelector('.page-settings');
       if (container) container.setAttribute('data-user-email', user.email || '');
-    }).catch(function() {});
+
+      // Linked accounts
+      var linkedContainer = document.getElementById('settingsLinkedAccounts');
+      if (linkedContainer && user.identities) {
+        var html = '';
+        user.identities.forEach(function(identity, idx) {
+          var provider = identity.provider || 'unknown';
+          var providerName = provider.charAt(0).toUpperCase() + provider.slice(1);
+          var email = identity.identity_data?.email || user.email || '';
+          var icon = provider === 'google' ? GOOGLE_SVG : provider === 'github' ? GITHUB_SVG : '<span style="font-size:16px;font-weight:700;color:var(--fg-muted)">' + providerName.charAt(0) + '</span>';
+          var isPrimary = idx === 0;
+          html += '<div style="display:flex;align-items:center;gap:14px;padding:16px;border:1px solid var(--border-100);border-radius:10px;margin-bottom:8px">' +
+            '<div style="width:36px;height:36px;display:flex;align-items:center;justify-content:center">' + icon + '</div>' +
+            '<div style="flex:1"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:14px;font-weight:600">' + escapeHtml(providerName) + '</span>' + (isPrimary ? '<span style="padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:var(--bg-300);color:var(--fg-200)">Primary</span>' : '') + '</div><div style="font-size:13px;color:var(--fg-muted)">' + escapeHtml(email) + '</div></div></div>';
+        });
+        // Link company account (hollow)
+        html += '<div style="display:flex;align-items:center;gap:14px;padding:16px;border:1px dashed var(--border-200);border-radius:10px">' +
+          '<div style="width:36px;height:36px;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="var(--fg-muted)" stroke-width="1.5"><circle cx="10" cy="10" r="7"/></svg></div>' +
+          '<div style="flex:1"><div style="font-size:14px;font-weight:600">Link company account</div><div style="font-size:13px;color:var(--fg-muted)">Use your organization\'s single sign-on</div></div>' +
+          '<button style="padding:6px 16px;border:1px solid var(--border-100);border-radius:8px;background:var(--bg-100);font-size:13px;font-weight:500;cursor:pointer;color:var(--fg-100);font-family:inherit">Link</button></div>';
+        linkedContainer.innerHTML = html;
+      }
+    });
 
     // Load notification prefs
     try {
@@ -123,7 +145,7 @@ export default function SettingsPage() {
     return () => { cancelled = true; };
   }, []);
 
-  /* ===== ACCOUNT SECTION: SAVE HANDLERS ===== */
+  /* ===== ACCOUNT: SAVE HANDLERS ===== */
   useEffect(() => {
     var cleanups = [];
 
@@ -133,155 +155,97 @@ export default function SettingsPage() {
       var profileHandler = function() {
         var nameInput = document.getElementById('settingsProfileName');
         if (!nameInput) return;
-        saveProfileBtn.textContent = 'Saving...';
-        saveProfileBtn.disabled = true;
+        saveProfileBtn.textContent = 'Saving...'; saveProfileBtn.disabled = true;
         var supabase = createClient();
         supabase.auth.updateUser({ data: { full_name: nameInput.value } }).then(function() {
           saveProfileBtn.textContent = '✓ Saved';
-          setTimeout(function() { saveProfileBtn.textContent = 'Save profile'; saveProfileBtn.disabled = false; }, 2000);
+          setTimeout(function() { saveProfileBtn.textContent = 'Save'; saveProfileBtn.disabled = false; }, 2000);
         });
       };
       saveProfileBtn.addEventListener('click', profileHandler);
       cleanups.push(function() { saveProfileBtn.removeEventListener('click', profileHandler); });
     }
 
-    // Notification toggles
-    document.querySelectorAll('.settings-notif-toggle').forEach(function(toggle) {
-      var toggleHandler = function() { toggle.classList.toggle('active'); };
-      toggle.addEventListener('click', toggleHandler);
-      cleanups.push(function() { toggle.removeEventListener('click', toggleHandler); });
-    });
-
-    // Save notifications
-    var saveNotifBtn = document.getElementById('settingsSaveNotifications');
-    if (saveNotifBtn) {
-      var notifHandler = function() {
-        var prefs = {};
-        ['notifyBuilds', 'notifyInvites', 'notifyMarketing'].forEach(function(key) {
-          var el = document.getElementById('settings-' + key);
-          prefs[key] = el ? el.classList.contains('active') : false;
-        });
-        try { localStorage.setItem('argus_notification_prefs', JSON.stringify(prefs)); } catch(e) {}
-        saveNotifBtn.textContent = '✓ Saved';
-        setTimeout(function() { saveNotifBtn.textContent = 'Save preferences'; }, 2000);
-      };
-      saveNotifBtn.addEventListener('click', notifHandler);
-      cleanups.push(function() { saveNotifBtn.removeEventListener('click', notifHandler); });
-    }
-
     // Sign out
     var signOutBtn = document.getElementById('settingsSignOut');
     if (signOutBtn) {
-      var signOutHandler = function() {
-        var supabase = createClient();
-        supabase.auth.signOut().then(function() { window.location.href = '/'; });
-      };
+      var signOutHandler = function() { var supabase = createClient(); supabase.auth.signOut().then(function() { window.location.href = '/'; }); };
       signOutBtn.addEventListener('click', signOutHandler);
       cleanups.push(function() { signOutBtn.removeEventListener('click', signOutHandler); });
     }
 
     // Delete account
-    var deleteAcctBtn = document.getElementById('settingsDeleteAccountBtn');
-    var deleteAcctReveal = document.getElementById('settingsDeleteReveal');
-    var deleteAcctConfirm = document.getElementById('settingsDeleteConfirm');
-    var deleteAcctCancel = document.getElementById('settingsDeleteCancel');
-    var deleteAcctInput = document.getElementById('settingsDeleteInput');
+    var deleteBtn = document.getElementById('settingsDeleteAccountBtn');
+    var deleteConfirm = document.getElementById('settingsDeleteConfirm');
+    var deleteCancel = document.getElementById('settingsDeleteCancel');
+    var deleteInput = document.getElementById('settingsDeleteInput');
+    var deleteReveal = document.getElementById('settingsDeleteReveal');
 
-    if (deleteAcctBtn) {
-      var showDeleteHandler = function() {
-        if (deleteAcctReveal) deleteAcctReveal.style.display = 'block';
-        deleteAcctBtn.style.display = 'none';
-      };
-      deleteAcctBtn.addEventListener('click', showDeleteHandler);
-      cleanups.push(function() { deleteAcctBtn.removeEventListener('click', showDeleteHandler); });
+    if (deleteBtn) {
+      var showDelete = function() { if (deleteReveal) deleteReveal.style.display = 'block'; deleteBtn.style.display = 'none'; };
+      deleteBtn.addEventListener('click', showDelete);
+      cleanups.push(function() { deleteBtn.removeEventListener('click', showDelete); });
     }
-    if (deleteAcctCancel) {
-      var cancelDeleteHandler = function() {
-        if (deleteAcctReveal) deleteAcctReveal.style.display = 'none';
-        if (deleteAcctBtn) deleteAcctBtn.style.display = '';
-        if (deleteAcctInput) deleteAcctInput.value = '';
-      };
-      deleteAcctCancel.addEventListener('click', cancelDeleteHandler);
-      cleanups.push(function() { deleteAcctCancel.removeEventListener('click', cancelDeleteHandler); });
+    if (deleteCancel) {
+      var hideDelete = function() { if (deleteReveal) deleteReveal.style.display = 'none'; if (deleteBtn) deleteBtn.style.display = ''; if (deleteInput) deleteInput.value = ''; };
+      deleteCancel.addEventListener('click', hideDelete);
+      cleanups.push(function() { deleteCancel.removeEventListener('click', hideDelete); });
     }
-    if (deleteAcctConfirm && deleteAcctInput) {
+    if (deleteConfirm && deleteInput) {
       var inputHandler = function() {
-        var container = document.querySelector('.page-settings');
-        var email = container ? container.getAttribute('data-user-email') : '';
-        deleteAcctConfirm.disabled = deleteAcctInput.value.trim().toLowerCase() !== (email || '').toLowerCase();
-        deleteAcctConfirm.style.opacity = deleteAcctConfirm.disabled ? '0.5' : '1';
+        var email = document.querySelector('.page-settings')?.getAttribute('data-user-email') || '';
+        deleteConfirm.disabled = deleteInput.value.trim().toLowerCase() !== email.toLowerCase();
+        deleteConfirm.style.opacity = deleteConfirm.disabled ? '0.5' : '1';
       };
       var confirmHandler = function() {
-        deleteAcctConfirm.textContent = 'Deleting...';
-        deleteAcctConfirm.disabled = true;
-        fetch('/api/user/delete-account', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ confirmEmail: deleteAcctInput.value.trim() }),
-        }).then(function(res) {
-          if (!res.ok) return res.json().then(function(d) { alert(d.error || 'Failed'); deleteAcctConfirm.textContent = 'Delete my account'; deleteAcctConfirm.disabled = false; deleteAcctConfirm.style.opacity = '0.5'; });
-          var supabase = createClient();
-          supabase.auth.signOut().then(function() { window.location.href = '/'; });
-        }).catch(function() { alert('Something went wrong.'); deleteAcctConfirm.textContent = 'Delete my account'; deleteAcctConfirm.disabled = false; });
+        deleteConfirm.textContent = 'Deleting...'; deleteConfirm.disabled = true;
+        fetch('/api/user/delete-account', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ confirmEmail: deleteInput.value.trim() }) })
+          .then(function(r) { if (!r.ok) return r.json().then(function(d) { alert(d.error || 'Failed'); deleteConfirm.textContent = 'Delete account'; deleteConfirm.disabled = false; }); var s = createClient(); s.auth.signOut().then(function() { window.location.href = '/'; }); })
+          .catch(function() { alert('Something went wrong.'); deleteConfirm.textContent = 'Delete account'; deleteConfirm.disabled = false; });
       };
-      deleteAcctInput.addEventListener('input', inputHandler);
-      deleteAcctConfirm.addEventListener('click', confirmHandler);
-      cleanups.push(function() { deleteAcctInput.removeEventListener('input', inputHandler); deleteAcctConfirm.removeEventListener('click', confirmHandler); });
+      deleteInput.addEventListener('input', inputHandler);
+      deleteConfirm.addEventListener('click', confirmHandler);
+      cleanups.push(function() { deleteInput.removeEventListener('input', inputHandler); deleteConfirm.removeEventListener('click', confirmHandler); });
     }
 
     return function() { cleanups.forEach(function(fn) { fn(); }); };
   }, []);
 
-  /* ===== PLANS & CREDITS: LOAD SUBSCRIPTION ===== */
+  /* ===== PLANS: LOAD SUBSCRIPTION ===== */
   useEffect(() => {
     var cancelled = false;
     fetchSubscription().then(function(sub) {
       if (cancelled) return;
-      var tierEl = document.getElementById('settingsTier');
-      var priceEl = document.getElementById('settingsTierPrice');
-      var creditsEl = document.getElementById('settingsCredits');
-      var progressEl = document.getElementById('settingsCreditProgress');
       var tier = sub.tier || 'free';
-      if (tierEl) tierEl.textContent = tier.charAt(0).toUpperCase() + tier.slice(1) + ' Plan';
-      if (priceEl) priceEl.textContent = tier === 'free' ? '$0/month' : tier === 'pro' ? '$19/month' : tier === 'team' ? '$49/month' : 'Custom';
-      if (creditsEl) creditsEl.textContent = (sub.creditsRemaining || 0) + ' / ' + (sub.creditsTotal || 30);
-      if (progressEl) {
-        var pct = Math.round(((sub.creditsRemaining || 0) / (sub.creditsTotal || 30)) * 100);
-        progressEl.style.width = Math.min(100, pct) + '%';
-        if ((sub.creditsRemaining || 0) <= 5) progressEl.style.background = '#ef4444';
-      }
-      var upgradeSection = document.getElementById('settingsUpgradeSection');
-      if (upgradeSection) upgradeSection.style.display = tier === 'free' ? '' : 'none';
-      var manageSection = document.getElementById('settingsManageSection');
-      if (manageSection) manageSection.style.display = tier !== 'free' ? '' : 'none';
-      var activeBadge = document.getElementById('settingsActiveBadge');
-      if (activeBadge) activeBadge.style.display = tier !== 'free' ? '' : 'none';
-    }).catch(function() {});
+      var el = function(id) { return document.getElementById(id); };
+      if (el('settingsTier')) el('settingsTier').textContent = "You're on " + tier.charAt(0).toUpperCase() + tier.slice(1) + ' Plan';
+      if (el('settingsCreditsCount')) el('settingsCreditsCount').textContent = (sub.creditsRemaining || 0) + ' of ' + (sub.creditsTotal || 30);
+      if (el('settingsCreditProgress')) { var pct = Math.min(100, Math.round(((sub.creditsRemaining || 0) / (sub.creditsTotal || 30)) * 100)); el('settingsCreditProgress').style.width = pct + '%'; }
+      if (el('settingsUpgradeSection')) el('settingsUpgradeSection').style.display = tier === 'free' ? '' : 'none';
+      if (el('settingsManageBtn')) el('settingsManageBtn').style.display = tier !== 'free' ? '' : 'none';
+      // Mark current plan
+      if (tier === 'pro' && el('settingsProCard')) el('settingsProCard').style.borderColor = 'var(--accent-100)';
+      if (tier === 'team' && el('settingsTeamCard')) el('settingsTeamCard').style.borderColor = 'var(--accent-100)';
+    });
 
-    // Upgrade buttons
     function doUpgrade(plan) {
       var teamId = getActiveTeamId();
       var body = { plan: plan };
       if (teamId) body.team_id = teamId;
-      fetch('/api/stripe/create-checkout-session', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      }).then(function(r) { return r.json(); }).then(function(d) { if (d.url) window.location.href = d.url; });
+      fetch('/api/stripe/create-checkout-session', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(function(r) { return r.json(); }).then(function(d) { if (d.url) window.location.href = d.url; });
     }
     var proBtn = document.getElementById('settingsUpgradePro');
     var teamBtn = document.getElementById('settingsUpgradeTeam');
     if (proBtn) proBtn.addEventListener('click', function() { doUpgrade('pro'); });
     if (teamBtn) teamBtn.addEventListener('click', function() { doUpgrade('team'); });
 
-    var manageBtn = document.getElementById('settingsManageBilling');
+    var manageBtn = document.getElementById('settingsManageBtn');
     if (manageBtn) {
       manageBtn.addEventListener('click', function() {
         manageBtn.textContent = 'Opening...';
         var teamId = getActiveTeamId();
         var url = teamId ? '/api/stripe/billing-portal?team_id=' + teamId : '/api/stripe/billing-portal';
-        fetch(url).then(function(r) { return r.json(); }).then(function(d) {
-          if (d.url) window.location.href = d.url;
-          else manageBtn.textContent = 'Manage Subscription';
-        }).catch(function() { manageBtn.textContent = 'Manage Subscription'; });
+        fetch(url).then(function(r) { return r.json(); }).then(function(d) { if (d.url) window.location.href = d.url; else manageBtn.textContent = 'Manage'; }).catch(function() { manageBtn.textContent = 'Manage'; });
       });
     }
 
@@ -293,178 +257,133 @@ export default function SettingsPage() {
     var teamId = getActiveTeamId();
     if (!teamId) return;
     var cancelled = false;
+    var cleanups = [];
 
     fetch('/api/teams/' + teamId).then(function(r) { return r.json(); }).then(function(data) {
       if (cancelled || !data.team) return;
       var nameInput = document.getElementById('settingsWsName');
       var descInput = document.getElementById('settingsWsDesc');
-      var slugEl = document.getElementById('settingsWsSlug');
       var charCount = document.getElementById('settingsWsNameCount');
+      var wsAvatar = document.getElementById('settingsWsAvatar');
       if (nameInput) { nameInput.value = data.team.name || ''; if (charCount) charCount.textContent = (data.team.name || '').length + ' / 50 characters'; }
       if (descInput) descInput.value = data.team.description || '';
-      if (slugEl) slugEl.textContent = data.team.slug || '';
-      var wsAvatar = document.getElementById('settingsWsAvatar');
       if (wsAvatar) wsAvatar.textContent = (data.team.name || 'W').charAt(0).toUpperCase();
-      var container = document.querySelector('.page-settings');
-      if (container) container.setAttribute('data-team-role', data.team.role || '');
       var dangerZone = document.getElementById('settingsDangerZone');
       if (dangerZone) dangerZone.style.display = data.team.role === 'owner' ? '' : 'none';
-      if (data.team.role !== 'owner' && data.team.role !== 'admin') {
-        if (nameInput) { nameInput.disabled = true; nameInput.style.opacity = '0.5'; }
-        if (descInput) { descInput.disabled = true; descInput.style.opacity = '0.5'; }
-        var saveBtn = document.getElementById('settingsSaveWorkspace');
-        if (saveBtn) saveBtn.style.display = 'none';
-      }
     });
 
-    // Name character count
     var nameInput = document.getElementById('settingsWsName');
     var charCount = document.getElementById('settingsWsNameCount');
     if (nameInput && charCount) {
-      nameInput.addEventListener('input', function() { charCount.textContent = nameInput.value.length + ' / 50 characters'; });
+      var countHandler = function() { charCount.textContent = nameInput.value.length + ' / 50 characters'; };
+      nameInput.addEventListener('input', countHandler);
+      cleanups.push(function() { nameInput.removeEventListener('input', countHandler); });
     }
 
-    // Save workspace
-    var saveWsBtn = document.getElementById('settingsSaveWorkspace');
-    if (saveWsBtn) {
-      saveWsBtn.addEventListener('click', function() {
-        var nameInput = document.getElementById('settingsWsName');
-        var descInput = document.getElementById('settingsWsDesc');
-        saveWsBtn.textContent = 'Saving...';
-        saveWsBtn.disabled = true;
-        fetch('/api/teams/' + teamId, {
-          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: (nameInput?.value || '').trim(), description: (descInput?.value || '').trim() }),
-        }).then(function(res) {
-          if (res.ok) { setActiveWorkspace({ id: teamId, name: (nameInput?.value || '').trim() }); saveWsBtn.textContent = '✓ Saved'; }
-          else saveWsBtn.textContent = 'Error';
-          setTimeout(function() { saveWsBtn.textContent = 'Save changes'; saveWsBtn.disabled = false; }, 2000);
-        });
-      });
+    var saveBtn = document.getElementById('settingsSaveWorkspace');
+    if (saveBtn) {
+      var saveHandler = function() {
+        var n = document.getElementById('settingsWsName');
+        var d = document.getElementById('settingsWsDesc');
+        saveBtn.textContent = 'Saving...'; saveBtn.disabled = true;
+        fetch('/api/teams/' + teamId, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: (n?.value || '').trim(), description: (d?.value || '').trim() }) })
+          .then(function(r) { if (r.ok) { setActiveWorkspace({ id: teamId, name: (n?.value || '').trim() }); saveBtn.textContent = '✓ Saved'; } else saveBtn.textContent = 'Error'; setTimeout(function() { saveBtn.textContent = 'Save changes'; saveBtn.disabled = false; }, 2000); });
+      };
+      saveBtn.addEventListener('click', saveHandler);
+      cleanups.push(function() { saveBtn.removeEventListener('click', saveHandler); });
     }
 
     // Delete workspace
-    var deleteWsBtn = document.getElementById('settingsDeleteWsBtn');
-    var deleteWsReveal = document.getElementById('settingsDeleteWsReveal');
-    var deleteWsCancel = document.getElementById('settingsDeleteWsCancel');
-    var deleteWsConfirm = document.getElementById('settingsDeleteWsConfirm');
-    var deleteWsInput = document.getElementById('settingsDeleteWsInput');
-
-    if (deleteWsBtn) deleteWsBtn.addEventListener('click', function() { if (deleteWsReveal) deleteWsReveal.style.display = 'block'; deleteWsBtn.style.display = 'none'; });
-    if (deleteWsCancel) deleteWsCancel.addEventListener('click', function() { if (deleteWsReveal) deleteWsReveal.style.display = 'none'; if (deleteWsBtn) deleteWsBtn.style.display = ''; if (deleteWsInput) deleteWsInput.value = ''; });
-    if (deleteWsConfirm && deleteWsInput) {
-      deleteWsInput.addEventListener('input', function() {
-        var nameInput = document.getElementById('settingsWsName');
-        deleteWsConfirm.disabled = deleteWsInput.value !== (nameInput?.value || '');
-        deleteWsConfirm.style.opacity = deleteWsConfirm.disabled ? '0.5' : '1';
-      });
-      deleteWsConfirm.addEventListener('click', function() {
-        deleteWsConfirm.textContent = 'Deleting...'; deleteWsConfirm.disabled = true;
-        fetch('/api/teams/' + teamId, { method: 'DELETE' }).then(function(res) {
-          if (res.ok) { setActiveWorkspace({ id: 'personal', name: 'Personal' }); window.location.href = '/workspace'; }
-          else { res.json().then(function(d) { alert(d.error || 'Failed'); }); deleteWsConfirm.textContent = 'Yes, delete workspace'; deleteWsConfirm.disabled = false; }
-        });
-      });
+    var delBtn = document.getElementById('settingsDeleteWsBtn');
+    var delReveal = document.getElementById('settingsDeleteWsReveal');
+    var delCancel = document.getElementById('settingsDeleteWsCancel');
+    var delConfirm = document.getElementById('settingsDeleteWsConfirm');
+    var delInput = document.getElementById('settingsDeleteWsInput');
+    if (delBtn) { var h = function() { if (delReveal) delReveal.style.display='block'; delBtn.style.display='none'; }; delBtn.addEventListener('click',h); cleanups.push(function(){delBtn.removeEventListener('click',h);}); }
+    if (delCancel) { var h2 = function() { if (delReveal) delReveal.style.display='none'; if (delBtn) delBtn.style.display=''; if (delInput) delInput.value=''; }; delCancel.addEventListener('click',h2); cleanups.push(function(){delCancel.removeEventListener('click',h2);}); }
+    if (delConfirm && delInput) {
+      var ih = function() { var n=document.getElementById('settingsWsName'); delConfirm.disabled=delInput.value!==(n?.value||''); delConfirm.style.opacity=delConfirm.disabled?'0.5':'1'; };
+      var ch = function() { delConfirm.textContent='Deleting...'; delConfirm.disabled=true; fetch('/api/teams/'+teamId,{method:'DELETE'}).then(function(r){if(r.ok){setActiveWorkspace({id:'personal',name:'Personal'});window.location.href='/workspace';}else{r.json().then(function(d){alert(d.error||'Failed');});delConfirm.textContent='Yes, delete workspace';delConfirm.disabled=false;}}); };
+      delInput.addEventListener('input',ih); delConfirm.addEventListener('click',ch);
+      cleanups.push(function(){delInput.removeEventListener('input',ih);delConfirm.removeEventListener('click',ch);});
     }
 
-    return () => { cancelled = true; };
+    return function() { cancelled=true; cleanups.forEach(function(fn){fn();}); };
   }, []);
 
-  /* ===== PEOPLE: LOAD MEMBERS + INVITE HANDLERS ===== */
+  /* ===== PEOPLE: LOAD MEMBERS ===== */
   useEffect(() => {
     var teamId = getActiveTeamId();
     if (!teamId) return;
     var cancelled = false;
     var cleanups = [];
 
+    // Load team info for subtitle
+    fetch('/api/teams/' + teamId).then(function(r){return r.json();}).then(function(data) {
+      if (cancelled || !data.team) return;
+      var subtitle = document.getElementById('settingsPeopleSubtitle');
+      if (subtitle) subtitle.innerHTML = 'Inviting people to <strong>' + escapeHtml(data.team.name || 'this workspace') + '</strong> gives access to workspace shared projects and credits. You have <strong>' + (data.team.member_count || 1) + '</strong> builder(s) in this workspace.';
+    });
+
     // Load members
-    fetch('/api/teams/' + teamId + '/members').then(function(r) { return r.json(); }).then(function(data) {
+    fetch('/api/teams/' + teamId + '/members').then(function(r){return r.json();}).then(function(data) {
       if (cancelled || !data.members) return;
-      var tbody = document.getElementById('settingsMembersList');
+      var tbody = document.getElementById('settingsMembersBody');
       if (!tbody) return;
       var html = '';
       data.members.forEach(function(m) {
         var p = m.profiles || {};
         var name = p.full_name || p.email || 'Unknown';
         var initial = name.charAt(0).toUpperCase();
-        var avatar = p.avatar_url ? '<img src="' + escapeHtml(p.avatar_url) + '" style="width:32px;height:32px;border-radius:50%;object-fit:cover" />' : '<div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--accent-100),var(--accent-200));display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:13px">' + initial + '</div>';
-        var roleBadge = m.role === 'owner' ? '<span style="padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600;background:var(--accent-100);color:white">Owner</span>' : '<span style="padding:2px 8px;border-radius:99px;font-size:11px;font-weight:500;background:var(--bg-300);color:var(--fg-200)">' + m.role.charAt(0).toUpperCase() + m.role.slice(1) + '</span>';
-        var date = m.joined_at ? new Date(m.joined_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
-        html += '<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border-100)">' +
-          avatar +
-          '<div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:500">' + escapeHtml(name) + '</div><div style="font-size:12px;color:var(--fg-muted)">' + escapeHtml(p.email || '') + '</div></div>' +
-          roleBadge +
-          '<div style="font-size:12px;color:var(--fg-muted);min-width:80px;text-align:right">' + date + '</div>' +
-          '</div>';
+        var avatar = p.avatar_url ? '<img src="'+escapeHtml(p.avatar_url)+'" style="width:32px;height:32px;border-radius:50%;object-fit:cover"/>' : '<div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--accent-100),var(--accent-200));display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:13px">'+initial+'</div>';
+        var role = m.role.charAt(0).toUpperCase() + m.role.slice(1);
+        var date = m.joined_at ? new Date(m.joined_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
+        html += '<tr style="border-bottom:1px solid var(--border-100)">' +
+          '<td style="padding:12px 8px;display:flex;align-items:center;gap:10px">' + avatar + '<div><div style="font-size:13px;font-weight:500">'+escapeHtml(name)+'</div><div style="font-size:12px;color:var(--fg-muted)">'+escapeHtml(p.email||'')+'</div></div></td>' +
+          '<td style="padding:12px 8px;font-size:13px;color:var(--fg-200)">'+role+'</td>' +
+          '<td style="padding:12px 8px;font-size:13px;color:var(--fg-muted)">'+date+'</td>' +
+          '<td style="padding:12px 8px;font-size:13px;color:var(--fg-muted)">—</td>' +
+          '<td style="padding:12px 8px;font-size:13px;color:var(--fg-muted)">—</td>' +
+          '<td style="padding:12px 8px;font-size:13px;color:var(--fg-muted)">—</td>' +
+          '<td style="padding:12px 8px;text-align:right"><span style="cursor:pointer;color:var(--fg-muted)">⋯</span></td></tr>';
       });
-      tbody.innerHTML = html || '<div style="padding:16px;color:var(--fg-muted);font-size:14px">No members yet.</div>';
+      tbody.innerHTML = html;
     });
 
-    // Invite form handlers (attached once, outside fetch callback)
+    // People sub-tabs
+    document.querySelectorAll('.people-tab').forEach(function(tab) {
+      var handler = function() {
+        document.querySelectorAll('.people-tab').forEach(function(t){t.classList.remove('active');});
+        tab.classList.add('active');
+        document.querySelectorAll('.people-panel').forEach(function(p){p.style.display='none';});
+        var panel = document.getElementById('people-panel-'+tab.getAttribute('data-ptab'));
+        if (panel) panel.style.display = 'block';
+      };
+      tab.addEventListener('click', handler);
+      cleanups.push(function(){tab.removeEventListener('click',handler);});
+    });
+
+    // Invite
     var inviteBtn = document.getElementById('settingsInviteBtn');
     var inviteForm = document.getElementById('settingsInviteForm');
     var inviteCancel = document.getElementById('settingsInviteCancel');
     var inviteSubmit = document.getElementById('settingsInviteSubmit');
     var inviteEmail = document.getElementById('settingsInviteEmail');
     var inviteMsg = document.getElementById('settingsInviteMsg');
+    if (inviteBtn) { var h=function(){if(inviteForm)inviteForm.style.display='block';inviteBtn.style.display='none';}; inviteBtn.addEventListener('click',h); cleanups.push(function(){inviteBtn.removeEventListener('click',h);}); }
+    if (inviteCancel) { var h2=function(){if(inviteForm)inviteForm.style.display='none';if(inviteBtn)inviteBtn.style.display='';if(inviteEmail)inviteEmail.value='';if(inviteMsg)inviteMsg.textContent='';}; inviteCancel.addEventListener('click',h2); cleanups.push(function(){inviteCancel.removeEventListener('click',h2);}); }
+    if (inviteSubmit&&inviteEmail) { var h3=function(){var e=inviteEmail.value.trim();if(!e)return;inviteSubmit.textContent='Inviting...';inviteSubmit.disabled=true;fetch('/api/teams/'+teamId+'/members',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:e})}).then(function(r){return r.json().then(function(d){return{ok:r.ok,data:d};});}).then(function(result){if(result.ok)window.location.reload();else{if(inviteMsg){inviteMsg.textContent=result.data.error||'Failed';inviteMsg.style.color='#dc2626';}inviteSubmit.textContent='Invite members';inviteSubmit.disabled=false;}});}; inviteSubmit.addEventListener('click',h3); cleanups.push(function(){inviteSubmit.removeEventListener('click',h3);}); }
 
-    if (inviteBtn) {
-      var showInviteHandler = function() { if (inviteForm) inviteForm.style.display = 'block'; inviteBtn.style.display = 'none'; };
-      inviteBtn.addEventListener('click', showInviteHandler);
-      cleanups.push(function() { inviteBtn.removeEventListener('click', showInviteHandler); });
-    }
-    if (inviteCancel) {
-      var cancelInviteHandler = function() { if (inviteForm) inviteForm.style.display = 'none'; if (inviteBtn) inviteBtn.style.display = ''; if (inviteEmail) inviteEmail.value = ''; if (inviteMsg) inviteMsg.textContent = ''; };
-      inviteCancel.addEventListener('click', cancelInviteHandler);
-      cleanups.push(function() { inviteCancel.removeEventListener('click', cancelInviteHandler); });
-    }
-    if (inviteSubmit && inviteEmail) {
-      var submitInviteHandler = function() {
-        var email = inviteEmail.value.trim();
-        if (!email) return;
-        inviteSubmit.textContent = 'Inviting...';
-        inviteSubmit.disabled = true;
-        fetch('/api/teams/' + teamId + '/members', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: email }),
-        }).then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); }).then(function(result) {
-          if (result.ok) { window.location.reload(); }
-          else { if (inviteMsg) { inviteMsg.textContent = result.data.error || 'Failed'; inviteMsg.style.color = '#dc2626'; } inviteSubmit.textContent = 'Invite'; inviteSubmit.disabled = false; }
-        });
-      };
-      inviteSubmit.addEventListener('click', submitInviteHandler);
-      cleanups.push(function() { inviteSubmit.removeEventListener('click', submitInviteHandler); });
-    }
-
-    return function() { cancelled = true; cleanups.forEach(function(fn) { fn(); }); };
+    return function() { cancelled=true; cleanups.forEach(function(fn){fn();}); };
   }, []);
 
-  /* ===== CONNECTORS: LOAD STATUS ===== */
-  useEffect(() => {
-    var cancelled = false;
-    fetchConnectorStatuses().then(function(connectors) {
-      if (cancelled) return;
-      var statusMap = {};
-      (connectors || []).forEach(function(c) { statusMap[c.provider] = c.status; });
-      document.querySelectorAll('.settings-connector-status').forEach(function(el) {
-        var provider = el.getAttribute('data-provider');
-        if (statusMap[provider] === 'connected') {
-          el.textContent = 'Connected';
-          el.style.color = '#16a34a';
-        }
-      });
-    });
-    return () => { cancelled = true; };
-  }, []);
-
-  /* ===== LABS: DARK MODE TOGGLE ===== */
+  /* ===== LABS: DARK MODE ===== */
   useEffect(() => {
     var toggle = document.getElementById('settingsDarkModeToggle');
     if (!toggle) return;
     var template = localStorage.getItem('argus-hero-template') || 'classic';
     if (template === 'matrix') toggle.classList.add('active');
-
-    toggle.addEventListener('click', function() {
+    var handler = function() {
       toggle.classList.toggle('active');
       var isDark = toggle.classList.contains('active');
       localStorage.setItem('argus-hero-template', isDark ? 'matrix' : 'classic');
@@ -472,7 +391,9 @@ export default function SettingsPage() {
       var root = document.querySelector('.workspace-root');
       if (root) root.classList.toggle('dark', isDark);
       window.dispatchEvent(new CustomEvent('argus-dark-mode-change', { detail: { dark: isDark } }));
-    });
+    };
+    toggle.addEventListener('click', handler);
+    return () => toggle.removeEventListener('click', handler);
   }, []);
 
   /* ===== DARK MODE SYNC ===== */
@@ -483,472 +404,425 @@ export default function SettingsPage() {
     if (root) root.classList.toggle('dark', isDark);
     if (isDark) document.documentElement.setAttribute('data-argus-dark', 'true');
     else document.documentElement.removeAttribute('data-argus-dark');
-
-    var storageHandler = function(e) {
-      if (e.key === 'argus-hero-template') {
-        var nowDark = e.newValue === 'matrix';
-        var r = document.querySelector('.workspace-root');
-        if (r) r.classList.toggle('dark', nowDark);
-        if (nowDark) document.documentElement.setAttribute('data-argus-dark', 'true');
-        else document.documentElement.removeAttribute('data-argus-dark');
-      }
-    };
-    window.addEventListener('storage', storageHandler);
-    return () => window.removeEventListener('storage', storageHandler);
+    var handler = function(e) { if (e.key==='argus-hero-template') { var d=e.newValue==='matrix'; var r=document.querySelector('.workspace-root'); if(r)r.classList.toggle('dark',d); if(d)document.documentElement.setAttribute('data-argus-dark','true');else document.documentElement.removeAttribute('data-argus-dark'); } };
+    window.addEventListener('storage', handler);
+    return () => window.removeEventListener('storage', handler);
   }, []);
 
   var hasTeam = typeof window !== 'undefined' && getActiveTeamId();
 
   return (
     <div className="app page-settings">
-      {/* Mobile menu button */}
-      <button className="mobile-menu-btn" id="settingsMobileBtn">
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 5h14M3 10h14M3 15h14" /></svg>
-      </button>
+      <button className="mobile-menu-btn" id="settingsMobileBtn"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 5h14M3 10h14M3 15h14"/></svg></button>
       <div className="sidebar-overlay" id="settingsSidebarOverlay"></div>
 
-      {/* SETTINGS SIDEBAR — Lovable-style with section navigation */}
+      {/* ── SIDEBAR ── */}
       <aside className="sidebar">
-        <div className="sidebar-header" style={{ paddingBottom: '12px' }}>
-          <a href="/workspace" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none', color: 'var(--fg-200)', fontSize: '13px', fontWeight: '500' }}>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M10 3L5 8l5 5" /></svg>
-            Back to workspace
+        <div className="sidebar-header" style={{paddingBottom:'12px'}}>
+          <a href="/workspace" style={{display:'flex',alignItems:'center',gap:'8px',textDecoration:'none',color:'var(--fg-200)',fontSize:'13px',fontWeight:'500'}}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M10 3L5 8l5 5"/></svg>
+            Go back
           </a>
         </div>
 
-        <nav className="sidebar-nav" style={{ flex: 1, overflowY: 'auto' }}>
-          {/* WORKSPACE group */}
+        <nav className="sidebar-nav" style={{flex:1,overflowY:'auto'}}>
           {hasTeam && (<>
             <div className="nav-section-label">Workspace</div>
-            <div className="nav-item settings-nav-item active" data-section="general">
-              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="10" cy="10" r="2.5" /><path d="M10 2v3M10 15v3M2 10h3M15 10h3" /></svg>
-              General
+            <div className="nav-item settings-nav-item active" data-section="general" style={{fontWeight:'500'}}>
+              <div style={{width:'18px',height:'18px',borderRadius:'4px',background:'linear-gradient(135deg,var(--accent-100),var(--accent-200))',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontSize:'10px',fontWeight:'700',flexShrink:0}}>S</div>
+              <span id="settingsWsNavLabel">Workspace</span>
             </div>
             <div className="nav-item settings-nav-item" data-section="people">
-              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="7" r="3" /><circle cx="14" cy="8" r="2.5" /><path d="M2 17c0-3 2.2-5.5 5-5.8M11.5 17c0-2.5 1.5-4.5 3.5-5" /></svg>
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="7" r="3"/><circle cx="14" cy="8" r="2.5"/><path d="M2 17c0-3 2.2-5.5 5-5.8M11.5 17c0-2.5 1.5-4.5 3.5-5"/></svg>
               People
             </div>
             <div className="nav-item settings-nav-item" data-section="plans">
-              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="5" width="16" height="11" rx="2" /><path d="M2 9h16" /></svg>
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="5" width="16" height="11" rx="2"/><path d="M2 9h16"/></svg>
               Plans &amp; credits
             </div>
             <div className="nav-item settings-nav-item" data-section="privacy">
-              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="5" y="9" width="10" height="8" rx="2" /><path d="M7 9V6a3 3 0 016 0v3" /></svg>
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="5" y="9" width="10" height="8" rx="2"/><path d="M7 9V6a3 3 0 016 0v3"/></svg>
               Privacy &amp; security
             </div>
           </>)}
 
-          {/* ACCOUNT group */}
           <div className="nav-section-label">Account</div>
-          <div className={'nav-item settings-nav-item' + (!hasTeam ? ' active' : '')} data-section="account">
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="10" cy="7" r="3.5" /><path d="M4 17c0-3.3 2.7-6 6-6s6 2.7 6 6" /></svg>
+          <div className={'nav-item settings-nav-item'+(!hasTeam?' active':'')} data-section="account">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="10" cy="7" r="3.5"/><path d="M4 17c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>
             Your account
           </div>
           {!hasTeam && (
             <div className="nav-item settings-nav-item" data-section="plans">
-              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="5" width="16" height="11" rx="2" /><path d="M2 9h16" /></svg>
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="5" width="16" height="11" rx="2"/><path d="M2 9h16"/></svg>
               Plans &amp; credits
             </div>
           )}
           <div className="nav-item settings-nav-item" data-section="labs">
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8 3v5l-4 8h12l-4-8V3M6 3h8" /></svg>
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8 3v5l-4 8h12l-4-8V3M6 3h8"/></svg>
             Labs
           </div>
 
-          {/* KNOWLEDGE group */}
           <div className="nav-section-label">Knowledge</div>
           <div className="nav-item settings-nav-item" data-section="knowledge">
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 4h5l2 2h7v10H3V4z" /></svg>
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 4h5l2 2h7v10H3V4z"/></svg>
             Knowledge
           </div>
 
-          {/* CONNECTORS group */}
           <div className="nav-section-label">Connectors</div>
-          <div className="nav-item settings-nav-item" data-section="connectors">
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M7 3v4a2 2 0 01-2 2H3M13 3v4a2 2 0 002 2h2M7 17v-4a2 2 0 00-2-2H3M13 17v-4a2 2 0 012-2h2" /></svg>
-            Connectors
-          </div>
           <div className="nav-item settings-nav-item" data-section="github">
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M10 2C5.6 2 2 5.6 2 10c0 3.5 2.3 6.5 5.5 7.5.4.1.5-.2.5-.4v-1.4c-2.2.5-2.7-1.1-2.7-1.1-.4-.9-.9-1.2-.9-1.2-.7-.5.1-.5.1-.5.8.1 1.2.8 1.2.8.7 1.2 1.9.9 2.3.7.1-.5.3-.9.5-1.1-1.8-.2-3.7-.9-3.7-4 0-.9.3-1.6.8-2.1-.1-.2-.4-1 .1-2.1 0 0 .7-.2 2.2.8a7.4 7.4 0 014 0c1.5-1 2.2-.8 2.2-.8.5 1.1.2 1.9.1 2.1.5.6.8 1.3.8 2.1 0 3.1-1.9 3.8-3.7 4 .3.3.6.8.6 1.6v2.4c0 .2.1.5.6.4A8 8 0 0018 10c0-4.4-3.6-8-8-8z" /></svg>
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M10 2C5.6 2 2 5.6 2 10c0 3.5 2.3 6.5 5.5 7.5.4.1.5-.2.5-.4v-1.4c-2.2.5-2.7-1.1-2.7-1.1-.4-.9-.9-1.2-.9-1.2-.7-.5.1-.5.1-.5.8.1 1.2.8 1.2.8.7 1.2 1.9.9 2.3.7.1-.5.3-.9.5-1.1-1.8-.2-3.7-.9-3.7-4 0-.9.3-1.6.8-2.1-.1-.2-.4-1 .1-2.1 0 0 .7-.2 2.2.8a7.4 7.4 0 014 0c1.5-1 2.2-.8 2.2-.8.5 1.1.2 1.9.1 2.1.5.6.8 1.3.8 2.1 0 3.1-1.9 3.8-3.7 4 .3.3.6.8.6 1.6v2.4c0 .2.1.5.6.4A8 8 0 0018 10c0-4.4-3.6-8-8-8z"/></svg>
             GitHub
           </div>
         </nav>
       </aside>
 
-      {/* MAIN CONTENT */}
+      {/* ── MAIN ── */}
       <main className="main">
-        <div className="main-inner" style={{ maxWidth: '800px' }}>
+        <div className="main-inner" style={{maxWidth:'800px'}}>
+          <div id="settingsToast" style={{position:'fixed',bottom:'24px',right:'24px',padding:'12px 20px',background:'var(--accent-100)',color:'white',borderRadius:'10px',fontSize:'14px',fontWeight:'600',opacity:'0',transition:'opacity 0.3s',pointerEvents:'none',zIndex:1000}}></div>
 
-          {/* Toast */}
-          <div id="settingsToast" style={{ position: 'fixed', bottom: '24px', right: '24px', padding: '12px 20px', background: 'var(--accent-100)', color: 'white', borderRadius: '10px', fontSize: '14px', fontWeight: '600', opacity: '0', transition: 'opacity 0.3s', pointerEvents: 'none', zIndex: 1000 }}></div>
-
-          {/* ═══════════ GENERAL ═══════════ */}
+          {/* ═══ WORKSPACE SETTINGS ═══ */}
           {hasTeam && (
-            <div className="settings-section-content" id="section-general" style={{ display: 'none' }}>
-              <h1 className="page-title stagger-1">Workspace settings</h1>
-              <p className="page-subtitle" style={{ marginBottom: '24px' }}>Manage your workspace details and preferences.</p>
+            <div className="settings-section-content" id="section-general" style={{display:'none'}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'8px'}}><h1 className="page-title">Workspace settings</h1></div>
+              <p className="page-subtitle" style={{marginBottom:'24px'}}>Workspaces allow you to collaborate on projects in real time.</p>
 
-              <div className="settings-card">
-                <div className="settings-row" style={{ borderBottom: '1px solid var(--border-100)', paddingBottom: '20px', marginBottom: '20px' }}>
-                  <div><div className="settings-row-label">Avatar</div><div className="settings-row-desc">Set an avatar for your workspace.</div></div>
-                  <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: 'linear-gradient(135deg,var(--accent-100),var(--accent-200))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '700', fontSize: '18px' }} id="settingsWsAvatar">A</div>
+              <div className="sc">
+                <div className="sr" style={{borderBottom:'1px solid var(--border-100)',paddingBottom:'20px',marginBottom:'20px'}}>
+                  <div><div className="sr-label">Avatar</div><div className="sr-desc">Set an avatar for your workspace.</div></div>
+                  <div id="settingsWsAvatar" style={{width:'44px',height:'44px',borderRadius:'50%',background:'linear-gradient(135deg,var(--accent-100),var(--accent-200))',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontWeight:'700',fontSize:'18px'}}>S</div>
                 </div>
-                <div className="settings-row" style={{ borderBottom: '1px solid var(--border-100)', paddingBottom: '20px', marginBottom: '20px' }}>
-                  <div><div className="settings-row-label">Name</div><div className="settings-row-desc">Your full workspace name, as visible to others.</div></div>
-                  <div style={{ width: '300px' }}>
-                    <input type="text" id="settingsWsName" className="settings-input" maxLength={50} placeholder="My Workspace" />
-                    <div id="settingsWsNameCount" style={{ fontSize: '11px', color: 'var(--fg-muted)', marginTop: '4px', textAlign: 'right' }}>0 / 50 characters</div>
-                  </div>
+                <div className="sr" style={{borderBottom:'1px solid var(--border-100)',paddingBottom:'20px',marginBottom:'20px'}}>
+                  <div><div className="sr-label">Name</div><div className="sr-desc">Your full workspace name, as visible to others.</div></div>
+                  <div style={{width:'300px'}}><input type="text" id="settingsWsName" className="si" maxLength={50}/><div id="settingsWsNameCount" style={{fontSize:'11px',color:'var(--fg-muted)',marginTop:'4px',textAlign:'right'}}>0 / 50 characters</div></div>
                 </div>
-                <div className="settings-row" style={{ borderBottom: '1px solid var(--border-100)', paddingBottom: '20px', marginBottom: '20px' }}>
-                  <div><div className="settings-row-label">Description</div><div className="settings-row-desc">A brief description of this workspace.</div></div>
-                  <div style={{ width: '300px' }}>
-                    <textarea id="settingsWsDesc" className="settings-input" rows={3} maxLength={500} placeholder="What is this workspace for?" style={{ resize: 'none' }}></textarea>
-                  </div>
+                <div className="sr" style={{borderBottom:'1px solid var(--border-100)',paddingBottom:'20px',marginBottom:'20px'}}>
+                  <div><div className="sr-label">Workspace handle</div><div className="sr-desc">Set a handle for the workspace profile page.</div></div>
+                  <button className="sb-secondary" style={{padding:'8px 16px',fontSize:'13px'}}>Set handle</button>
                 </div>
-                <div className="settings-row">
-                  <div><div className="settings-row-label">Workspace handle</div><div className="settings-row-desc">Your workspace's unique identifier.</div></div>
-                  <div id="settingsWsSlug" style={{ fontSize: '14px', color: 'var(--fg-muted)', fontFamily: 'var(--font-mono)' }}>—</div>
+                <div className="sr">
+                  <div><div className="sr-label">Default monthly member credit limit</div><div className="sr-desc">The default monthly credit limit for members of this workspace. Leave empty to use no limit.</div></div>
+                  <input type="number" className="si" style={{width:'280px'}} placeholder="Enter default monthly member credit limit (optional)"/>
                 </div>
               </div>
-              <div style={{ marginTop: '16px' }}><button id="settingsSaveWorkspace" className="settings-btn-primary">Save changes</button></div>
+              <div style={{marginTop:'16px'}}><button id="settingsSaveWorkspace" className="sb-primary">Save changes</button></div>
 
-              {/* Danger Zone */}
-              <div className="settings-card settings-card-danger" id="settingsDangerZone" style={{ display: 'none', marginTop: '24px' }}>
-                <div className="settings-row-label" style={{ color: '#dc2626' }}>Leave workspace</div>
-                <p style={{ fontSize: '13px', color: 'var(--fg-muted)', margin: '8px 0 16px' }}>Permanently delete this workspace. All team members will lose access and any active subscription will be cancelled.</p>
-                <button id="settingsDeleteWsBtn" className="settings-btn-danger">Delete workspace</button>
-                <div id="settingsDeleteWsReveal" style={{ display: 'none', marginTop: '12px', padding: '16px', border: '1px solid #fca5a5', borderRadius: '10px', background: 'rgba(254,226,226,0.15)' }}>
-                  <p style={{ fontSize: '13px', color: '#b91c1c', fontWeight: '500', marginBottom: '8px' }}>Type the workspace name to confirm:</p>
-                  <input type="text" id="settingsDeleteWsInput" className="settings-input" style={{ borderColor: '#fca5a5', marginBottom: '12px' }} />
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button id="settingsDeleteWsConfirm" disabled className="settings-btn-danger" style={{ opacity: 0.5 }}>Yes, delete workspace</button>
-                    <button id="settingsDeleteWsCancel" style={{ fontSize: '13px', color: 'var(--fg-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>Cancel</button>
-                  </div>
+              <div className="sc" style={{marginTop:'24px'}} id="settingsDangerZone">
+                <div className="sr-label">Leave workspace</div>
+                <p style={{fontSize:'13px',color:'var(--fg-muted)',margin:'8px 0 16px'}}>You cannot leave your last workspace. Your account must be a member of at least one workspace.</p>
+                <button className="sb-danger" disabled style={{opacity:0.5}}>Leave workspace</button>
+              </div>
+            </div>
+          )}
+
+          {/* ═══ PEOPLE ═══ */}
+          {hasTeam && (
+            <div className="settings-section-content" id="section-people" style={{display:'none'}}>
+              <h1 className="page-title">People</h1>
+              <p id="settingsPeopleSubtitle" className="page-subtitle" style={{marginBottom:'20px'}}>Loading...</p>
+
+              <div style={{display:'flex',gap:'4px',marginBottom:'16px'}}>
+                <button className="people-tab active" data-ptab="all" style={{padding:'6px 16px',borderRadius:'8px',border:'1px solid var(--border-100)',background:'var(--bg-100)',fontSize:'13px',fontWeight:'500',cursor:'pointer',fontFamily:'inherit',color:'var(--fg-100)'}}>All</button>
+                <button className="people-tab" data-ptab="invitations" style={{padding:'6px 16px',borderRadius:'8px',border:'1px solid var(--border-100)',background:'transparent',fontSize:'13px',fontWeight:'500',cursor:'pointer',fontFamily:'inherit',color:'var(--fg-muted)'}}>Invitations</button>
+                <button className="people-tab" data-ptab="collaborators" style={{padding:'6px 16px',borderRadius:'8px',border:'1px solid var(--border-100)',background:'transparent',fontSize:'13px',fontWeight:'500',cursor:'pointer',fontFamily:'inherit',color:'var(--fg-muted)'}}>Collaborators</button>
+              </div>
+
+              <div className="people-panel" id="people-panel-all" style={{display:'block'}}>
+                <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'16px',flexWrap:'wrap'}}>
+                  <div style={{flex:'1',minWidth:'150px',position:'relative'}}><svg style={{position:'absolute',left:'10px',top:'50%',transform:'translateY(-50%)',opacity:0.4}} width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="9" cy="9" r="5.5"/><path d="M13.5 13.5L17 17"/></svg><input className="si" style={{paddingLeft:'32px'}} placeholder="Search..."/></div>
+                  <button className="sb-secondary" style={{padding:'8px 14px',fontSize:'13px'}}>All roles ▾</button>
+                  <div style={{flex:1}}></div>
+                  <button className="sb-secondary" style={{padding:'8px 14px',fontSize:'13px'}}>↓ Export</button>
+                  <button className="sb-secondary" style={{padding:'8px 14px',fontSize:'13px'}}>🔗 Invite link</button>
+                  <button id="settingsInviteBtn" className="sb-primary" style={{padding:'8px 16px',fontSize:'13px'}}>👤 Invite members</button>
+                </div>
+                <div id="settingsInviteForm" style={{display:'none',padding:'16px',border:'1px solid var(--border-100)',borderRadius:'10px',marginBottom:'16px',background:'var(--bg-200)'}}>
+                  <div style={{fontSize:'13px',fontWeight:'500',marginBottom:'8px'}}>Invite by email</div>
+                  <div style={{display:'flex',gap:'8px'}}><input type="email" id="settingsInviteEmail" className="si" placeholder="name@example.com" style={{flex:1}}/><button id="settingsInviteSubmit" className="sb-primary" style={{padding:'8px 16px',fontSize:'13px',flexShrink:0}}>Invite members</button><button id="settingsInviteCancel" style={{fontSize:'13px',color:'var(--fg-muted)',background:'none',border:'none',cursor:'pointer'}}>Cancel</button></div>
+                  <div id="settingsInviteMsg" style={{fontSize:'12px',marginTop:'6px'}}></div>
+                </div>
+                <div className="sc" style={{padding:0,overflow:'auto'}}>
+                  <table style={{width:'100%',borderCollapse:'collapse',fontSize:'13px'}}>
+                    <thead><tr style={{borderBottom:'1px solid var(--border-100)'}}>
+                      <th style={{padding:'10px 8px',textAlign:'left',fontWeight:'500',fontSize:'12px',color:'var(--fg-muted)'}}>Name</th>
+                      <th style={{padding:'10px 8px',textAlign:'left',fontWeight:'500',fontSize:'12px',color:'var(--fg-muted)'}}>Role</th>
+                      <th style={{padding:'10px 8px',textAlign:'left',fontWeight:'500',fontSize:'12px',color:'var(--fg-muted)'}}>Joined date</th>
+                      <th style={{padding:'10px 8px',textAlign:'left',fontWeight:'500',fontSize:'12px',color:'var(--fg-muted)'}}>Mar usage</th>
+                      <th style={{padding:'10px 8px',textAlign:'left',fontWeight:'500',fontSize:'12px',color:'var(--fg-muted)'}}>Total usage</th>
+                      <th style={{padding:'10px 8px',textAlign:'left',fontWeight:'500',fontSize:'12px',color:'var(--fg-muted)'}}>Credit limit</th>
+                      <th style={{padding:'10px 8px',width:'40px'}}></th>
+                    </tr></thead>
+                    <tbody id="settingsMembersBody"><tr><td colSpan={7} style={{padding:'20px',color:'var(--fg-muted)',textAlign:'center'}}>Loading members...</td></tr></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="people-panel" id="people-panel-invitations" style={{display:'none'}}>
+                <div className="sc" style={{textAlign:'center',padding:'60px 24px'}}>
+                  <div style={{fontSize:'40px',color:'var(--fg-muted)',marginBottom:'12px'}}>📋</div>
+                  <div style={{fontSize:'16px',fontWeight:'600',marginBottom:'8px'}}>No invitations found</div>
+                  <button className="sb-secondary" style={{marginTop:'12px',padding:'8px 16px',fontSize:'13px'}}>👤 Invite members</button>
+                </div>
+              </div>
+
+              <div className="people-panel" id="people-panel-collaborators" style={{display:'none'}}>
+                <div className="sc" style={{textAlign:'center',padding:'60px 24px'}}>
+                  <div style={{fontSize:'40px',color:'var(--fg-muted)',marginBottom:'12px'}}>👥</div>
+                  <div style={{fontSize:'16px',fontWeight:'600',marginBottom:'8px'}}>No collaborators found</div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* ═══════════ PEOPLE ═══════════ */}
-          {hasTeam && (
-            <div className="settings-section-content" id="section-people" style={{ display: 'none' }}>
-              <h1 className="page-title stagger-1">People</h1>
-              <p className="page-subtitle" style={{ marginBottom: '24px' }}>Manage who has access to this workspace.</p>
-              <div className="settings-card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                  <div style={{ fontSize: '15px', fontWeight: '600' }}>Members</div>
-                  <button id="settingsInviteBtn" className="settings-btn-primary" style={{ padding: '8px 16px', fontSize: '13px' }}>Invite members</button>
-                </div>
-                <div id="settingsInviteForm" style={{ display: 'none', padding: '16px', border: '1px solid var(--border-100)', borderRadius: '10px', marginBottom: '16px', background: 'var(--bg-200)' }}>
-                  <div style={{ fontSize: '13px', fontWeight: '500', marginBottom: '8px' }}>Invite by email</div>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <input type="email" id="settingsInviteEmail" className="settings-input" placeholder="name@example.com" style={{ flex: 1 }} />
-                    <button id="settingsInviteSubmit" className="settings-btn-primary" style={{ padding: '8px 16px', fontSize: '13px', flexShrink: 0 }}>Invite</button>
-                    <button id="settingsInviteCancel" style={{ fontSize: '13px', color: 'var(--fg-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>Cancel</button>
-                  </div>
-                  <div id="settingsInviteMsg" style={{ fontSize: '12px', marginTop: '6px' }}></div>
-                </div>
-                <div id="settingsMembersList"><div style={{ padding: '16px', color: 'var(--fg-muted)', fontSize: '14px' }}>Loading members...</div></div>
-              </div>
-            </div>
-          )}
+          {/* ═══ PLANS & CREDITS ═══ */}
+          <div className="settings-section-content" id="section-plans" style={{display:'none'}}>
+            <h1 className="page-title">Plans &amp; credits</h1>
+            <p className="page-subtitle" style={{marginBottom:'24px'}}>Manage your subscription plan and credit balance.</p>
 
-          {/* ═══════════ PLANS & CREDITS ═══════════ */}
-          <div className="settings-section-content" id="section-plans" style={{ display: 'none' }}>
-            <h1 className="page-title stagger-1">Plans &amp; credits</h1>
-            <p className="page-subtitle" style={{ marginBottom: '24px' }}>Manage your subscription plan and credit balance.</p>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
-              <div className="settings-card">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                  <span id="settingsTier" style={{ fontSize: '15px', fontWeight: '600' }}>Free Plan</span>
-                  <span id="settingsActiveBadge" style={{ display: 'none', padding: '2px 8px', borderRadius: '99px', fontSize: '10px', fontWeight: '600', background: 'var(--accent-100)', color: 'white' }}>ACTIVE</span>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'16px',marginBottom:'24px'}}>
+              <div className="sc">
+                <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'4px'}}>
+                  <div style={{width:'32px',height:'32px',borderRadius:'8px',background:'linear-gradient(135deg,var(--accent-100),var(--accent-200))',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontWeight:'700',fontSize:'14px'}}>A</div>
+                  <div><div id="settingsTier" style={{fontSize:'15px',fontWeight:'600'}}>You're on Free Plan</div><div style={{fontSize:'12px',color:'var(--fg-muted)'}}>Upgrade anytime</div></div>
                 </div>
-                <div id="settingsTierPrice" style={{ fontSize: '13px', color: 'var(--fg-muted)' }}>$0/month</div>
-                <div id="settingsManageSection" style={{ display: 'none', marginTop: '12px' }}>
-                  <button id="settingsManageBilling" className="settings-btn-secondary" style={{ padding: '6px 14px', fontSize: '13px' }}>Manage</button>
-                </div>
+                <button id="settingsManageBtn" className="sb-secondary" style={{display:'none',marginTop:'12px',padding:'6px 14px',fontSize:'13px'}}>Manage</button>
               </div>
-              <div className="settings-card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                  <span style={{ fontSize: '13px', fontWeight: '500' }}>Credits remaining</span>
-                  <span id="settingsCredits" style={{ fontSize: '14px', fontWeight: '600' }}>0 / 30</span>
+              <div className="sc">
+                <div style={{display:'flex',justifyContent:'space-between',marginBottom:'10px'}}>
+                  <span style={{fontSize:'14px',fontWeight:'600'}}>Credits remaining</span>
+                  <span id="settingsCreditsCount" style={{fontSize:'14px',fontWeight:'600'}}>0 of 30</span>
                 </div>
-                <div style={{ height: '6px', borderRadius: '3px', background: 'var(--border-100)', overflow: 'hidden', marginTop: '10px' }}>
-                  <div id="settingsCreditProgress" style={{ height: '100%', borderRadius: '3px', background: 'var(--accent-100)', width: '100%', transition: 'width 0.5s' }}></div>
+                <div style={{height:'6px',borderRadius:'3px',background:'var(--border-100)',overflow:'hidden',marginBottom:'12px'}}><div id="settingsCreditProgress" style={{height:'100%',borderRadius:'3px',background:'var(--accent-100)',width:'100%',transition:'width 0.5s'}}></div></div>
+                <div style={{fontSize:'12px',color:'var(--fg-muted)',lineHeight:'1.8'}}>
+                  <div>● Credits used on each generation</div>
+                  <div>✕ No credits will rollover</div>
+                  <div>✓ Credits reset monthly</div>
                 </div>
               </div>
             </div>
 
-            <div id="settingsUpgradeSection">
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div className="settings-card">
-                  <div style={{ fontSize: '18px', fontWeight: '700', marginBottom: '4px' }}>Pro</div>
-                  <div style={{ fontSize: '13px', color: 'var(--fg-muted)', marginBottom: '16px' }}>For individuals building seriously.</div>
-                  <div style={{ fontSize: '24px', fontWeight: '700', marginBottom: '4px' }}>$19<span style={{ fontSize: '14px', fontWeight: '400', color: 'var(--fg-muted)' }}>/month</span></div>
-                  <button id="settingsUpgradePro" className="settings-btn-primary" style={{ width: '100%', marginTop: '16px' }}>Upgrade</button>
-                  <ul style={{ listStyle: 'none', padding: 0, marginTop: '16px', fontSize: '13px', color: 'var(--fg-200)' }}>
-                    <li style={{ padding: '4px 0' }}>✓ 300 credits / month</li>
-                    <li style={{ padding: '4px 0' }}>✓ All 9 AI models</li>
-                    <li style={{ padding: '4px 0' }}>✓ Deploy to Vercel</li>
-                    <li style={{ padding: '4px 0' }}>✓ Priority queue</li>
-                  </ul>
-                </div>
-                <div className="settings-card">
-                  <div style={{ fontSize: '18px', fontWeight: '700', marginBottom: '4px' }}>Team</div>
-                  <div style={{ fontSize: '13px', color: 'var(--fg-muted)', marginBottom: '16px' }}>For teams building together.</div>
-                  <div style={{ fontSize: '24px', fontWeight: '700', marginBottom: '4px' }}>$49<span style={{ fontSize: '14px', fontWeight: '400', color: 'var(--fg-muted)' }}>/month</span></div>
-                  <button id="settingsUpgradeTeam" className="settings-btn-secondary" style={{ width: '100%', marginTop: '16px' }}>Upgrade</button>
-                  <ul style={{ listStyle: 'none', padding: 0, marginTop: '16px', fontSize: '13px', color: 'var(--fg-200)' }}>
-                    <li style={{ padding: '4px 0' }}>✓ 500 credits / month</li>
-                    <li style={{ padding: '4px 0' }}>✓ Everything in Pro</li>
-                    <li style={{ padding: '4px 0' }}>✓ 5 team members</li>
-                    <li style={{ padding: '4px 0' }}>✓ Shared library &amp; SSO</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* ═══════════ PRIVACY & SECURITY (HOLLOW) ═══════════ */}
-          <div className="settings-section-content" id="section-privacy" style={{ display: 'none' }}>
-            <h1 className="page-title stagger-1">Privacy &amp; security</h1>
-            <p className="page-subtitle" style={{ marginBottom: '24px' }}>Manage privacy and security settings for your workspace.</p>
-            <div className="settings-card">
-              {[
-                { label: 'Default project visibility', desc: 'Choose whether new projects start as public, private, or drafts.', badge: null, type: 'select' },
-                { label: 'Default website access', desc: 'Choose if published websites are public or workspace-only.', badge: 'Business', type: 'select' },
-                { label: 'MCP servers access', desc: 'Allow workspace members to use MCP servers.', badge: 'Business', type: 'toggle' },
-                { label: 'Data collection opt out', desc: 'Opt out of data collection for this workspace.', badge: 'Business', type: 'toggle' },
-                { label: 'Restrict workspace invitations', desc: 'Only admins and owners can invite to this workspace.', badge: 'Enterprise', type: 'toggle' },
-                { label: 'Allow editors to transfer projects', desc: 'Editors who own a project can transfer it to another workspace.', badge: 'Enterprise', type: 'toggle' },
-                { label: 'Invite links', desc: 'Allow workspace members to create and share invite links.', badge: null, type: 'toggle' },
-              ].map(function(item, i) {
-                return (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 0', borderBottom: i < 6 ? '1px solid var(--border-100)' : 'none' }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '14px', fontWeight: '600' }}>{item.label}</span>
-                        {item.badge && <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '600', background: item.badge === 'Enterprise' ? 'var(--bg-300)' : 'rgba(99,102,241,0.1)', color: item.badge === 'Enterprise' ? 'var(--fg-muted)' : '#6366f1' }}>{item.badge}</span>}
-                      </div>
-                      <div style={{ fontSize: '13px', color: 'var(--fg-muted)', marginTop: '2px' }}>{item.desc}</div>
-                    </div>
-                    {item.type === 'toggle' ? (
-                      <div style={{ width: '44px', height: '24px', borderRadius: '12px', background: 'var(--border-100)', cursor: 'not-allowed', position: 'relative', opacity: 0.5, flexShrink: 0 }}>
-                        <div style={{ width: '20px', height: '20px', borderRadius: '10px', background: 'white', boxShadow: '0 1px 3px rgba(0,0,0,0.15)', position: 'absolute', top: '2px', left: '2px' }}></div>
-                      </div>
-                    ) : (
-                      <div style={{ padding: '6px 12px', border: '1px solid var(--border-100)', borderRadius: '8px', fontSize: '13px', color: 'var(--fg-muted)', cursor: 'not-allowed', opacity: 0.5 }}>Workspace</div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* ═══════════ YOUR ACCOUNT ═══════════ */}
-          <div className="settings-section-content" id="section-account" style={{ display: 'none' }}>
-            <h1 className="page-title stagger-1">Account settings</h1>
-            <p className="page-subtitle" style={{ marginBottom: '24px' }}>Personalize how others see and interact with you on Argus.</p>
-
-            <div className="settings-card">
-              <div className="settings-row" style={{ borderBottom: '1px solid var(--border-100)', paddingBottom: '20px', marginBottom: '20px' }}>
-                <div><div className="settings-row-label">Profile</div><div className="settings-row-desc">Change name and avatar on your profile.</div></div>
-                <div id="settingsProfileAvatar" style={{ width: '44px', height: '44px', borderRadius: '50%', overflow: 'hidden', background: 'linear-gradient(135deg,var(--accent-100),var(--accent-200))', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-                  <img id="settingsProfileAvatarImg" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'none' }} alt="" />
-                  <span id="settingsProfileAvatarInitial" style={{ color: 'white', fontWeight: '700', fontSize: '18px' }}>U</span>
-                </div>
-              </div>
-              <div className="settings-row" style={{ borderBottom: '1px solid var(--border-100)', paddingBottom: '20px', marginBottom: '20px' }}>
-                <div><div className="settings-row-label">Display name</div><div className="settings-row-desc">Your name as shown to others.</div></div>
-                <input type="text" id="settingsProfileName" className="settings-input" style={{ width: '300px' }} />
-              </div>
-              <div className="settings-row">
-                <div><div className="settings-row-label">Email</div><div className="settings-row-desc">Managed by your authentication provider.</div></div>
-                <input type="email" id="settingsProfileEmail" className="settings-input" disabled style={{ width: '300px', opacity: 0.5, cursor: 'not-allowed' }} />
-              </div>
-            </div>
-            <div style={{ marginTop: '16px' }}><button id="settingsSaveProfile" className="settings-btn-primary">Save profile</button></div>
-
-            {/* Notifications */}
-            <div className="settings-card" style={{ marginTop: '24px' }}>
-              <div style={{ fontSize: '15px', fontWeight: '600', marginBottom: '16px' }}>Notifications</div>
-              {[
-                { id: 'notifyBuilds', label: 'Build updates', desc: 'Get notified when a build completes or fails' },
-                { id: 'notifyInvites', label: 'Collaboration invites', desc: 'Email me when someone invites me to a project' },
-                { id: 'notifyMarketing', label: 'Product updates', desc: 'Occasional emails about new features' },
-              ].map(function(item, i) {
-                return (
-                  <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: i < 2 ? '1px solid var(--border-100)' : 'none' }}>
-                    <div><div style={{ fontSize: '14px', fontWeight: '500' }}>{item.label}</div><div style={{ fontSize: '12px', color: 'var(--fg-muted)', marginTop: '2px' }}>{item.desc}</div></div>
-                    <div id={'settings-' + item.id} className={'settings-notif-toggle' + (item.id !== 'notifyMarketing' ? ' active' : '')} style={{ width: '44px', height: '24px', borderRadius: '12px', background: 'var(--border-100)', cursor: 'pointer', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}>
-                      <div style={{ width: '20px', height: '20px', borderRadius: '10px', background: 'white', boxShadow: '0 1px 3px rgba(0,0,0,0.15)', position: 'absolute', top: '2px', left: '2px', transition: 'transform 0.2s' }}></div>
-                    </div>
-                  </div>
-                );
-              })}
-              <div style={{ marginTop: '16px' }}><button id="settingsSaveNotifications" className="settings-btn-primary" style={{ fontSize: '13px', padding: '8px 16px' }}>Save preferences</button></div>
-            </div>
-
-            {/* Sign out + Delete */}
-            <div style={{ marginTop: '24px', display: 'flex', gap: '12px' }}>
-              <button id="settingsSignOut" className="settings-btn-secondary">Sign out</button>
-            </div>
-
-            <div className="settings-card settings-card-danger" style={{ marginTop: '24px' }}>
-              <div className="settings-row-label" style={{ color: '#dc2626' }}>Delete account</div>
-              <p style={{ fontSize: '13px', color: 'var(--fg-muted)', margin: '8px 0 16px' }}>Permanently delete your Argus account. This cannot be undone.</p>
-              <button id="settingsDeleteAccountBtn" className="settings-btn-danger">Delete account</button>
-              <div id="settingsDeleteReveal" style={{ display: 'none', marginTop: '12px', padding: '16px', border: '1px solid #fca5a5', borderRadius: '10px', background: 'rgba(254,226,226,0.15)' }}>
-                <p style={{ fontWeight: '500', fontSize: '13px', color: '#b91c1c', marginBottom: '6px' }}>This will permanently:</p>
-                <ul style={{ listStyle: 'disc', paddingLeft: '20px', fontSize: '12px', color: '#b91c1c', marginBottom: '12px' }}>
-                  <li>Delete all your projects and builds</li>
-                  <li>Delete all workspaces you own</li>
-                  <li>Cancel all active subscriptions</li>
-                  <li>Remove all your API keys and data</li>
+            <div id="settingsUpgradeSection" style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'16px'}}>
+              <div className="sc" id="settingsProCard">
+                <div style={{fontSize:'20px',fontWeight:'700',marginBottom:'4px'}}>Pro</div>
+                <div style={{fontSize:'13px',color:'var(--fg-muted)',marginBottom:'20px'}}>For individuals building seriously.</div>
+                <div style={{fontSize:'28px',fontWeight:'700'}}>$19<span style={{fontSize:'14px',fontWeight:'400',color:'var(--fg-muted)'}}> per month</span></div>
+                <div style={{fontSize:'12px',color:'var(--fg-muted)',marginBottom:'16px'}}>shared across unlimited users</div>
+                <button id="settingsUpgradePro" className="sb-primary" style={{width:'100%'}}>Upgrade</button>
+                <div style={{fontSize:'12px',color:'var(--fg-muted)',marginTop:'12px',padding:'6px 12px',border:'1px solid var(--border-100)',borderRadius:'8px'}}>300 credits / month</div>
+                <ul style={{listStyle:'none',padding:0,marginTop:'16px',fontSize:'13px',color:'var(--fg-200)',lineHeight:'2'}}>
+                  <li>✓ 300 monthly credits</li>
+                  <li>✓ All 9 AI models</li>
+                  <li>✓ Deploy to Vercel</li>
+                  <li>✓ Priority queue</li>
                 </ul>
-                <p style={{ fontSize: '13px', color: '#b91c1c', fontWeight: '500', marginBottom: '8px' }}>Type your email to confirm:</p>
-                <input type="text" id="settingsDeleteInput" className="settings-input" style={{ borderColor: '#fca5a5', marginBottom: '12px' }} />
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button id="settingsDeleteConfirm" disabled className="settings-btn-danger" style={{ opacity: 0.5 }}>Delete my account</button>
-                  <button id="settingsDeleteCancel" style={{ fontSize: '13px', color: 'var(--fg-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>Cancel</button>
-                </div>
+              </div>
+              <div className="sc" id="settingsTeamCard">
+                <div style={{fontSize:'20px',fontWeight:'700',marginBottom:'4px'}}>Team</div>
+                <div style={{fontSize:'13px',color:'var(--fg-muted)',marginBottom:'20px'}}>For teams building together.</div>
+                <div style={{fontSize:'28px',fontWeight:'700'}}>$49<span style={{fontSize:'14px',fontWeight:'400',color:'var(--fg-muted)'}}> per month</span></div>
+                <div style={{fontSize:'12px',color:'var(--fg-muted)',marginBottom:'16px'}}>shared across unlimited users</div>
+                <button id="settingsUpgradeTeam" className="sb-secondary" style={{width:'100%'}}>Upgrade</button>
+                <div style={{fontSize:'12px',color:'var(--fg-muted)',marginTop:'12px',padding:'6px 12px',border:'1px solid var(--border-100)',borderRadius:'8px'}}>500 credits / month</div>
+                <ul style={{listStyle:'none',padding:0,marginTop:'16px',fontSize:'13px',color:'var(--fg-200)',lineHeight:'2'}}>
+                  <li>✓ Everything in Pro</li>
+                  <li>✓ 500 monthly credits</li>
+                  <li>✓ 5 team members</li>
+                  <li>✓ Shared library &amp; SSO</li>
+                </ul>
+              </div>
+              <div className="sc">
+                <div style={{fontSize:'20px',fontWeight:'700',marginBottom:'4px'}}>Enterprise</div>
+                <div style={{fontSize:'13px',color:'var(--fg-muted)',marginBottom:'20px'}}>Built for large organizations.</div>
+                <div style={{fontSize:'28px',fontWeight:'700'}}>Custom</div>
+                <div style={{fontSize:'12px',color:'var(--fg-muted)',marginBottom:'16px'}}>Flexible plans</div>
+                <button className="sb-secondary" style={{width:'100%'}}>Book a demo</button>
+                <ul style={{listStyle:'none',padding:0,marginTop:'28px',fontSize:'13px',color:'var(--fg-200)',lineHeight:'2'}}>
+                  <li>✓ Everything in Team</li>
+                  <li>✓ Dedicated support</li>
+                  <li>✓ Custom integrations</li>
+                  <li>✓ SLA &amp; security review</li>
+                </ul>
               </div>
             </div>
           </div>
 
-          {/* ═══════════ LABS (HOLLOW) ═══════════ */}
-          <div className="settings-section-content" id="section-labs" style={{ display: 'none' }}>
-            <h1 className="page-title stagger-1">Labs</h1>
-            <p className="page-subtitle" style={{ marginBottom: '24px' }}>These are experimental features that might be modified or removed.</p>
-            <div className="settings-card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 0', borderBottom: '1px solid var(--border-100)' }}>
-                <div><div style={{ fontSize: '14px', fontWeight: '600' }}>Dark mode</div><div style={{ fontSize: '13px', color: 'var(--fg-muted)', marginTop: '2px' }}>Toggle dark theme across the workspace.</div></div>
-                <div id="settingsDarkModeToggle" className="settings-notif-toggle" style={{ width: '44px', height: '24px', borderRadius: '12px', background: 'var(--border-100)', cursor: 'pointer', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}>
-                  <div style={{ width: '20px', height: '20px', borderRadius: '10px', background: 'white', boxShadow: '0 1px 3px rgba(0,0,0,0.15)', position: 'absolute', top: '2px', left: '2px', transition: 'transform 0.2s' }}></div>
-                </div>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 0' }}>
-                <div><div style={{ fontSize: '14px', fontWeight: '600' }}>GitHub branch switching</div><div style={{ fontSize: '13px', color: 'var(--fg-muted)', marginTop: '2px' }}>Select the branch to make edits to in your GitHub repository.</div></div>
-                <div style={{ width: '44px', height: '24px', borderRadius: '12px', background: 'var(--border-100)', cursor: 'not-allowed', position: 'relative', opacity: 0.5, flexShrink: 0 }}>
-                  <div style={{ width: '20px', height: '20px', borderRadius: '10px', background: 'white', boxShadow: '0 1px 3px rgba(0,0,0,0.15)', position: 'absolute', top: '2px', left: '2px' }}></div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* ═══════════ KNOWLEDGE (HOLLOW) ═══════════ */}
-          <div className="settings-section-content" id="section-knowledge" style={{ display: 'none' }}>
-            <h1 className="page-title stagger-1">Knowledge</h1>
-            <p className="page-subtitle" style={{ marginBottom: '24px' }}>Manage knowledge for your project and workspace.</p>
-            <div style={{ padding: '12px 16px', background: 'rgba(99,130,255,0.08)', border: '1px solid rgba(99,130,255,0.2)', borderRadius: '10px', marginBottom: '20px', fontSize: '13px', color: '#6366f1' }}>
-              <strong>Workspace knowledge</strong> — You can now add custom instructions that apply across all projects in your workspace.
-            </div>
-            <div className="settings-card">
-              <div style={{ fontSize: '15px', fontWeight: '600', marginBottom: '8px' }}>Workspace knowledge</div>
-              <p style={{ fontSize: '13px', color: 'var(--fg-muted)', marginBottom: '12px' }}>Set shared rules and preferences that apply to every project in this workspace.</p>
-              <ul style={{ fontSize: '13px', color: 'var(--fg-muted)', paddingLeft: '20px', marginBottom: '16px' }}>
-                <li>Define coding style and naming conventions.</li>
-                <li>Set preferred libraries, frameworks, or patterns.</li>
-                <li>Add behavioral rules like tone, language, and formatting.</li>
-              </ul>
-              <textarea className="settings-input" rows={8} placeholder="Set coding style, conventions, and preferences for all your projects..." disabled style={{ opacity: 0.6, resize: 'none' }}></textarea>
-              <div style={{ marginTop: '12px' }}><button className="settings-btn-primary" disabled style={{ opacity: 0.5 }}>Save</button></div>
-            </div>
-          </div>
-
-          {/* ═══════════ CONNECTORS ═══════════ */}
-          <div className="settings-section-content" id="section-connectors" style={{ display: 'none' }}>
-            <h1 className="page-title stagger-1">Connectors</h1>
-            <p className="page-subtitle" style={{ marginBottom: '24px' }}>Connect external services to enhance your workflow.</p>
-            <div style={{ fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--fg-muted)', marginBottom: '12px' }}>Recommended</div>
-            <div className="settings-card" style={{ padding: 0 }}>
-              {[
-                { name: 'GitHub', desc: 'Manage repos, track changes, collaborate', icon: '🐙', connectable: true, provider: 'github' },
-                { name: 'Gmail', desc: 'Draft replies, search inbox, summarize threads', icon: '📧', connectable: true, provider: 'gmail' },
-                { name: 'Slack', desc: 'Team messaging and real-time notifications', icon: '💬', connectable: true, provider: 'slack' },
-              ].map(function(c, i) {
-                return (
-                  <div key={c.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', borderBottom: i < 2 ? '1px solid var(--border-100)' : 'none' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <span style={{ fontSize: '20px' }}>{c.icon}</span>
-                      <div><div style={{ fontSize: '14px', fontWeight: '600' }}>{c.name}</div><div style={{ fontSize: '12px', color: 'var(--fg-muted)' }}>{c.desc}</div></div>
+          {/* ═══ PRIVACY & SECURITY ═══ */}
+          {hasTeam && (
+            <div className="settings-section-content" id="section-privacy" style={{display:'none'}}>
+              <h1 className="page-title">Privacy &amp; security</h1>
+              <p className="page-subtitle" style={{marginBottom:'24px'}}>Manage privacy and security settings for your workspace.</p>
+              <div className="sc">
+                {[
+                  {label:'Default project visibility',desc:'Choose whether new projects start as public, private (workspace-only), or drafts.',badge:null,right:'<div class="sr-select">Workspace</div>'},
+                  {label:'Default website access',desc:'Choose if new published websites are public or only accessible to logged in workspace members.',badge:'Business',right:'<div class="sr-select">Anyone</div>'},
+                  {label:'MCP servers access',desc:'Allow workspace members to use MCP servers.',badge:'Business',right:'toggle-on'},
+                  {label:'Data collection opt out',desc:'Opt out of data collection for this workspace.',badge:'Business',right:'toggle-off'},
+                  {label:'Restrict workspace invitations',desc:'When enabled, only admins and owners can invite members to this workspace.',badge:'Enterprise',right:'toggle-off'},
+                  {label:'Allow editors to transfer projects',desc:'When enabled, editors who own a project can transfer it to another workspace.',badge:'Enterprise',right:'toggle-off'},
+                  {label:'Invite links',desc:'Allow workspace members to create and share invite links.',badge:null,right:'toggle-on'},
+                  {label:'Who can publish externally',desc:'Control which roles can publish projects outside the workspace.',badge:'Enterprise',right:'<div class="sr-select">Editors and above</div>'},
+                ].map(function(item,i){
+                  var toggleHtml = item.right === 'toggle-on' ? '<div style="width:44px;height:24px;borderRadius:12px;background:var(--fg-100);cursor:not-allowed;position:relative;flexShrink:0"><div style="width:20px;height:20px;borderRadius:10px;background:white;boxShadow:0 1px 3px rgba(0,0,0,0.15);position:absolute;top:2px;right:2px"></div></div>' : item.right === 'toggle-off' ? '<div style="width:44px;height:24px;borderRadius:12px;background:var(--border-100);cursor:not-allowed;position:relative;opacity:0.6;flexShrink:0"><div style="width:20px;height:20px;borderRadius:10px;background:white;boxShadow:0 1px 3px rgba(0,0,0,0.15);position:absolute;top:2px;left:2px"></div></div>' : null;
+                  return (
+                    <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'16px 0',borderBottom:i<7?'1px solid var(--border-100)':'none'}}>
+                      <div style={{flex:1}}>
+                        <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
+                          <span style={{fontSize:'14px',fontWeight:'600'}}>{item.label}</span>
+                          {item.badge && <span style={{padding:'2px 8px',borderRadius:'4px',fontSize:'10px',fontWeight:'600',background:item.badge==='Enterprise'?'var(--bg-300)':'rgba(99,102,241,0.1)',color:item.badge==='Enterprise'?'var(--fg-muted)':'#6366f1'}}>{item.badge}</span>}
+                        </div>
+                        <div style={{fontSize:'13px',color:'var(--fg-muted)',marginTop:'2px'}}>{item.desc}</div>
+                      </div>
+                      {toggleHtml ? (
+                        <div dangerouslySetInnerHTML={{__html:toggleHtml}} />
+                      ) : (
+                        <div dangerouslySetInnerHTML={{__html:item.right}} />
+                      )}
                     </div>
-                    <span className="settings-connector-status" data-provider={c.provider} style={{ fontSize: '13px', fontWeight: '500', color: 'var(--accent-100)', cursor: 'pointer' }}>Connect ↗</span>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ═══ ACCOUNT SETTINGS ═══ */}
+          <div className="settings-section-content" id="section-account" style={{display:'none'}}>
+            <h1 className="page-title">Account settings</h1>
+            <p className="page-subtitle" style={{marginBottom:'24px'}}>Personalize how others see and interact with you on Argus.</p>
+
+            {/* Preferences card */}
+            <div className="sc" style={{marginBottom:'16px'}}>
+              <div className="sr" style={{borderBottom:'1px solid var(--border-100)',paddingBottom:'16px',marginBottom:'16px'}}>
+                <div><div className="sr-label">Chat suggestions</div><div className="sr-desc">Show helpful suggestions in the chat interface to enhance your experience.</div></div>
+                <div className="stoggle active"><div></div></div>
+              </div>
+              <div className="sr" style={{borderBottom:'1px solid var(--border-100)',paddingBottom:'16px',marginBottom:'16px'}}>
+                <div style={{flex:1}}>
+                  <div className="sr-label">Generation complete sound</div>
+                  <div className="sr-desc">Plays a satisfying sound notification when a generation is finished.</div>
+                </div>
+                <div style={{display:'flex',flexDirection:'column',gap:'8px',fontSize:'13px'}}>
+                  <label style={{display:'flex',alignItems:'center',gap:'8px',cursor:'pointer'}}><input type="radio" name="genSound" defaultChecked style={{accentColor:'var(--fg-100)'}}/> First generation</label>
+                  <label style={{display:'flex',alignItems:'center',gap:'8px',cursor:'pointer'}}><input type="radio" name="genSound" style={{accentColor:'var(--fg-100)'}}/> Always</label>
+                  <label style={{display:'flex',alignItems:'center',gap:'8px',cursor:'pointer'}}><input type="radio" name="genSound" style={{accentColor:'var(--fg-100)'}}/> Never</label>
+                </div>
+              </div>
+              <div className="sr" style={{borderBottom:'1px solid var(--border-100)',paddingBottom:'16px',marginBottom:'16px'}}>
+                <div><div className="sr-label">Auto-accept invitations</div><div className="sr-desc">Automatically join workspaces and projects when invited instead of requiring manual acceptance.</div></div>
+                <div className="stoggle active"><div></div></div>
+              </div>
+              <div className="sr">
+                <div style={{flex:1}}><div className="sr-label">Push notifications</div><div className="sr-desc">Enable push notifications in the mobile app to customize these settings.</div></div>
+                <div style={{textAlign:'right'}}><div style={{fontSize:'13px',fontWeight:'500',marginBottom:'4px'}}>Agent action</div><div style={{fontSize:'12px',color:'var(--fg-muted)',marginBottom:'8px'}}>Stay updated when the agent finishes work</div><div className="stoggle"><div></div></div></div>
+              </div>
             </div>
 
-            <div style={{ fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--fg-muted)', margin: '24px 0 12px' }}>All apps</div>
-            <div className="settings-card" style={{ padding: 0 }}>
-              {[
-                { name: 'Notion', desc: 'Docs, wikis, and project management' },
-                { name: 'Linear', desc: 'Issue tracking and project planning' },
-                { name: 'Figma', desc: 'Design files and prototypes' },
-                { name: 'Vercel', desc: 'Deploy and host web applications' },
-                { name: 'Google Drive', desc: 'Access files, search, and manage documents' },
-                { name: 'Google Calendar', desc: 'Manage events and optimize your schedule' },
-                { name: 'Stripe', desc: 'Payment processing and billing' },
-                { name: 'Jira', desc: 'Project and issue tracking' },
-              ].map(function(c, i) {
-                return (
-                  <div key={c.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', borderBottom: i < 7 ? '1px solid var(--border-100)' : 'none' }}>
-                    <div><div style={{ fontSize: '14px', fontWeight: '500' }}>{c.name}</div><div style={{ fontSize: '12px', color: 'var(--fg-muted)' }}>{c.desc}</div></div>
-                    <span style={{ fontSize: '12px', fontWeight: '500', padding: '4px 10px', borderRadius: '6px', background: 'var(--bg-300)', color: 'var(--fg-muted)' }}>COMING SOON</span>
-                  </div>
-                );
-              })}
+            {/* Linked accounts */}
+            <div className="sc" style={{marginBottom:'16px'}}>
+              <div className="sr-label" style={{marginBottom:'4px'}}>Linked accounts</div>
+              <div className="sr-desc" style={{marginBottom:'16px'}}>Manage accounts linked for sign-in.</div>
+              <div id="settingsLinkedAccounts"><div style={{color:'var(--fg-muted)',fontSize:'13px'}}>Loading...</div></div>
+            </div>
+
+            {/* 2FA */}
+            <div className="sc" style={{marginBottom:'16px'}}>
+              <div className="sr">
+                <div><div className="sr-label">Two-factor authentication</div><div className="sr-desc">Secure your account with a one-time code via an authenticator app or SMS.</div></div>
+                <button className="sb-secondary" style={{padding:'8px 16px',fontSize:'13px'}}>Enable</button>
+              </div>
+            </div>
+
+            {/* Profile edit */}
+            <div className="sc" style={{marginBottom:'16px'}}>
+              <div className="sr-label" style={{marginBottom:'12px'}}>Profile</div>
+              <div style={{marginBottom:'12px'}}><label style={{fontSize:'13px',fontWeight:'500',display:'block',marginBottom:'6px',color:'var(--fg-200)'}}>Display name</label><input type="text" id="settingsProfileName" className="si" style={{maxWidth:'400px'}}/></div>
+              <div style={{marginBottom:'16px'}}><label style={{fontSize:'13px',fontWeight:'500',display:'block',marginBottom:'6px',color:'var(--fg-200)'}}>Email</label><input type="email" id="settingsProfileEmail" className="si" disabled style={{maxWidth:'400px',opacity:0.5,cursor:'not-allowed'}}/></div>
+              <button id="settingsSaveProfile" className="sb-primary" style={{fontSize:'13px',padding:'8px 16px'}}>Save</button>
+            </div>
+
+            {/* Sign out */}
+            <div style={{marginBottom:'16px'}}><button id="settingsSignOut" className="sb-secondary">Sign out</button></div>
+
+            {/* Delete account */}
+            <div className="sc" style={{borderColor:'#fca5a5'}}>
+              <div className="sr">
+                <div><div className="sr-label" style={{color:'#dc2626'}}>Delete account</div><div className="sr-desc">Permanently delete your Argus account. This cannot be undone.</div></div>
+                <button id="settingsDeleteAccountBtn" style={{padding:'8px 16px',background:'#dc2626',color:'white',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:'600',cursor:'pointer',fontFamily:'inherit'}}>Delete account</button>
+              </div>
+              <div id="settingsDeleteReveal" style={{display:'none',marginTop:'12px',padding:'16px',border:'1px solid #fca5a5',borderRadius:'10px',background:'rgba(254,226,226,0.15)'}}>
+                <p style={{fontSize:'13px',color:'#b91c1c',fontWeight:'500',marginBottom:'8px'}}>Type your email to confirm:</p>
+                <input type="text" id="settingsDeleteInput" className="si" style={{borderColor:'#fca5a5',marginBottom:'12px'}}/>
+                <div style={{display:'flex',gap:'8px'}}><button id="settingsDeleteConfirm" disabled className="sb-danger" style={{opacity:0.5}}>Delete account</button><button id="settingsDeleteCancel" style={{fontSize:'13px',color:'var(--fg-muted)',background:'none',border:'none',cursor:'pointer'}}>Cancel</button></div>
+              </div>
             </div>
           </div>
 
-          {/* ═══════════ GITHUB (HOLLOW) ═══════════ */}
-          <div className="settings-section-content" id="section-github" style={{ display: 'none' }}>
-            <h1 className="page-title stagger-1">GitHub</h1>
-            <p className="page-subtitle" style={{ marginBottom: '24px' }}>Manage your GitHub integration and repository settings.</p>
-            <div className="settings-card">
-              <div className="settings-row" style={{ borderBottom: '1px solid var(--border-100)', paddingBottom: '16px', marginBottom: '16px' }}>
-                <div><div className="settings-row-label">Connection status</div><div className="settings-row-desc">Connect your GitHub account to sync repositories.</div></div>
-                <span className="settings-connector-status" data-provider="github" style={{ fontSize: '13px', fontWeight: '500', color: 'var(--accent-100)', cursor: 'pointer' }}>Connect ↗</span>
+          {/* ═══ LABS ═══ */}
+          <div className="settings-section-content" id="section-labs" style={{display:'none'}}>
+            <h1 className="page-title">Labs</h1>
+            <p className="page-subtitle" style={{marginBottom:'24px'}}>These are experimental features that might be modified or removed.</p>
+            <div className="sc">
+              <div className="sr" style={{borderBottom:'1px solid var(--border-100)',paddingBottom:'16px',marginBottom:'16px'}}>
+                <div><div className="sr-label">Dark mode</div><div className="sr-desc">Toggle dark theme across the workspace.</div></div>
+                <div id="settingsDarkModeToggle" className="stoggle"><div></div></div>
               </div>
-              <div className="settings-row" style={{ borderBottom: '1px solid var(--border-100)', paddingBottom: '16px', marginBottom: '16px' }}>
-                <div><div className="settings-row-label">Repository</div><div className="settings-row-desc">Select which repository to sync with your workspace.</div></div>
-                <div style={{ padding: '6px 12px', border: '1px solid var(--border-100)', borderRadius: '8px', fontSize: '13px', color: 'var(--fg-muted)', cursor: 'not-allowed', opacity: 0.5 }}>Select repo</div>
+              <div className="sr">
+                <div><div className="sr-label">GitHub branch switching</div><div className="sr-desc">Select the branch to make edits to in your GitHub repository.</div></div>
+                <div className="stoggle" style={{opacity:0.5,cursor:'not-allowed'}}><div></div></div>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div><div style={{ fontSize: '14px', fontWeight: '600' }}>Auto-deploy</div><div style={{ fontSize: '13px', color: 'var(--fg-muted)', marginTop: '2px' }}>Automatically deploy when pushing to main branch.</div></div>
-                <div style={{ width: '44px', height: '24px', borderRadius: '12px', background: 'var(--border-100)', cursor: 'not-allowed', position: 'relative', opacity: 0.5, flexShrink: 0 }}>
-                  <div style={{ width: '20px', height: '20px', borderRadius: '10px', background: 'white', boxShadow: '0 1px 3px rgba(0,0,0,0.15)', position: 'absolute', top: '2px', left: '2px' }}></div>
-                </div>
+            </div>
+          </div>
+
+          {/* ═══ KNOWLEDGE ═══ */}
+          <div className="settings-section-content" id="section-knowledge" style={{display:'none'}}>
+            <h1 className="page-title">Knowledge</h1>
+            <p className="page-subtitle" style={{marginBottom:'24px'}}>Manage knowledge for your project and workspace.</p>
+            <div style={{padding:'12px 16px',background:'rgba(99,130,255,0.08)',border:'1px solid rgba(99,130,255,0.2)',borderRadius:'10px',marginBottom:'20px',fontSize:'13px',color:'#6366f1'}}><strong>Workspace knowledge</strong> — You can now add custom instructions that apply across all projects in your workspace.</div>
+            <div className="sc">
+              <div style={{fontSize:'15px',fontWeight:'600',marginBottom:'8px'}}>Workspace knowledge</div>
+              <p style={{fontSize:'13px',color:'var(--fg-muted)',marginBottom:'12px'}}>Set shared rules and preferences that apply to every project in this workspace.</p>
+              <ul style={{fontSize:'13px',color:'var(--fg-muted)',paddingLeft:'20px',marginBottom:'16px'}}><li>Define coding style and naming conventions.</li><li>Set preferred libraries, frameworks, or patterns.</li><li>Add behavioral rules like tone, language, and formatting.</li></ul>
+              <textarea className="si" rows={8} placeholder="Set coding style, conventions, and preferences for all your projects..." disabled style={{opacity:0.6,resize:'none'}}></textarea>
+              <div style={{marginTop:'12px'}}><button className="sb-primary" disabled style={{opacity:0.5}}>Save</button></div>
+            </div>
+          </div>
+
+          {/* ═══ GITHUB ═══ */}
+          <div className="settings-section-content" id="section-github" style={{display:'none'}}>
+            <h1 className="page-title">GitHub</h1>
+            <p className="page-subtitle" style={{marginBottom:'24px'}}>Sync your project 2-way with GitHub to collaborate at source.</p>
+            <div className="sc">
+              <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'16px'}}>
+                <span style={{fontSize:'14px',fontWeight:'600'}}>Connected account</span>
+                <span style={{padding:'2px 10px',borderRadius:'4px',fontSize:'11px',fontWeight:'600',background:'rgba(255,72,1,0.08)',color:'var(--accent-100)'}}>Admin</span>
               </div>
+              <p style={{fontSize:'13px',color:'var(--fg-muted)',marginBottom:'16px'}}>Add your GitHub account to manage connected organizations.</p>
+              <button style={{display:'flex',alignItems:'center',gap:'8px',padding:'10px 20px',background:'#1A1A1A',color:'white',border:'none',borderRadius:'8px',fontSize:'14px',fontWeight:'600',cursor:'pointer',fontFamily:'inherit'}} dangerouslySetInnerHTML={{__html:'<svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg> Connect GitHub'}} />
             </div>
           </div>
 
         </div>
       </main>
 
-      {/* Settings-specific styles */}
       <style>{`
-        @keyframes settingsFadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
-        .settings-card { padding: 24px; border: 1px solid var(--border-100); border-radius: 12px; background: var(--bg-100); }
-        .settings-card-danger { border-color: #fca5a5; }
-        .settings-row { display: flex; justify-content: space-between; align-items: center; }
-        .settings-row-label { font-size: 14px; font-weight: 600; color: var(--fg-100); }
-        .settings-row-desc { font-size: 13px; color: var(--fg-muted); margin-top: 2px; }
-        .settings-input { width: 100%; padding: 10px 12px; border: 1px solid var(--border-100); border-radius: 8px; font-size: 14px; background: var(--bg-100); color: var(--fg-100); outline: none; transition: border-color 0.15s; font-family: inherit; box-sizing: border-box; }
-        .settings-input:focus { border-color: var(--accent-100); }
-        .settings-btn-primary { padding: 10px 20px; background: var(--accent-100); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity 0.15s; font-family: inherit; }
-        .settings-btn-primary:hover { opacity: 0.9; }
-        .settings-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-        .settings-btn-secondary { padding: 10px 20px; background: none; color: var(--fg-200); border: 1px solid var(--border-100); border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.15s; font-family: inherit; }
-        .settings-btn-secondary:hover { background: var(--bg-300); }
-        .settings-btn-danger { padding: 10px 20px; background: none; color: #dc2626; border: 1px solid #fca5a5; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.15s; font-family: inherit; }
-        .settings-btn-danger:hover { background: rgba(254,226,226,0.5); }
-        .settings-btn-danger:disabled { opacity: 0.5; cursor: not-allowed; }
-        .settings-notif-toggle.active { background: var(--accent-100) !important; }
-        .settings-notif-toggle.active > div { transform: translateX(20px) !important; }
-        .settings-nav-item { cursor: pointer; }
+        @keyframes settingsFadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+        .sc{padding:24px;border:1px solid var(--border-100);border-radius:12px;background:var(--bg-100);margin-bottom:0}
+        .sr{display:flex;justify-content:space-between;align-items:center}
+        .sr-label{font-size:14px;font-weight:600;color:var(--fg-100)}
+        .sr-desc{font-size:13px;color:var(--fg-muted);margin-top:2px}
+        .sr-select{padding:6px 16px;border:1px solid var(--border-100);border-radius:8px;font-size:13px;color:var(--fg-100);cursor:not-allowed;display:flex;align-items:center;gap:6px;background:var(--bg-100)}
+        .si{width:100%;padding:10px 12px;border:1px solid var(--border-100);border-radius:8px;font-size:14px;background:var(--bg-100);color:var(--fg-100);outline:none;transition:border-color .15s;font-family:inherit;box-sizing:border-box}
+        .si:focus{border-color:var(--accent-100)}
+        .sb-primary{padding:10px 20px;background:var(--accent-100);color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;transition:opacity .15s;font-family:inherit}
+        .sb-primary:hover{opacity:.9}.sb-primary:disabled{opacity:.5;cursor:not-allowed}
+        .sb-secondary{padding:10px 20px;background:var(--bg-100);color:var(--fg-100);border:1px solid var(--border-100);border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;transition:background .15s;font-family:inherit}
+        .sb-secondary:hover{background:var(--bg-300)}
+        .sb-danger{padding:10px 20px;background:none;color:#dc2626;border:1px solid #fca5a5;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+        .sb-danger:hover{background:rgba(254,226,226,.5)}.sb-danger:disabled{opacity:.5;cursor:not-allowed}
+        .stoggle{width:44px;height:24px;border-radius:12px;background:var(--border-100);cursor:pointer;position:relative;transition:background .2s;flex-shrink:0}
+        .stoggle>div{width:20px;height:20px;border-radius:10px;background:white;box-shadow:0 1px 3px rgba(0,0,0,.15);position:absolute;top:2px;left:2px;transition:transform .2s}
+        .stoggle.active{background:var(--fg-100)}.stoggle.active>div{transform:translateX(20px)}
+        .people-tab.active{background:var(--bg-100)!important;color:var(--fg-100)!important;border-color:var(--border-200)!important}
+        .settings-nav-item{cursor:pointer}
       `}</style>
     </div>
   );
