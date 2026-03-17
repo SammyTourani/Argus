@@ -842,25 +842,47 @@ export default App;
               filesJsonPayload = { files: writtenFiles, timestamp: new Date().toISOString() };
             }
 
-            // Also read package.json from sandbox (excluded from filteredFiles by config blacklist)
-            try {
-              const pkgContent = await providerInstance.readFile('package.json');
-              if (pkgContent) {
-                const pkgIdx = filesJsonPayload.files.findIndex(f => f.path === 'package.json');
-                if (pkgIdx >= 0) {
-                  filesJsonPayload.files[pkgIdx].content = pkgContent;
-                } else {
-                  filesJsonPayload.files.push({ path: 'package.json', content: pkgContent });
+            // Read config files from sandbox to ensure complete snapshot for restoration
+            // These are blacklisted from AI writes but needed for project resume
+            const configFilesToCapture = ['package.json', 'index.html', 'vite.config.js', 'tailwind.config.js', 'postcss.config.js'];
+            for (const configFile of configFilesToCapture) {
+              try {
+                const content = await providerInstance.readFile(configFile);
+                if (content) {
+                  const idx = filesJsonPayload.files.findIndex(f => f.path === configFile);
+                  if (idx >= 0) {
+                    filesJsonPayload.files[idx].content = content;
+                  } else {
+                    filesJsonPayload.files.push({ path: configFile, content });
+                  }
                 }
-              }
-            } catch { /* package.json read failed, skip */ }
+              } catch { /* file doesn't exist or read failed, skip */ }
+            }
+
+            // Also persist the sandbox_id for future reconnection
+            const currentSandboxId = userEntry.sandboxData?.sandboxId || null;
 
             await supabaseClient
               .from('project_builds')
-              .update({ files_json: filesJsonPayload, status: 'complete' })
+              .update({
+                files_json: filesJsonPayload,
+                status: 'complete',
+                ...(currentSandboxId ? { sandbox_id: currentSandboxId } : {}),
+              })
               .eq('id', buildId);
 
-            console.log(`[apply-ai-code-stream] Persisted files_json: ${filesJsonPayload.files.length} files for build ${buildId}`);
+            console.log(`[apply-ai-code-stream] Persisted files_json: ${filesJsonPayload.files.length} files for build ${buildId}${currentSandboxId ? `, sandbox_id: ${currentSandboxId}` : ''}`);
+
+            // Fire-and-forget screenshot of the sandbox preview (not the source URL)
+            const sandboxUrl = userEntry.sandboxData?.url;
+            if (sandboxUrl) {
+              const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+              fetch(`${siteUrl}/api/capture-screenshot`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: sandboxUrl, projectId, buildId }),
+              }).catch(err => console.error('[apply-ai-code-stream] Screenshot capture failed:', err));
+            }
           } catch (persistErr) {
             console.error('[apply-ai-code-stream] Failed to persist files_json:', persistErr);
             // Non-blocking — don't fail the response

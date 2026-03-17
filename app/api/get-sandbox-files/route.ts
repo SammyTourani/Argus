@@ -15,9 +15,9 @@ export async function GET() {
     }
 
     const entry = getSandbox(user.id);
-    const sandbox = entry.sandbox;
+    const provider = entry.provider;
 
-    if (!sandbox) {
+    if (!provider) {
       return NextResponse.json({
         success: false,
         error: 'No active sandbox'
@@ -26,78 +26,42 @@ export async function GET() {
 
     console.log('[get-sandbox-files] Fetching and analyzing file structure...');
 
-    // Get list of all relevant files
-    const findResult = await sandbox.runCommand({
-      cmd: 'find',
-      args: [
-        '.',
-        '-name', 'node_modules', '-prune', '-o',
-        '-name', '.git', '-prune', '-o',
-        '-name', 'dist', '-prune', '-o',
-        '-name', 'build', '-prune', '-o',
-        '-type', 'f',
-        '(',
-        '-name', '*.jsx',
-        '-o', '-name', '*.js',
-        '-o', '-name', '*.tsx',
-        '-o', '-name', '*.ts',
-        '-o', '-name', '*.css',
-        '-o', '-name', '*.json',
-        ')',
-        '-print'
-      ]
-    });
-
-    if (findResult.exitCode !== 0) {
-      throw new Error('Failed to list files');
-    }
-
-    const fileList = (await findResult.stdout()).split('\n').filter((f: string) => f.trim());
+    // List all relevant files via provider abstraction (works for E2B + Vercel)
+    const fileList = await provider.listFiles();
     console.log('[get-sandbox-files] Found', fileList.length, 'files');
+
+    // Filter to code files only
+    const codeExtensions = ['.jsx', '.js', '.tsx', '.ts', '.css', '.json'];
+    const codeFiles = fileList.filter(f =>
+      codeExtensions.some(ext => f.endsWith(ext))
+    );
 
     // Read content of each file (limit to reasonable sizes)
     const filesContent: Record<string, string> = {};
 
-    for (const filePath of fileList) {
+    for (const filePath of codeFiles) {
       try {
-        const statResult = await sandbox.runCommand({
-          cmd: 'stat',
-          args: ['-f', '%z', filePath]
-        });
-
-        if (statResult.exitCode === 0) {
-          const fileSize = parseInt(await statResult.stdout());
-
-          if (fileSize < 10000) {
-            const catResult = await sandbox.runCommand({
-              cmd: 'cat',
-              args: [filePath]
-            });
-
-            if (catResult.exitCode === 0) {
-              const content = await catResult.stdout();
-              const relativePath = filePath.replace(/^\.\//, '');
-              filesContent[relativePath] = content;
-            }
-          }
+        const content = await provider.readFile(filePath);
+        // Skip files that are too large (>10KB)
+        if (content && content.length < 10000) {
+          const relativePath = filePath.replace(/^\.\//, '');
+          filesContent[relativePath] = content;
         }
-      } catch (parseError) {
-        console.debug('Error parsing component info:', parseError);
+      } catch {
+        // File read failed, skip
         continue;
       }
     }
 
-    // Get directory structure
-    const treeResult = await sandbox.runCommand({
-      cmd: 'find',
-      args: ['.', '-type', 'd', '-not', '-path', '*/node_modules*', '-not', '-path', '*/.git*']
-    });
-
-    let structure = '';
-    if (treeResult.exitCode === 0) {
-      const dirs = (await treeResult.stdout()).split('\n').filter((d: string) => d.trim());
-      structure = dirs.slice(0, 50).join('\n');
+    // Derive directory structure from file list
+    const dirs = new Set<string>();
+    for (const f of fileList) {
+      const parts = f.split('/');
+      for (let i = 1; i < parts.length; i++) {
+        dirs.add(parts.slice(0, i).join('/'));
+      }
     }
+    const structure = Array.from(dirs).sort().slice(0, 50).join('\n');
 
     // Build enhanced file manifest
     const fileManifest: FileManifest = {

@@ -22,7 +22,7 @@
     "@ai-sdk/openai": "^2.0.4",
     "@anthropic-ai/sdk": "^0.57.0",
     "@assistant-ui/react": "^0.12.14",
-    "@e2b/code-interpreter": "^2.0.0",
+    "@e2b/code-interpreter": "^2.3.3",
     "@mendable/firecrawl-js": "^4.3.3",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
@@ -106,6 +106,7 @@
     "postcss": "^8.5.6",
     "postcss-import": "^16.1.1",
     "postcss-nesting": "^13.0.2",
+    "puppeteer": "^24.39.1",
     "tailwindcss": "^3.4.17",
     "typescript": "^5",
     "vitest": "^3.2.4"

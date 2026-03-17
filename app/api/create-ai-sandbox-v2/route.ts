@@ -53,11 +53,14 @@ export async function POST(request: Request) {
       }
     }
 
+    // Parse request body for project/build context
+    let body: any = {};
+    try { body = await request.clone().json(); } catch {}
+    const { projectId, buildId } = body;
+
     // Log build start
     try {
       const supabase = await createClient();
-      let body: any = {};
-      try { body = await request.clone().json(); } catch {}
       await supabase.from('project_builds').insert({
         created_by: userId,
         input_url: body.url || null,
@@ -65,6 +68,7 @@ export async function POST(request: Request) {
         style: body.style || null,
         model: body.model || null,
         status: 'generating',
+        ...(projectId ? { project_id: projectId } : {}),
       });
     } catch (e) {
       console.error('[create-ai-sandbox-v2] Failed to log build:', e);
@@ -88,6 +92,7 @@ export async function POST(request: Request) {
     );
     const sandboxInfo = await Promise.race([provider.createSandbox(), creationTimeout]);
 
+    // setupViteApp() is skipped if using a custom template (provider handles this internally)
     console.log('[create-ai-sandbox-v2] Setting up Vite React app...');
     await provider.setupViteApp();
 
@@ -114,6 +119,19 @@ export async function POST(request: Request) {
         },
       },
     });
+
+    // Store sandbox_id in DB for future reconnection/resume
+    if (projectId && buildId && buildId !== 'new' && buildId !== 'latest') {
+      try {
+        const supabase = await createClient();
+        await supabase.from('project_builds')
+          .update({ sandbox_id: sandboxInfo.sandboxId, preview_url: sandboxInfo.url })
+          .eq('id', buildId);
+        console.log(`[create-ai-sandbox-v2] Stored sandbox_id ${sandboxInfo.sandboxId} for build ${buildId}`);
+      } catch (e) {
+        console.error('[create-ai-sandbox-v2] Failed to store sandbox_id:', e);
+      }
+    }
 
     // Housekeeping
     cleanupStale();

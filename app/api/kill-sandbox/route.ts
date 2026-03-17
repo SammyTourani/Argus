@@ -15,16 +15,20 @@ export async function POST() {
     const userId = user.id;
     const entry = getSandbox(userId);
 
-    console.log(`[kill-sandbox] Stopping active sandbox for user ${userId}...`);
+    console.log(`[kill-sandbox] Cleaning up active sandbox for user ${userId}...`);
 
+    let sandboxPaused = false;
     let sandboxKilled = false;
 
-    // Stop existing provider if any
+    // Prefer pause over kill (enables instant resume on return)
+    // The provider's terminate() method handles this internally:
+    // it tries pause() first, falls back to kill() if pause fails
     if (entry.provider) {
       try {
         await entry.provider.terminate();
-        sandboxKilled = true;
-        console.log('[kill-sandbox] Provider sandbox stopped successfully');
+        // terminate() pauses if possible, kills otherwise
+        sandboxPaused = true;
+        console.log('[kill-sandbox] Provider sandbox paused/stopped successfully');
       } catch (e) {
         console.error('[kill-sandbox] Failed to stop provider sandbox:', e);
       }
@@ -50,6 +54,7 @@ export async function POST() {
 
     return NextResponse.json({
       success: true,
+      sandboxPaused,
       sandboxKilled,
       message: 'Sandbox cleaned up successfully'
     });

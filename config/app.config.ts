@@ -46,6 +46,17 @@ export const appConfig = {
 
     // Working directory in sandbox
     workingDirectory: '/home/user/app',
+
+    // Pause sandboxes instead of killing them (enables instant resume)
+    preferPause: true,
+
+    // Snapshot ID for pre-built sandbox (optional optimization)
+    // If set, Tier 2 resume creates sandboxes from this snapshot instead of from scratch
+    // Empty string = use default template + setupViteApp() for Tier 2/3
+    snapshotId: '',
+
+    // Auto-pause on inactivity instead of killing
+    lifecycle: { onTimeout: 'pause' as const },
   },
   
   // AI Model Configuration

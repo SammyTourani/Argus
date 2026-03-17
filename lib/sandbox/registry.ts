@@ -69,9 +69,10 @@ export function setSandbox(userId: string, partial: Partial<UserSandboxEntry>): 
 export function removeSandbox(userId: string): void {
   const entry = registry.get(userId);
   if (entry) {
-    // Best-effort cleanup of the underlying sandbox
+    // Best-effort cleanup: prefer pause (enables instant resume) over kill
     try {
       if (entry.provider) {
+        // terminate() now prefers pause over kill internally
         entry.provider.terminate().catch(() => {});
       } else if (entry.sandbox?.stop) {
         entry.sandbox.stop().catch(() => {});

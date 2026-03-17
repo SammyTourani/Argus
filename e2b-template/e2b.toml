@@ -1,0 +1,10 @@
+# Argus custom E2B sandbox template
+# Pre-installs React + Vite + Tailwind + common packages
+# so new sandboxes skip npm install (~10-15s savings)
+#
+# Build: cd e2b-template && E2B_ACCESS_TOKEN=<your-token> npx @e2b/cli template build
+# After build, update the template_id below and set it in config/app.config.ts → e2b.templateId
+
+# template_id will be set after first build
+dockerfile = "e2b.Dockerfile"
+start_cmd = "cd /home/user/app && npm run dev"

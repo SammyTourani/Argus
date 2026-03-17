@@ -1,35 +1,32 @@
 import { Sandbox } from '@e2b/code-interpreter';
 import { SandboxProvider, SandboxInfo, CommandResult } from '../types';
-// SandboxProviderConfig available through parent class
 import { appConfig } from '@/config/app.config';
+
+// Note: Use Sandbox (from @e2b/code-interpreter) directly for connect/create
+// to preserve runCode() support. Do NOT use the base e2b SDK's Sandbox class.
 
 export class E2BProvider extends SandboxProvider {
   private existingFiles: Set<string> = new Set();
 
   /**
    * Attempt to reconnect to an existing E2B sandbox by ID.
-   *
-   * E2B SDK v2+ exposes `Sandbox.connect(sandboxId)` which re-attaches to a
-   * still-running sandbox. If the sandbox has already timed out or been killed,
-   * `.connect()` throws and we return `false` so the caller can create a new one.
+   * Works for both running and paused sandboxes — paused ones auto-resume.
    */
   async reconnect(sandboxId: string): Promise<boolean> {
     try {
-      // E2B SDK v2 supports Sandbox.connect for reconnection
-      const SandboxClass = Sandbox as any;
-      if (typeof SandboxClass.connect !== 'function') {
+      if (typeof Sandbox.connect !== 'function') {
         console.log('[E2BProvider] Sandbox.connect not available in this SDK version');
         return false;
       }
 
-      const reconnected = await SandboxClass.connect(sandboxId, {
+      const reconnected = await Sandbox.connect(sandboxId, {
         apiKey: this.config.e2b?.apiKey || process.env.E2B_API_KEY,
       });
 
       if (!reconnected) return false;
 
       this.sandbox = reconnected;
-      const host = (this.sandbox as any).getHost?.(appConfig.e2b.vitePort);
+      const host = this.sandbox.getHost?.(appConfig.e2b.vitePort);
 
       this.sandboxInfo = {
         sandboxId,
@@ -41,7 +38,6 @@ export class E2BProvider extends SandboxProvider {
       console.log(`[E2BProvider] Successfully reconnected to sandbox ${sandboxId}`);
       return true;
     } catch (error) {
-      // Sandbox has expired or been terminated — caller should create a new one
       console.error(`[E2BProvider] Failed to reconnect to sandbox ${sandboxId}:`, error);
       return false;
     }
@@ -49,7 +45,6 @@ export class E2BProvider extends SandboxProvider {
 
   async createSandbox(): Promise<SandboxInfo> {
     try {
-      
       // Kill existing sandbox if any
       if (this.sandbox) {
         try {
@@ -59,19 +54,31 @@ export class E2BProvider extends SandboxProvider {
         }
         this.sandbox = null;
       }
-      
+
       // Clear existing files tracking
       this.existingFiles.clear();
 
-      // Create base sandbox
-      this.sandbox = await Sandbox.create({ 
+      // Build creation options
+      const createOptions: Record<string, any> = {
         apiKey: this.config.e2b?.apiKey || process.env.E2B_API_KEY,
-        timeoutMs: this.config.e2b?.timeoutMs || appConfig.e2b.timeoutMs
-      });
-      
-      const sandboxId = (this.sandbox as any).sandboxId || Date.now().toString();
-      const host = (this.sandbox as any).getHost(appConfig.e2b.vitePort);
-      
+        timeoutMs: this.config.e2b?.timeoutMs || appConfig.e2b.timeoutMs,
+      };
+
+      // Use pre-built snapshot if configured (has React+Vite+Tailwind pre-installed)
+      const snapshotId = appConfig.e2b.snapshotId;
+      if (snapshotId) {
+        createOptions.snapshot = snapshotId;
+      }
+
+      // Configure lifecycle: auto-pause on timeout instead of kill
+      if (appConfig.e2b.preferPause) {
+        createOptions.lifecycle = appConfig.e2b.lifecycle;
+      }
+
+      this.sandbox = await Sandbox.create(createOptions);
+
+      const sandboxId = this.sandbox.sandboxId || Date.now().toString();
+      const host = this.sandbox.getHost(appConfig.e2b.vitePort);
 
       this.sandboxInfo = {
         sandboxId,
@@ -93,20 +100,27 @@ export class E2BProvider extends SandboxProvider {
     }
   }
 
+  /**
+   * Whether this sandbox was created from a custom template
+   * (and therefore already has Vite + deps installed).
+   */
+  hasSnapshot(): boolean {
+    return !!appConfig.e2b.snapshotId;
+  }
+
   async runCommand(command: string): Promise<CommandResult> {
     if (!this.sandbox) {
       throw new Error('No active sandbox');
     }
 
-    
     const result = await this.sandbox.runCode(`
       import subprocess
       import os
 
       os.chdir('/home/user/app')
-      result = subprocess.run(${JSON.stringify(command.split(' '))}, 
-                            capture_output=True, 
-                            text=True, 
+      result = subprocess.run(${JSON.stringify(command.split(' '))},
+                            capture_output=True,
+                            text=True,
                             shell=False)
 
       print("STDOUT:")
@@ -116,10 +130,10 @@ export class E2BProvider extends SandboxProvider {
           print(result.stderr)
       print(f"\\nReturn code: {result.returncode}")
     `);
-    
+
     const output = result.logs.stdout.join('\n');
     const stderr = result.logs.stderr.join('\n');
-    
+
     return {
       stdout: output,
       stderr,
@@ -134,12 +148,10 @@ export class E2BProvider extends SandboxProvider {
     }
 
     const fullPath = path.startsWith('/') ? path : `/home/user/app/${path}`;
-    
+
     // Use the E2B filesystem API to write the file
-    // Note: E2B SDK uses files.write() method
-    if ((this.sandbox as any).files && typeof (this.sandbox as any).files.write === 'function') {
-      // Use the files.write API if available
-      await (this.sandbox as any).files.write(fullPath, Buffer.from(content));
+    if (this.sandbox.files && typeof this.sandbox.files.write === 'function') {
+      await this.sandbox.files.write(fullPath, Buffer.from(content));
     } else {
       // Fallback to Python code execution
       await this.sandbox.runCode(`
@@ -155,7 +167,7 @@ export class E2BProvider extends SandboxProvider {
         print(f"✓ Written: ${fullPath}")
       `);
     }
-    
+
     this.existingFiles.add(path);
   }
 
@@ -165,13 +177,13 @@ export class E2BProvider extends SandboxProvider {
     }
 
     const fullPath = path.startsWith('/') ? path : `/home/user/app/${path}`;
-    
+
     const result = await this.sandbox.runCode(`
       with open("${fullPath}", 'r') as f:
           content = f.read()
       print(content)
     `);
-    
+
     return result.logs.stdout.join('\n');
   }
 
@@ -197,7 +209,7 @@ export class E2BProvider extends SandboxProvider {
       files = list_files("${directory}")
       print(json.dumps(files))
     `);
-    
+
     try {
       return JSON.parse(result.logs.stdout.join(''));
     } catch {
@@ -210,10 +222,8 @@ export class E2BProvider extends SandboxProvider {
       throw new Error('No active sandbox');
     }
 
-    const packageList = packages.join(' ');
     const flags = appConfig.packages.useLegacyPeerDeps ? '--legacy-peer-deps' : '';
-    
-    
+
     const result = await this.sandbox.runCode(`
       import subprocess
       import os
@@ -234,15 +244,15 @@ export class E2BProvider extends SandboxProvider {
           print(result.stderr)
       print(f"\\nReturn code: {result.returncode}")
     `);
-    
+
     const output = result.logs.stdout.join('\n');
     const stderr = result.logs.stderr.join('\n');
-    
+
     // Restart Vite if configured
     if (appConfig.packages.autoRestartVite && !result.error) {
       await this.restartViteServer();
     }
-    
+
     return {
       stdout: output,
       stderr,
@@ -256,7 +266,22 @@ export class E2BProvider extends SandboxProvider {
       throw new Error('No active sandbox');
     }
 
-    
+    // If using a custom template, boilerplate is already set up — skip
+    if (this.hasSnapshot()) {
+      console.log('[E2BProvider] Custom template detected, skipping setupViteApp()');
+      // Just wait for Vite to be ready (template start_cmd launches it)
+      await new Promise(resolve => setTimeout(resolve, appConfig.e2b.viteStartupDelay));
+      this.existingFiles.add('src/App.jsx');
+      this.existingFiles.add('src/main.jsx');
+      this.existingFiles.add('src/index.css');
+      this.existingFiles.add('index.html');
+      this.existingFiles.add('package.json');
+      this.existingFiles.add('vite.config.js');
+      this.existingFiles.add('tailwind.config.js');
+      this.existingFiles.add('postcss.config.js');
+      return;
+    }
+
     // Write all files in a single Python script
     const setupScript = `
 import os
@@ -414,7 +439,7 @@ print('\\nAll files created successfully!')
 `;
 
     await this.sandbox.runCode(setupScript);
-    
+
     // Install dependencies
     await this.sandbox.runCode(`
 import subprocess
@@ -432,7 +457,7 @@ if result.returncode == 0:
 else:
     print(f'⚠ Warning: npm install had issues: {result.stderr}')
     `);
-    
+
     // Start Vite dev server
     await this.sandbox.runCode(`
 import subprocess
@@ -459,10 +484,10 @@ process = subprocess.Popen(
 print(f'✓ Vite dev server started with PID: {process.pid}')
 print('Waiting for server to be ready...')
     `);
-    
+
     // Wait for Vite to be ready
     await new Promise(resolve => setTimeout(resolve, appConfig.e2b.viteStartupDelay));
-    
+
     // Track initial files
     this.existingFiles.add('src/App.jsx');
     this.existingFiles.add('src/main.jsx');
@@ -479,7 +504,6 @@ print('Waiting for server to be ready...')
       throw new Error('No active sandbox');
     }
 
-    
     await this.sandbox.runCode(`
 import subprocess
 import time
@@ -504,9 +528,31 @@ process = subprocess.Popen(
 
 print(f'✓ Vite restarted with PID: {process.pid}')
     `);
-    
+
     // Wait for Vite to be ready
     await new Promise(resolve => setTimeout(resolve, appConfig.e2b.viteStartupDelay));
+  }
+
+  /**
+   * Pause the sandbox (preserves full state: filesystem + memory + processes).
+   * Paused sandboxes persist indefinitely and cost nothing.
+   * Resume by calling Sandbox.connect(sandboxId).
+   */
+  async pause(): Promise<boolean> {
+    if (!this.sandbox) return false;
+    try {
+      await this.sandbox.pause();
+      console.log(`[E2BProvider] Sandbox ${this.sandboxInfo?.sandboxId} paused successfully`);
+      return true;
+    } catch (e: any) {
+      // 409 = already paused — treat as success
+      if (e?.status === 409 || e?.message?.includes('409')) {
+        console.log(`[E2BProvider] Sandbox ${this.sandboxInfo?.sandboxId} already paused`);
+        return true;
+      }
+      console.error('[E2BProvider] Pause failed:', e);
+      return false;
+    }
   }
 
   getSandboxUrl(): string | null {
@@ -519,6 +565,18 @@ print(f'✓ Vite restarted with PID: {process.pid}')
 
   async terminate(): Promise<void> {
     if (this.sandbox) {
+      // Prefer pause over kill if configured (enables instant resume)
+      if (appConfig.e2b.preferPause) {
+        const paused = await this.pause();
+        if (paused) {
+          // Keep sandboxInfo so we can reconnect later, but clear the live handle
+          this.sandbox = null;
+          return;
+        }
+        // Pause failed — fall back to hard kill
+        console.log('[E2BProvider] Pause failed, falling back to kill');
+      }
+
       try {
         await this.sandbox.kill();
       } catch (e) {

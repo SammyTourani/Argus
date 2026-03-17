@@ -51,15 +51,20 @@ export abstract class SandboxProvider {
   abstract getSandboxInfo(): SandboxInfo | null;
   abstract terminate(): Promise<void>;
   abstract isAlive(): boolean;
-  
+
   // Optional methods that providers can override
   async setupViteApp(): Promise<void> {
     // Default implementation for setting up a Vite React app
     throw new Error('setupViteApp not implemented for this provider');
   }
-  
+
   async restartViteServer(): Promise<void> {
     // Default implementation for restarting Vite
     throw new Error('restartViteServer not implemented for this provider');
+  }
+
+  async pause(): Promise<boolean> {
+    // Default: pause not supported
+    return false;
   }
 }
