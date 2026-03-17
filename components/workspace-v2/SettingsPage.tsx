@@ -628,7 +628,7 @@ export default function SettingsPage() {
                 </div>
                 {/* Pro */}
                 <div className="sc" id="settingsProCard" style={{position:'relative'}}>
-                  <div id="settingsCurrentBadge" style={{display:'none',position:'absolute',top:'-12px',left:'50%',transform:'translateX(-50)',padding:'4px 16px',borderRadius:'99px',background:'var(--accent-100)',color:'white',fontSize:'11px',fontWeight:'700',letterSpacing:'0.05em'}}>Current plan</div>
+                  <div id="settingsCurrentBadge" style={{display:'none',position:'absolute',top:'-12px',left:'50%',transform:'translateX(-50%)',padding:'4px 16px',borderRadius:'99px',background:'var(--accent-100)',color:'white',fontSize:'11px',fontWeight:'700',letterSpacing:'0.05em'}}>Current plan</div>
                   <div style={{fontSize:'22px',fontWeight:'800',marginBottom:'8px'}}>Pro</div>
                   <div style={{marginBottom:'16px'}}><span style={{fontSize:'32px',fontWeight:'800'}}>$19</span><span style={{fontSize:'14px',color:'var(--fg-muted)',marginLeft:'4px'}}>/month</span></div>
                   <div style={{fontSize:'13px',color:'var(--fg-muted)',marginBottom:'20px'}}>For power builders.</div>
@@ -667,7 +667,7 @@ export default function SettingsPage() {
             {/* Gift cards */}
             <div className="sc" style={{marginBottom:'16px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
               <div><div className="sr-label" style={{fontSize:'16px'}}>Gift cards</div><div className="sr-desc" style={{marginTop:'4px'}}>Send a gift card to your friends.</div><button className="sb-secondary" style={{marginTop:'12px',padding:'8px 16px',fontSize:'13px'}}>See all gift cards</button></div>
-              <div style={{width:'120px',height:'80px',borderRadius:'8px',background:'linear-gradient(135deg,#ff4801,#ff7038,#f0f)',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontWeight:'700',fontSize:'11px',textAlign:'center',lineHeight:'1.3',transform:'rotate(3deg)'}}>Argus<br/>Gift card</div>
+              <div style={{width:'120px',height:'80px',borderRadius:'8px',background:'linear-gradient(135deg,var(--accent-100),var(--accent-200),#ff9060)',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontWeight:'700',fontSize:'11px',textAlign:'center',lineHeight:'1.3',transform:'rotate(3deg)'}}>Argus<br/>Gift card</div>
             </div>
 
             {/* Student discount */}
@@ -706,7 +706,6 @@ export default function SettingsPage() {
                   {label:'Invite links',desc:'Allow workspace members to create and share invite links.',badge:null,right:'toggle-on'},
                   {label:'Who can publish externally',desc:'Control which roles can publish projects outside the workspace.',badge:'Enterprise',right:'<div class="sr-select">Editors and above</div>'},
                 ].map(function(item,i){
-                  var toggleHtml = item.right === 'toggle-on' ? '<div style="width:44px;height:24px;borderRadius:12px;background:var(--fg-100);cursor:not-allowed;position:relative;flexShrink:0"><div style="width:20px;height:20px;borderRadius:10px;background:white;boxShadow:0 1px 3px rgba(0,0,0,0.15);position:absolute;top:2px;right:2px"></div></div>' : item.right === 'toggle-off' ? '<div style="width:44px;height:24px;borderRadius:12px;background:var(--border-100);cursor:not-allowed;position:relative;opacity:0.6;flexShrink:0"><div style="width:20px;height:20px;borderRadius:10px;background:white;boxShadow:0 1px 3px rgba(0,0,0,0.15);position:absolute;top:2px;left:2px"></div></div>' : null;
                   return (
                     <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'16px 0',borderBottom:i<7?'1px solid var(--border-100)':'none'}}>
                       <div style={{flex:1}}>
@@ -716,10 +715,19 @@ export default function SettingsPage() {
                         </div>
                         <div style={{fontSize:'13px',color:'var(--fg-muted)',marginTop:'2px'}}>{item.desc}</div>
                       </div>
-                      {toggleHtml ? (
-                        <div dangerouslySetInnerHTML={{__html:toggleHtml}} />
+                      {item.right === 'toggle-on' ? (
+                        <div style={{width:'44px',height:'24px',borderRadius:'12px',background:'var(--fg-100)',cursor:'not-allowed',position:'relative',flexShrink:0}}>
+                          <div style={{width:'20px',height:'20px',borderRadius:'10px',background:'white',boxShadow:'0 1px 3px rgba(0,0,0,0.15)',position:'absolute',top:'2px',right:'2px'}}></div>
+                        </div>
+                      ) : item.right === 'toggle-off' ? (
+                        <div style={{width:'44px',height:'24px',borderRadius:'12px',background:'var(--border-100)',cursor:'not-allowed',position:'relative',opacity:0.6,flexShrink:0}}>
+                          <div style={{width:'20px',height:'20px',borderRadius:'10px',background:'white',boxShadow:'0 1px 3px rgba(0,0,0,0.15)',position:'absolute',top:'2px',left:'2px'}}></div>
+                        </div>
                       ) : (
-                        <div dangerouslySetInnerHTML={{__html:item.right}} />
+                        <div style={{padding:'6px 16px',border:'1px solid var(--border-100)',borderRadius:'8px',fontSize:'13px',color:'var(--fg-100)',cursor:'not-allowed',display:'flex',alignItems:'center',gap:'6px',background:'var(--bg-100)'}}>
+                          {item.right === '<div class="sr-select">Workspace</div>' ? 'Workspace' : item.right === '<div class="sr-select">Anyone</div>' ? 'Anyone' : 'Editors and above'}
+                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="var(--fg-muted)" strokeWidth="1.5"><path d="M3 5l3 3 3-3"/></svg>
+                        </div>
                       )}
                     </div>
                   );
