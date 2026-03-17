@@ -21,6 +21,7 @@ export interface WorkspaceUser {
   email: string;
   name: string;
   initial: string;
+  avatarUrl: string | null;
 }
 
 export interface ProjectBuildSummary {
@@ -154,7 +155,7 @@ export async function fetchCurrentUser(): Promise<WorkspaceUser | null> {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('full_name')
+      .select('full_name, avatar_url')
       .eq('id', user.id)
       .single();
 
@@ -164,6 +165,7 @@ export async function fetchCurrentUser(): Promise<WorkspaceUser | null> {
       email: user.email || '',
       name,
       initial: (name || 'U').charAt(0).toUpperCase(),
+      avatarUrl: profile?.avatar_url || user.user_metadata?.avatar_url || null,
     };
     _userCache = { data: result, ts: Date.now() };
     return result;
