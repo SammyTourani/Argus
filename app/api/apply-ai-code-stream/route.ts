@@ -236,7 +236,7 @@ export async function POST(request: NextRequest) {
 
     const userEntry = getSandbox(user.id);
 
-    const { response, isEdit = false, packages = [], sandboxId } = await request.json();
+    const { response, isEdit = false, packages = [], sandboxId, projectId, buildId } = await request.json();
 
     if (!response) {
       return NextResponse.json({
@@ -627,6 +627,9 @@ export default App;
           });
         }
         
+        // Track written files with normalized paths for files_json persistence
+        const writtenFiles: Array<{ path: string; content: string }> = [];
+
         for (const [index, file] of filteredFiles.entries()) {
           try {
             // Send progress for each file
@@ -675,6 +678,9 @@ export default App;
 
             // Write the file using provider
             await providerInstance.writeFile(normalizedPath, fileContent);
+
+            // Track for files_json persistence
+            writtenFiles.push({ path: normalizedPath, content: fileContent });
 
             // Update file cache
             if (userEntry.sandboxState?.fileCache) {
@@ -809,6 +815,57 @@ export default App;
           structure: parsed.structure,
           message: `Successfully applied ${results.filesCreated.length} files`
         });
+
+        // Persist files_json to database for future restoration
+        if (projectId && buildId && buildId !== 'new' && buildId !== 'latest' && writtenFiles.length > 0) {
+          try {
+            let filesJsonPayload: { files: Array<{ path: string; content: string }>; timestamp: string };
+
+            if (isEdit) {
+              // Merge with existing files_json
+              const { data: existing } = await supabaseClient
+                .from('project_builds')
+                .select('files_json')
+                .eq('id', buildId)
+                .single();
+
+              const existingSnapshot = existing?.files_json as Record<string, unknown> | null;
+              const existingFiles: Array<{ path: string; content: string }> = existingSnapshot
+                ? (Array.isArray(existingSnapshot) ? existingSnapshot : Array.isArray((existingSnapshot as any).files) ? (existingSnapshot as any).files : [])
+                : [];
+              const mergedMap = new Map(existingFiles.map((f: any) => [f.path, f]));
+              for (const f of writtenFiles) {
+                mergedMap.set(f.path, f);
+              }
+              filesJsonPayload = { files: Array.from(mergedMap.values()), timestamp: new Date().toISOString() };
+            } else {
+              filesJsonPayload = { files: writtenFiles, timestamp: new Date().toISOString() };
+            }
+
+            // Also read package.json from sandbox (excluded from filteredFiles by config blacklist)
+            try {
+              const pkgContent = await providerInstance.readFile('package.json');
+              if (pkgContent) {
+                const pkgIdx = filesJsonPayload.files.findIndex(f => f.path === 'package.json');
+                if (pkgIdx >= 0) {
+                  filesJsonPayload.files[pkgIdx].content = pkgContent;
+                } else {
+                  filesJsonPayload.files.push({ path: 'package.json', content: pkgContent });
+                }
+              }
+            } catch { /* package.json read failed, skip */ }
+
+            await supabaseClient
+              .from('project_builds')
+              .update({ files_json: filesJsonPayload, status: 'complete' })
+              .eq('id', buildId);
+
+            console.log(`[apply-ai-code-stream] Persisted files_json: ${filesJsonPayload.files.length} files for build ${buildId}`);
+          } catch (persistErr) {
+            console.error('[apply-ai-code-stream] Failed to persist files_json:', persistErr);
+            // Non-blocking — don't fail the response
+          }
+        }
 
         // Track applied files in per-user conversation state
         if (results.filesCreated.length > 0) {

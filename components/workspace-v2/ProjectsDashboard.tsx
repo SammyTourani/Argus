@@ -63,8 +63,11 @@ export default function ProjectsDashboard() {
         ? '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1.5l2 4 4.5.7-3.2 3.1.8 4.5L8 11.8 3.9 13.8l.8-4.5L1.5 6.2 6 5.5z"/></svg>'
         : '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M8 1.5l2 4 4.5.7-3.2 3.1.8 4.5L8 11.8 3.9 13.8l.8-4.5L1.5 6.2 6 5.5z"/></svg>';
       var folderIcon = p.type === 'folder' ? '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="var(--fg-muted)" stroke-width="1.5"><path d="M2 4h4l1.5 2H14v7H2z"/></svg>' : '';
+      var thumbContent = p.thumbnailUrl
+        ? '<img src="' + p.thumbnailUrl + '" style="width:100%;height:100%;object-fit:cover" alt="" loading="lazy" />'
+        : '<div class="pd-card-thumb-inner" style="background:' + p.gradient + '"></div>';
       return '<div class="pd-card" data-project-id="' + p.id + '" style="animation-delay:' + (idx * 50) + 'ms">' +
-        '<div class="pd-card-thumb"><div class="pd-card-thumb-inner" style="background:' + p.gradient + '"></div>' +
+        '<div class="pd-card-thumb">' + thumbContent +
         '<span class="pd-card-index">[' + String(idx).padStart(2, '0') + ']</span>' +
         '<button class="pd-card-star' + (p.starred ? ' starred' : '') + '" data-star="' + p.id + '">' + starFill + '</button>' +
         '<span class="pd-card-status ' + p.status + '">' + p.status + '</span></div>' +

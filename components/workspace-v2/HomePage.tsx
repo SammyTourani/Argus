@@ -249,7 +249,10 @@ export default function HomePage() {
       var display = recents.slice(0, 4);
       display.forEach(function(r) {
         html += '<div class="template-card" data-project-id="' + r.project_id + '" style="cursor:pointer">';
-        html += '<div class="template-preview"><div class="template-preview-inner" style="background:' + generateGradient(r.project_id) + '"></div></div>';
+        var recentThumb = r.thumbnail_url
+          ? '<img src="' + r.thumbnail_url + '" style="width:100%;height:100%;object-fit:cover" alt="" loading="lazy" />'
+          : '<div class="template-preview-inner" style="background:' + generateGradient(r.project_id) + '"></div>';
+        html += '<div class="template-preview">' + recentThumb + '</div>';
         html += '<div class="template-info"><div class="template-name">' + escapeHtml(r.project_name || 'Untitled') + '</div>';
         html += '<div class="template-desc">' + formatRelativeTime(r.viewed_at) + '</div></div></div>';
       });
@@ -274,7 +277,10 @@ export default function HomePage() {
       var display = apiProjects.slice(0, 4);
       display.forEach(function(p) {
         html += '<div class="template-card" data-project-id="' + p.id + '" style="cursor:pointer">';
-        html += '<div class="template-preview"><div class="template-preview-inner" style="background:' + generateGradient(p.id) + '"></div></div>';
+        var projectThumb = p.thumbnail_url
+          ? '<img src="' + p.thumbnail_url + '" style="width:100%;height:100%;object-fit:cover" alt="" loading="lazy" />'
+          : '<div class="template-preview-inner" style="background:' + generateGradient(p.id) + '"></div>';
+        html += '<div class="template-preview">' + projectThumb + '</div>';
         html += '<div class="template-info"><div class="template-name">' + escapeHtml(p.name) + '</div>';
         html += '<div class="template-desc">' + formatRelativeTime(p.updated_at) + '</div></div></div>';
       });

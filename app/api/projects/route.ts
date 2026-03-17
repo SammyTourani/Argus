@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
     if (projectIds.length > 0) {
       const { data: allBuilds } = await supabase
         .from('project_builds')
-        .select('id, project_id, status, preview_url, created_at, model, version_number')
+        .select('id, project_id, status, preview_url, thumbnail_url, created_at, model, version_number')
         .in('project_id', projectIds)
         .order('version_number', { ascending: false });
 

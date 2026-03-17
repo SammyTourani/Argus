@@ -30,6 +30,7 @@ export async function GET() {
       project_id: r.project_id,
       project_name: r.projects?.name || 'Untitled',
       viewed_at: r.viewed_at,
+      thumbnail_url: r.projects?.thumbnail_url || null,
     }));
 
     return NextResponse.json({ recents });
