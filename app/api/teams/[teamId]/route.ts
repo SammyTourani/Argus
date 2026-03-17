@@ -42,7 +42,7 @@ export async function GET(
     // Fetch team details
     const { data: team, error } = await supabase
       .from('teams')
-      .select('id, name, slug, plan, description, created_at')
+      .select('id, name, slug, plan, created_at')
       .eq('id', teamId)
       .single();
 
@@ -99,9 +99,6 @@ export async function PATCH(
     if (body.name && typeof body.name === 'string' && body.name.trim().length > 0) {
       updates.name = body.name.trim();
     }
-    if (typeof body.description === 'string') {
-      updates.description = body.description.trim().slice(0, 500);
-    }
 
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
@@ -152,23 +149,6 @@ export async function DELETE(
 
     // Use admin client to bypass RLS (auth already validated above)
     const admin = getSupabaseAdmin();
-
-    // Cancel Stripe subscription before deleting team
-    const { data: teamData } = await admin
-      .from('teams')
-      .select('stripe_subscription_id')
-      .eq('id', teamId)
-      .single();
-    if (teamData?.stripe_subscription_id) {
-      try {
-        const { getStripe } = await import('@/lib/stripe/config');
-        await getStripe().subscriptions.cancel(teamData.stripe_subscription_id);
-      } catch (stripeErr) {
-        console.error('[DELETE /api/teams/:teamId] Stripe cancel failed:', stripeErr);
-        // Continue with deletion even if Stripe cancel fails
-      }
-    }
-
     const { error } = await admin
       .from('teams')
       .delete()

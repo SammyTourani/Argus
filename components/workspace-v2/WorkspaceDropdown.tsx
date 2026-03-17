@@ -2,8 +2,8 @@
 'use client';
 
 import { useEffect } from 'react';
-import { fetchCurrentUser, fetchSubscription, fetchTeams, invalidateSubscriptionCache, escapeHtml } from './workspace-api';
-import { getActiveWorkspace, setActiveWorkspace, onWorkspaceChange } from './workspace-active';
+import { fetchCurrentUser, fetchSubscription, fetchTeams, deleteTeam, escapeHtml } from './workspace-api';
+import { getActiveWorkspace, setActiveWorkspace } from './workspace-active';
 import { useUser } from '@/components/providers/UserProvider';
 
 export default function WorkspaceDropdown() {
@@ -52,8 +52,6 @@ export default function WorkspaceDropdown() {
       var actionBtn = (e.target as HTMLElement).closest('[data-ws-action]');
       if (actionBtn) {
         var action = actionBtn.getAttribute('data-ws-action');
-        if (action === 'settings') { close(); window.location.href = '/settings'; return; }
-        if (action === 'invite') { close(); window.location.href = '/settings/members'; return; }
         if (action === 'upgrade') { window.location.href = '/upgrade'; return; }
         if (action === 'create') {
           close();
@@ -63,7 +61,32 @@ export default function WorkspaceDropdown() {
         return;
       }
 
-      // Workspace deletion moved to Settings → Danger Zone
+      // Delete workspace button
+      var deleteBtn = (e.target as HTMLElement).closest('.ws-delete-btn');
+      if (deleteBtn) {
+        e.stopPropagation();
+        var teamId = deleteBtn.getAttribute('data-team-id');
+        var teamName = deleteBtn.getAttribute('data-team-name') || 'this workspace';
+        if (!teamId) return;
+        if (!confirm('Delete "' + teamName + '"? All projects in this workspace will become personal projects. This cannot be undone.')) return;
+        deleteBtn.style.opacity = '0.3';
+        deleteBtn.style.pointerEvents = 'none';
+        deleteTeam(teamId).then(function() {
+          var item = deleteBtn.closest('.ws-workspace-item');
+          if (item) item.remove();
+          // If deleted workspace was active, switch to personal
+          var activeWs = getActiveWorkspace();
+          if (activeWs.id === teamId) {
+            setActiveWorkspace({ id: 'personal', name: 'Personal' });
+            window.location.reload();
+          }
+        }).catch(function(err) {
+          alert(err.message || 'Failed to delete workspace');
+          deleteBtn.style.opacity = '1';
+          deleteBtn.style.pointerEvents = 'auto';
+        });
+        return;
+      }
 
       var wsItem = (e.target as HTMLElement).closest('.ws-workspace-item');
       if (wsItem) {
@@ -139,52 +162,17 @@ export default function WorkspaceDropdown() {
           teams.forEach(function(t) {
             var initial = (t.name || 'T').charAt(0).toUpperCase();
             var badge = (t.plan || 'free').toUpperCase();
+            var deleteSvg = '<button class="ws-delete-btn" data-team-id="' + t.id + '" data-team-name="' + escapeHtml(t.name || 'Team') + '" title="Delete workspace" style="background:none;border:none;cursor:pointer;padding:4px;opacity:0.3;transition:opacity 0.15s;display:flex;align-items:center;margin-left:auto;flex-shrink:0"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4h10M6 4V3h4v1M5 4v9h6V4"/></svg></button>';
             html += '<div class="ws-workspace-item' + (activeWs.id === t.id ? ' active' : '') + '" data-ws-id="' + t.id + '" style="display:flex;align-items:center">' +
               '<div class="ws-ws-avatar">' + initial + '</div>' +
               '<span class="ws-ws-name">' + escapeHtml(t.name || 'Team') + '</span>' +
               '<span class="ws-ws-badge">' + badge + '</span>' +
-              checkSvg + '</div>';
+              checkSvg + deleteSvg + '</div>';
           });
         }
         wsList.innerHTML = html;
       }
     }).catch(function() {});
-
-    // Re-fetch subscription when workspace changes
-    var removeWsListener = onWorkspaceChange(function() {
-      invalidateSubscriptionCache();
-      fetchSubscription().then(function(sub) {
-        if (cancelled || !dropdown) return;
-        // Update plan badge
-        var planBadge = dropdown.querySelector('.ws-plan-badge');
-        if (planBadge) planBadge.textContent = (sub.tier || 'Free').charAt(0).toUpperCase() + (sub.tier || 'free').slice(1) + ' Plan';
-        // Update credits display
-        var creditsCount = dropdown.querySelector('.ws-credits-count');
-        var creditsHelp = dropdown.querySelector('.ws-credits-help');
-        var progressFill = dropdown.querySelector('.ws-progress-fill');
-        var cr = sub.creditsRemaining || 0;
-        var ct = sub.creditsTotal || 30;
-        if (creditsCount) creditsCount.textContent = cr + ' / ' + ct + ' credits';
-        if (creditsHelp) creditsHelp.textContent = ct + ' ' + sub.tier + ' credits reset monthly';
-        if (progressFill) {
-          progressFill.style.width = Math.round((cr / ct) * 100) + '%';
-          progressFill.style.background = cr > 5 ? 'var(--accent-100)' : '#ef4444';
-        }
-        // Update upgrade card
-        var upgradeCard = dropdown.querySelector('.ws-upgrade-card');
-        if (upgradeCard) {
-          upgradeCard.style.display = '';
-          var upgradeLeft = upgradeCard.querySelector('.ws-upgrade-left');
-          if (sub.tier === 'team' || sub.tier === 'enterprise') {
-            upgradeCard.style.display = 'none';
-          } else if (sub.tier === 'pro') {
-            if (upgradeLeft) upgradeLeft.innerHTML = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M8.5 1L3 9h4.5v6L13 7H8.5V1z" /></svg> Go Team';
-          } else {
-            if (upgradeLeft) upgradeLeft.innerHTML = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M8.5 1L3 9h4.5v6L13 7H8.5V1z" /></svg> Turn Pro';
-          }
-        }
-      }).catch(function() {});
-    });
 
     return () => {
       cancelled = true;
@@ -192,7 +180,6 @@ export default function WorkspaceDropdown() {
       backdrop!.removeEventListener('click', handleBackdropClick);
       document.removeEventListener('keydown', handleKeydown);
       dropdown!.removeEventListener('click', handleDropdownClick);
-      removeWsListener();
     };
   }, []);
 
