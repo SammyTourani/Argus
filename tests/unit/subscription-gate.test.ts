@@ -1,8 +1,10 @@
 /**
  * Tests for subscription gating — lib/subscription/gate.ts
  *
- * Validates feature access per tier: free users have limited builds and no
- * deploy; pro/team users get unlimited builds and full access.
+ * Validates feature access per tier. Free tier is credit-gated (no per-month
+ * build-count cap), and only paid tiers (pro/team/enterprise) unlock deploy and
+ * all-models access. Also covers the auto-reset of credits/builds when the
+ * billing period has elapsed and the safe fallback on a DB error.
  *
  * Uses a mock Supabase client to avoid real database calls.
  */
@@ -42,11 +44,16 @@ describe('Subscription Gate', () => {
 
   // ── Free tier ────────────────────────────────────────────────────────────
 
-  it('free user: canBuild=true when under limit, canDeploy=false', async () => {
+  // Free tier is credit-gated, not build-count-gated: maxBuildsPerMonth is null,
+  // so canBuild stays true and the credit balance is surfaced separately.
+  it('free user: credit-gated with no build-count cap and no deploy access', async () => {
     mockProfile({
       subscription_status: 'free',
       builds_this_month: 1,
       builds_reset_at: new Date(Date.now() + 86_400_000).toISOString(),
+      credits_remaining: 20,
+      credits_total: 30,
+      credits_reset_at: new Date(Date.now() + 86_400_000).toISOString(),
     });
 
     const { getUserSubscriptionGate } = await import('@/lib/subscription/gate');
@@ -55,21 +62,51 @@ describe('Subscription Gate', () => {
     expect(gate.tier).toBe('free');
     expect(gate.canBuild).toBe(true);
     expect(gate.canDeploy).toBe(false);
-    expect(gate.maxBuildsPerMonth).toBe(3);
+    expect(gate.canUseAllModels).toBe(false);
+    // Build-count gating was removed in favour of credit gating.
+    expect(gate.maxBuildsPerMonth).toBeNull();
+    expect(gate.buildsRemaining).toBeNull();
+    expect(gate.creditsRemaining).toBe(20);
+    expect(gate.creditsTotal).toBe(30);
   });
 
-  it('free user: canBuild=false when at limit', async () => {
+  it('free user: credit balance is reported even when fully depleted', async () => {
     mockProfile({
       subscription_status: 'free',
       builds_this_month: 3,
       builds_reset_at: new Date(Date.now() + 86_400_000).toISOString(),
+      credits_remaining: 0,
+      credits_total: 30,
+      credits_reset_at: new Date(Date.now() + 86_400_000).toISOString(),
     });
 
     const { getUserSubscriptionGate } = await import('@/lib/subscription/gate');
     const gate = await getUserSubscriptionGate('user-2');
 
-    expect(gate.canBuild).toBe(false);
-    expect(gate.buildsRemaining).toBe(0);
+    expect(gate.tier).toBe('free');
+    // No build-count cap, so build admission is gated on credits at the call site.
+    expect(gate.canBuild).toBe(true);
+    expect(gate.maxBuildsPerMonth).toBeNull();
+    expect(gate.creditsRemaining).toBe(0);
+    expect(gate.creditsTotal).toBe(30);
+  });
+
+  it('treats cancelled subscription_status as the free tier', async () => {
+    mockProfile({
+      subscription_status: 'cancelled',
+      builds_this_month: 0,
+      builds_reset_at: new Date(Date.now() + 86_400_000).toISOString(),
+      credits_remaining: 5,
+      credits_total: 30,
+      credits_reset_at: new Date(Date.now() + 86_400_000).toISOString(),
+    });
+
+    const { getUserSubscriptionGate } = await import('@/lib/subscription/gate');
+    const gate = await getUserSubscriptionGate('user-cancelled');
+
+    expect(gate.tier).toBe('free');
+    expect(gate.canDeploy).toBe(false);
+    expect(gate.canUseAllModels).toBe(false);
   });
 
   // ── Pro tier ─────────────────────────────────────────────────────────────
@@ -91,21 +128,25 @@ describe('Subscription Gate', () => {
     expect(gate.buildsRemaining).toBeNull();
   });
 
-  // ── Builds reset logic ─────────────────────────────────────────────────
+  // ── Billing-period auto-reset ───────────────────────────────────────────
 
-  it('resets builds_this_month when builds_reset_at is in the past', async () => {
+  it('auto-resets credits to the tier allocation when the reset date has passed', async () => {
     mockProfile({
       subscription_status: 'free',
       builds_this_month: 3,
       builds_reset_at: new Date(Date.now() - 86_400_000).toISOString(), // yesterday
+      credits_remaining: 0, // depleted before reset
+      credits_total: 30,
+      credits_reset_at: new Date(Date.now() - 86_400_000).toISOString(), // yesterday
     });
 
     const { getUserSubscriptionGate } = await import('@/lib/subscription/gate');
     const gate = await getUserSubscriptionGate('user-4');
 
-    // After reset, builds_this_month should be treated as 0
+    // The expired period restores the free tier's full 30-credit allocation.
+    expect(gate.creditsRemaining).toBe(30);
+    expect(gate.creditsTotal).toBe(30);
     expect(gate.canBuild).toBe(true);
-    expect(gate.buildsRemaining).toBe(3);
   });
 
   // ── Error fallback ─────────────────────────────────────────────────────
