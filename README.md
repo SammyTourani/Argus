@@ -1,5 +1,7 @@
 # Argus
 
+[![CI](https://github.com/SammyTourani/Argus/actions/workflows/ci.yml/badge.svg)](https://github.com/SammyTourani/Argus/actions/workflows/ci.yml)
+
 AI web app builder. Describe what you want to build, and an AI generates a full web app from your prompt (or clones an existing site from a URL). You then iterate through chat against a live, sandboxed preview.
 
 Live at [buildargus.dev](https://buildargus.dev).
