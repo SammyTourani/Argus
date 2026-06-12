@@ -48,6 +48,67 @@ describe('Crypto Module', () => {
     expect(a).not.toBe(b);
   });
 
+  it('round-trips unicode and empty strings without data loss', async () => {
+    const { encrypt, decrypt } = await import('@/lib/crypto');
+    for (const plaintext of ['', 'πλ-key-✓-🔐', 'a'.repeat(4096)]) {
+      expect(decrypt(encrypt(plaintext))).toBe(plaintext);
+    }
+  });
+
+  // ── GCM authentication: tampering must be rejected ────────────────────────
+  // The whole point of AES-256-GCM over plain AES is that any modification of
+  // the ciphertext or auth tag fails the integrity check on decrypt. If these
+  // pass, an attacker who can edit the stored hex blob cannot silently forge
+  // or corrupt a BYOK key.
+
+  // Flip a single hex nibble at `index` so the byte definitely changes.
+  function flipHexNibble(hex: string, index: number): string {
+    const replacement = hex[index] === 'f' ? 'e' : 'f';
+    return hex.slice(0, index) + replacement + hex.slice(index + 1);
+  }
+
+  it('decrypt rejects tampered ciphertext (last byte flipped)', async () => {
+    const { encrypt, decrypt } = await import('@/lib/crypto');
+    const encrypted = encrypt('sk-secret-byok-key');
+    // The final hex char lives in the ciphertext region (after IV + authTag).
+    const tampered = flipHexNibble(encrypted, encrypted.length - 1);
+    expect(tampered).not.toBe(encrypted);
+    expect(() => decrypt(tampered)).toThrow();
+  });
+
+  it('decrypt rejects a tampered auth tag', async () => {
+    const { encrypt, decrypt } = await import('@/lib/crypto');
+    const encrypted = encrypt('sk-secret-byok-key');
+    // Layout is [12-byte IV][16-byte authTag][ciphertext]. The auth tag occupies
+    // hex indices 24..55; index 30 is squarely inside it.
+    const tampered = flipHexNibble(encrypted, 30);
+    expect(tampered).not.toBe(encrypted);
+    expect(() => decrypt(tampered)).toThrow();
+  });
+
+  it('decrypt rejects a tampered IV', async () => {
+    const { encrypt, decrypt } = await import('@/lib/crypto');
+    const encrypted = encrypt('sk-secret-byok-key');
+    // The IV occupies hex indices 0..23; flip a nibble at the start.
+    const tampered = flipHexNibble(encrypted, 0);
+    expect(tampered).not.toBe(encrypted);
+    expect(() => decrypt(tampered)).toThrow();
+  });
+
+  it('decrypt fails when the wrong key is used (no cross-key leakage)', async () => {
+    const { encrypt, decrypt } = await import('@/lib/crypto');
+    const encrypted = encrypt('sk-secret-byok-key');
+
+    const saved = process.env.ENCRYPTION_KEY;
+    // A different valid 64-char hex key must not be able to decrypt the blob.
+    process.env.ENCRYPTION_KEY = 'b'.repeat(64);
+    try {
+      expect(() => decrypt(encrypted)).toThrow();
+    } finally {
+      process.env.ENCRYPTION_KEY = saved;
+    }
+  });
+
   it('deriveKeyMask produces correct masks', async () => {
     const { deriveKeyMask } = await import('@/lib/crypto');
 
